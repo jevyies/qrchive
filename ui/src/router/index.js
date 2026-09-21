@@ -48,8 +48,14 @@ const router = createRouter({
 router.beforeEach((to) => {
   const authenticated = hasAuthToken()
 
-  // Allow public landing page and auth pages
-  if (to.path === '/' || to.path === '/login' || to.path === '/register') {
+  // Allow public landing page, auth pages, and guest event vault routes
+  if (
+    to.path === '/' ||
+    to.path === '/login' ||
+    to.path === '/register' ||
+    to.path.startsWith('/event') ||
+    to.meta?.public
+  ) {
     if (authenticated && (to.path === '/login' || to.path === '/register')) {
       return '/dashboard'
     }

@@ -2,10 +2,12 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDisplay } from '@/composables/useDisplay'
 import AccountInfoModal from '@/views/modals/AccountInfoModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { isMobile } = useDisplay()
 
 // Dynamic display name for user greeting
 const displayName = computed(() => {
@@ -83,7 +85,8 @@ const navigateTo = (path) => {
     <!-- Displayed when owner status === 'pending'                    -->
     <!-- ============================================================ -->
     <JCard v-if="authStore.isPendingOwner" variant="custom" no-body
-      class="rounded-2xl bg-surface-container-lowest p-space-lg shadow-sm border border-primary-fixed ring-1 ring-primary/10 relative overflow-hidden flex flex-col gap-space-md">
+      class="bg-surface-container-lowest p-space-lg shadow-sm border border-primary-fixed ring-1 ring-primary/10 relative overflow-hidden flex flex-col gap-space-md"
+      :class="{ 'rounded-2xl': !isMobile }">
       <div class="pointer-events-none absolute -right-16 -top-16 w-48 h-48 rounded-full bg-primary-fixed/30 blur-2xl">
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">

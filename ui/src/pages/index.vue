@@ -8,9 +8,10 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLayout } from '../composables/useLayout'
 import { hasAuthToken } from '../@core/utils/cookies'
+import AppLogo from '../@core/components/AppLogo.vue'
 
 const router = useRouter()
-const { selectTheme, isDarkMode } = useLayout()
+const { currentTheme, selectTheme, isDarkMode } = useLayout()
 
 const isAuthenticated = computed(() => {
   return typeof window !== 'undefined' && hasAuthToken()
@@ -97,7 +98,7 @@ const handleUserClick = () => {
 </script>
 
 <template>
-  <div class="landing-page font-sans">
+  <div class="landing-page font-sans" :data-theme="currentTheme" :class="['landing-page--' + currentTheme]">
     <!-- ======================================================================= -->
     <!-- 1. RESPONSIVE HEADER                                                    -->
     <!-- ======================================================================= -->
@@ -105,9 +106,7 @@ const handleUserClick = () => {
       <div class="header-container">
         <!-- Logo & Brand -->
         <a href="#" class="brand-link" @click.prevent="scrollTo('top', 'explore')">
-          <img
-            src="https://lh3.googleusercontent.com/aida/AEtjO1WesVcF39F7C67McHbxlIR_guiV0RFjJYs_cpO4KMQ69abUJvGQWwuHJkCJFyxRy3sJwXeDUg2MLtdGxCDx_fMKK_zj7zdm3kodzkqeW4-bW_PDAhH3a0g_ukoYR_Vpts-QACTGgLOfrPEww-ZedhnWM9bemhIBy4EqRx3aFQxXurVVVf3cPllbaOhTo-39MbxvkBrt82kCArWPtRGJayXqeC0rtIpkvHs_TLbHEVaZ"
-            alt="QRchive Logo" class="brand-logo" />
+          <AppLogo :width="38" :height="38" color="primary" class="brand-logo" />
           <div class="brand-text">
             <span class="brand-title">QRchive</span>
             <span class="brand-subtitle">Celebration Vault</span>
@@ -759,7 +758,7 @@ const handleUserClick = () => {
                 <!-- Confirmation Alert Message -->
                 <div v-if="isFormSubmitted" class="submit-success-msg">
                   ✨ Vault Configured! Your customized 5x7 printable template is being dispatched to {{ formData.email ||
-                  'your email' }}!
+                    'your email' }}!
                 </div>
               </div>
             </form>
@@ -786,9 +785,7 @@ const handleUserClick = () => {
           <!-- Col 1: Brand & Philosophy -->
           <div class="footer-col col-brand">
             <div class="brand-link mb-3">
-              <img
-                src="https://lh3.googleusercontent.com/aida/AEtjO1WesVcF39F7C67McHbxlIR_guiV0RFjJYs_cpO4KMQ69abUJvGQWwuHJkCJFyxRy3sJwXeDUg2MLtdGxCDx_fMKK_zj7zdm3kodzkqeW4-bW_PDAhH3a0g_ukoYR_Vpts-QACTGgLOfrPEww-ZedhnWM9bemhIBy4EqRx3aFQxXurVVVf3cPllbaOhTo-39MbxvkBrt82kCArWPtRGJayXqeC0rtIpkvHs_TLbHEVaZ"
-                alt="QRchive Logo" class="brand-logo" />
+              <AppLogo :width="36" :height="36" color="primary" class="brand-logo" />
               <span class="brand-title">QRchive</span>
             </div>
             <p class="footer-desc">
@@ -888,7 +885,11 @@ const handleUserClick = () => {
    Tailored to warm champagne gold (#c5a059), bronze (#775a19), and ivory
    ========================================================================== */
 
-.landing-page {
+/* Explicit Light Mode Tokens */
+.landing-page,
+.landing-page[data-theme="light"],
+.landing-page.landing-page--light,
+[data-theme="light"] .landing-page {
   --lp-primary: var(--primary, #d7b465);
   --lp-primary-hover: #5d4201;
   --lp-accent: var(--accent, #c5a059);
@@ -901,7 +902,29 @@ const handleUserClick = () => {
   --lp-border: var(--border-color, #d1c5b4);
   --lp-border-subtle: rgba(197, 160, 89, 0.25);
   --lp-card-dark: #201b18;
+}
 
+/* Explicit Dark Mode Tokens */
+.landing-page[data-theme="dark"],
+.landing-page.landing-page--dark,
+[data-theme="dark"] .landing-page,
+.theme-dark .landing-page,
+.dark .landing-page {
+  --lp-primary: #d7b465;
+  --lp-primary-hover: #e0c068;
+  --lp-accent: #c5a059;
+  --lp-accent-light: rgba(197, 160, 89, 0.15);
+  --lp-bg: #161311;
+  --lp-surface: #201b18;
+  --lp-surface-low: rgba(255, 255, 255, 0.05);
+  --lp-text-primary: #fdfbf7;
+  --lp-text-muted: #b4aca1;
+  --lp-border: #352f2c;
+  --lp-border-subtle: rgba(197, 160, 89, 0.20);
+  --lp-card-dark: #1a1714;
+}
+
+.landing-page {
   min-height: 100vh;
   background-color: var(--lp-bg);
   color: var(--lp-text-primary);
@@ -910,6 +933,7 @@ const handleUserClick = () => {
   position: relative;
   padding-bottom: 70px;
   /* Space for mobile bottom bar */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @media (min-width: 1024px) {
@@ -1075,10 +1099,25 @@ const handleUserClick = () => {
   transition: all 0.2s ease;
 }
 
+.landing-page[data-theme="dark"] .icon-btn,
+[data-theme="dark"] .icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(215, 180, 101, 0.25);
+  color: var(--lp-text-primary);
+}
+
 .icon-btn:hover {
   background: var(--lp-surface);
   color: var(--lp-primary);
   border-color: var(--lp-primary);
+}
+
+.landing-page[data-theme="dark"] .icon-btn:hover,
+[data-theme="dark"] .icon-btn:hover {
+  background: rgba(215, 180, 101, 0.18);
+  border-color: var(--lp-primary);
+  color: var(--lp-primary);
+  transform: translateY(-2px);
 }
 
 /* ==========================================================================
@@ -1091,14 +1130,21 @@ const handleUserClick = () => {
   width: 100%;
   z-index: 100;
   background: rgba(255, 248, 245, 0.88);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--lp-border-subtle);
   box-shadow: 0 2px 14px rgba(119, 90, 25, 0.04);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-:global([data-theme="dark"]) .header-nav {
-  background: rgba(22, 19, 17, 0.88);
+.landing-page[data-theme="dark"] .header-nav,
+.landing-page.landing-page--dark .header-nav,
+[data-theme="dark"] .header-nav,
+.theme-dark .header-nav,
+.dark .header-nav {
+  background: rgba(18, 15, 13, 0.90);
+  border-bottom: 1px solid rgba(215, 180, 101, 0.18);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.6);
 }
 
 .header-container {
@@ -1119,9 +1165,13 @@ const handleUserClick = () => {
 }
 
 .brand-logo {
-  height: 44px;
-  width: auto;
-  object-fit: contain;
+  flex-shrink: 0;
+  display: inline-block;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-link:hover .brand-logo {
+  transform: scale(1.05);
 }
 
 .brand-text {
@@ -1460,9 +1510,11 @@ const handleUserClick = () => {
   text-transform: uppercase;
 }
 
-:global([data-theme="dark"]) .floating-badge {
+.landing-page[data-theme="dark"] .floating-badge,
+[data-theme="dark"] .floating-badge {
   background: rgba(32, 27, 24, 0.92);
   color: #fdfbf7;
+  border-color: rgba(215, 180, 101, 0.3);
 }
 
 .badge-top-left {
@@ -2411,15 +2463,22 @@ const handleUserClick = () => {
   width: 100%;
   z-index: 100;
   background: rgba(255, 248, 245, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-top: 1px solid var(--lp-border-subtle);
   box-shadow: 0 -4px 20px rgba(119, 90, 25, 0.08);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-:global([data-theme="dark"]) .mobile-bottom-bar {
-  background: rgba(22, 19, 17, 0.92);
+.landing-page[data-theme="dark"] .mobile-bottom-bar,
+.landing-page.landing-page--dark .mobile-bottom-bar,
+[data-theme="dark"] .mobile-bottom-bar,
+.theme-dark .mobile-bottom-bar,
+.dark .mobile-bottom-bar {
+  background: rgba(18, 15, 13, 0.94);
+  border-top: 1px solid rgba(215, 180, 101, 0.18);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.65);
 }
 
 @media (min-width: 1024px) {
@@ -2445,12 +2504,24 @@ const handleUserClick = () => {
   min-width: 56px;
   color: var(--lp-text-muted);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.landing-page[data-theme="dark"] .mobile-tab-btn,
+[data-theme="dark"] .mobile-tab-btn {
+  color: #a89f91;
 }
 
 .mobile-tab-btn:hover,
 .mobile-tab-btn.active {
   color: var(--lp-primary);
+}
+
+.landing-page[data-theme="dark"] .mobile-tab-btn:hover,
+.landing-page[data-theme="dark"] .mobile-tab-btn.active,
+[data-theme="dark"] .mobile-tab-btn:hover,
+[data-theme="dark"] .mobile-tab-btn.active {
+  color: #d7b465;
 }
 
 .tab-label {

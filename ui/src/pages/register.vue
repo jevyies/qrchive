@@ -266,7 +266,7 @@ const handleRegister = async () => {
 
     <!-- Center Card Container -->
     <main class="d-flex align-center justify-center flex-1 position-relative z-10 py-3">
-      <JCard variant="glass" class="w-full max-w-lg border border-subtle shadow-xl" body-class="p-5 p-sm-6">
+      <JCard variant="glass" class="w-full max-w-lg border border-subtle shadow-xl rounded-2xl" body-class="p-5 p-sm-6">
 
         <!-- Header & Logo -->
         <div class="text-center mb-4">
@@ -274,26 +274,6 @@ const handleRegister = async () => {
             style="background: var(--primary-tonal, rgba(99, 102, 241, 0.15)); border: 1px solid var(--border-color-subtle);">
             <AppLogo :width="44" :height="32" class="d-block" />
           </div>
-          <p class="text-xs text-secondary d-flex gap-1 justify-center align-center">
-            Powered by
-            <span class="d-flex gap-1 rounded-full border border-subtle px-2 py-1">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 87.3 78" width="16" height="16">
-                <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z"
-                  fill="#0066da" />
-                <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z"
-                  fill="#00ac47" />
-                <path
-                  d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z"
-                  fill="#ea4335" />
-                <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
-                <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"
-                  fill="#2684fc" />
-                <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"
-                  fill="#ffba00" />
-              </svg>
-              Google Drive
-            </span>
-          </p>
           <h1 class="text-2xl font-black mb-1">
             {{
               currentStep === 'verification' ?
@@ -406,7 +386,7 @@ const handleRegister = async () => {
             <label class="form-check d-flex align-center gap-2 mb-0 cursor-pointer">
               <input type="checkbox" class="form-check-input" v-model="rememberMe" />
               <span class="form-check-label text-xs text-secondary">
-                Remember my session
+                Remember my device
               </span>
             </label>
           </div>
@@ -433,7 +413,8 @@ const handleRegister = async () => {
         </form>
 
         <!-- STEP 2: Email Verification Code Entry -->
-        <form v-else-if="currentStep === 'verification'" @submit.prevent="handleRegister" class="d-flex flex-column gap-4 py-2">
+        <form v-else-if="currentStep === 'verification'" @submit.prevent="handleRegister"
+          class="d-flex flex-column gap-4 py-2">
 
           <!-- Verification Code Box -->
           <div class="text-center">

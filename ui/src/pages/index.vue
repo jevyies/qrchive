@@ -199,16 +199,9 @@ const handleUserClick = () => {
         <div class="section-container hero-grid">
           <!-- Left Column: Editorial Headline & Copy -->
           <div class="hero-content">
-            <!-- Pill Category Badge -->
-            <div class="pill-badge">
-              <span class="heart-icon">♥</span>
-              <span class="pill-text">SNAP &amp; SHARE • CELEBRATION MEMORY COLLECTOR</span>
-              <span class="heart-icon">♥</span>
-            </div>
-
             <!-- Main Title -->
             <h1 class="hero-title">
-              Snap and Share Every <span class="hero-title-italic">Unforgettable</span> Milestone Moment.
+              Snap and Share Every <span class="hero-title-italic">Unforgettable</span> Moment.
             </h1>
 
             <!-- Subtitle -->
@@ -226,7 +219,7 @@ const handleUserClick = () => {
 
               <button type="button" class="btn-secondary-tonal hero-cta-btn" @click="scrollTo('steps')">
                 <span class="material-symbols-outlined text-accent text-[20px]">play_circle</span>
-                <span>See Guest Demo</span>
+                <span>Try Our Guest Demo</span>
               </button>
             </div>
 
@@ -705,7 +698,7 @@ const handleUserClick = () => {
               <div class="crest-icon-badge">
                 <span>♥</span>
               </div>
-              <h2 class="launch-title">Ready to launch your Event Snap &amp; Share?</h2>
+              <h2 class="launch-title">Ready to launch your Event?</h2>
               <p class="launch-subtitle">
                 Choose your tier, customize your 5x7 table placards, and let your guests capture every angle candidly.
               </p>

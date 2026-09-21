@@ -1,0 +1,121 @@
+// ============================================================================
+// BASE TYPOGRAPHY
+// Fluid typography, headings scale, paragraphs, and monospace code styles
+// ============================================================================
+
+@use '../variables' as *;
+
+body {
+  font-family: $font-family-base;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  color: $text-primary;
+  background-color: $bg-body;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+  line-height: $line-height-tight;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: $font-size-4xl;
+  font-weight: $font-weight-extrabold;
+}
+
+h2 {
+  font-size: $font-size-3xl;
+}
+
+h3 {
+  font-size: $font-size-2xl;
+}
+
+h4 {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+}
+
+h5 {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+}
+
+h6 {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+}
+
+p {
+  color: $text-secondary;
+  margin-bottom: 0.75rem;
+  line-height: $line-height-normal;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.lead {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-normal;
+  color: $text-secondary;
+  line-height: $line-height-relaxed;
+}
+
+small,
+.text-sm {
+  font-size: $font-size-sm;
+}
+
+.text-xs {
+  font-size: $font-size-xs;
+}
+
+strong,
+b {
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: $font-family-mono;
+  font-size: 0.875em;
+}
+
+code {
+  padding: 0.15rem 0.35rem;
+  background-color: $bg-surface-tonal;
+  border: 1px solid $border-color-subtle;
+  border-radius: $radius-xs;
+  color: var(--accent, #6366f1);
+}
+
+pre {
+  display: block;
+  padding: 1rem;
+  overflow-x: auto;
+  background-color: $bg-surface;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  color: $text-primary;
+  line-height: 1.6;
+
+  code {
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: inherit;
+  }
+}

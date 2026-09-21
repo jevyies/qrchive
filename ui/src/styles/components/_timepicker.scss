@@ -1,0 +1,541 @@
+// ============================================================================
+// COMPONENT: JTIMEPICKER
+// Selection Styles: Rounded (Circle), Square (Crisp 2px), Squircle (Smooth curve)
+// Formats: 12h AM/PM, 24h, Seconds, Step Intervals
+// Views: Steppers (Spinners) & Scrollable Columns
+// ============================================================================
+
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.j-timepicker {
+  position: relative;
+  display: block;
+  width: 100%;
+
+  // Anchor Input Wrapper
+  .j-timepicker-input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  // Inner leading icon
+  .j-timepicker-inner-icon-start {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    color: var(--text-muted, #94a3b8);
+    pointer-events: none;
+  }
+
+  // Inner trailing action wrapper
+  .j-timepicker-inner-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  // Clear button inside input
+  .j-timepicker-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    color: var(--text-muted, #94a3b8);
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover {
+      color: var(--text-primary, #ffffff);
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  // Clock toggle button inside input
+  .j-timepicker-clock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    padding: 0;
+    font-size: 0.95rem;
+    color: var(--text-muted, #94a3b8);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover {
+      color: var(--primary, #6366f1);
+      transform: scale(1.08);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 1. FLOATING TIMEPICKER POPOVER CONTAINER
+// ----------------------------------------------------------------------------
+.j-timepicker-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1060;
+  min-width: 310px;
+  background-color: var(--bg-surface-elevated, #1e293b);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  user-select: none;
+  animation: jTimepickerFadeIn 160ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.has-presets {
+    min-width: 410px;
+  }
+}
+
+@keyframes jTimepickerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. MAIN LAYOUT
+// ----------------------------------------------------------------------------
+.j-timepicker-layout {
+  display: flex;
+  flex-direction: column;
+
+  @media (min-width: 500px) {
+    &.has-sidebar {
+      flex-direction: row;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. PRESETS SIDEBAR
+// ----------------------------------------------------------------------------
+.j-timepicker-presets {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.625rem;
+  background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.03));
+  border-bottom: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+
+  @media (min-width: 500px) {
+    .has-sidebar & {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      width: 140px;
+      border-bottom: none;
+      border-right: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+    }
+  }
+
+  .presets-title {
+    font-size: 0.725rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #94a3b8);
+    margin-bottom: 0.25rem;
+    padding-left: 0.25rem;
+  }
+
+  .preset-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #cbd5e1);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm, 0.375rem);
+    cursor: pointer;
+    transition: $transition-fast;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+      color: var(--primary, #6366f1);
+      background-color: var(--primary-subtle, rgba(99, 102, 241, 0.12));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. MAIN BODY & HEADER
+// ----------------------------------------------------------------------------
+.j-timepicker-body {
+  flex: 1;
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// Digital Clock Display Header
+.j-timepicker-display-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04));
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.06));
+
+  .display-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary, #6366f1);
+    letter-spacing: 0.02em;
+
+    .time-colon {
+      opacity: 0.75;
+      animation: jTimeBlink 1.2s infinite;
+    }
+
+    .time-ampm-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      background: var(--primary-subtle, rgba(99, 102, 241, 0.15));
+      border-radius: var(--radius-xs, 0.25rem);
+      margin-left: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+  }
+
+  .j-timepicker-mode-switch {
+    display: inline-flex;
+    background: var(--bg-surface, rgba(0, 0, 0, 0.25));
+    padding: 2px;
+    border-radius: var(--radius-sm, 0.375rem);
+    border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.06));
+
+    .mode-tab {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.725rem;
+      font-weight: 600;
+      color: var(--text-muted, #94a3b8);
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-xs, 0.25rem);
+      cursor: pointer;
+      transition: $transition-fast;
+
+      &.active {
+        color: #ffffff;
+        background-color: var(--primary, #6366f1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      }
+    }
+  }
+}
+
+@keyframes jTimeBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+// ----------------------------------------------------------------------------
+// 5. VIEW 1: STEPPERS (SPINNERS)
+// ----------------------------------------------------------------------------
+.j-timepicker-steppers {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem;
+
+  .stepper-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+
+    .stepper-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted, #94a3b8);
+      letter-spacing: 0.05em;
+    }
+
+    .stepper-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 1.6rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary, #cbd5e1);
+      background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.05));
+      border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+      border-radius: var(--radius-sm, 0.375rem);
+      cursor: pointer;
+      transition: $transition-fast;
+
+      &:hover {
+        color: var(--primary, #6366f1);
+        background-color: var(--primary-subtle, rgba(99, 102, 241, 0.15));
+        border-color: var(--primary, #6366f1);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
+
+    .stepper-value {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.25rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary, #ffffff);
+      background-color: var(--bg-surface-elevated, rgba(0, 0, 0, 0.3));
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      border-radius: var(--radius-md, 0.5rem);
+    }
+  }
+
+  .stepper-separator {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-muted, #94a3b8);
+    margin-top: 1rem;
+  }
+
+  .ampm-col {
+    margin-left: 0.25rem;
+
+    .ampm-switch-pill {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+
+      .ampm-btn {
+        width: 2.25rem;
+        height: 1.85rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted, #94a3b8);
+        background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.05));
+        border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+        border-radius: var(--radius-sm, 0.375rem);
+        cursor: pointer;
+        transition: $transition-fast;
+
+        &.active {
+          color: #ffffff;
+          background-color: var(--primary, #6366f1);
+          border-color: var(--primary, #6366f1);
+          box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+        }
+
+        &:hover:not(.active) {
+          color: var(--text-primary, #ffffff);
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 6. VIEW 2: SCROLLABLE COLUMNS
+// ----------------------------------------------------------------------------
+.j-timepicker-columns {
+  display: flex;
+  gap: 0.35rem;
+  height: 170px;
+
+  .column-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.02));
+    border-radius: var(--radius-sm, 0.375rem);
+    border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.06));
+    overflow: hidden;
+
+    .column-header {
+      padding: 0.25rem 0;
+      text-align: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted, #94a3b8);
+      background-color: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.06));
+    }
+
+    .column-scroll {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 3px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+
+      .col-item-btn {
+        width: 100%;
+        padding: 0.35rem 0;
+        text-align: center;
+        font-size: 0.8rem;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary, #cbd5e1);
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-xs, 0.25rem);
+        cursor: pointer;
+        transition: $transition-fast;
+
+        &:hover {
+          color: var(--text-primary, #ffffff);
+          background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        &.active {
+          color: #ffffff;
+          font-weight: 700;
+          background-color: var(--primary, #6366f1);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+      }
+    }
+  }
+
+  .period-column {
+    flex: 0 0 54px;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 7. FOOTER ACTION TOOLBAR
+// ----------------------------------------------------------------------------
+.j-timepicker-footer {
+  display: flex;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+
+  .footer-action-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: var(--primary, #6366f1);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm, 0.375rem);
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover {
+      background-color: var(--primary-subtle, rgba(99, 102, 241, 0.12));
+    }
+
+    &.text-muted {
+      color: var(--text-muted, #94a3b8);
+      &:hover {
+        color: var(--text-primary, #ffffff);
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+    }
+  }
+
+  .footer-spacer {
+    flex: 1;
+  }
+
+  .footer-ok-btn {
+    padding: 0.3rem 0.85rem;
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: #ffffff;
+    background-color: var(--primary, #6366f1);
+    border: none;
+    border-radius: var(--radius-sm, 0.375rem);
+    cursor: pointer;
+    transition: $transition-fast;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.25);
+
+    &:hover {
+      background-color: var(--primary-hover, #4f46e5);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 8. SELECTION STYLES: ROUNDED, SQUARE, SQUIRCLE
+// ----------------------------------------------------------------------------
+.selection-rounded {
+  border-radius: var(--radius-xl, 1rem);
+
+  .stepper-btn, .stepper-value, .ampm-btn, .col-item-btn, .footer-ok-btn, .preset-btn {
+    border-radius: 9999px;
+  }
+}
+
+.selection-square {
+  border-radius: 2px;
+
+  .stepper-btn, .stepper-value, .ampm-btn, .col-item-btn, .footer-ok-btn, .preset-btn,
+  .j-timepicker-display-header, .column-wrapper {
+    border-radius: 2px !important;
+  }
+}
+
+.selection-squircle {
+  border-radius: var(--radius-lg, 0.75rem);
+
+  .stepper-btn, .stepper-value, .ampm-btn, .col-item-btn, .footer-ok-btn, .preset-btn,
+  .j-timepicker-display-header, .column-wrapper {
+    border-radius: var(--radius-sm, 0.375rem);
+  }
+}

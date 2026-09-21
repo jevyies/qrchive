@@ -1,0 +1,194 @@
+// ============================================================================
+// UTILITIES: TYPOGRAPHY (EXTENDED)
+// Fonts, scales, tracking, leading, weights, text colors, gradients, clamping
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. Font Family
+// ----------------------------------------------------------------------------
+.font-sans    { font-family: var(--font-sans, 'Outfit', sans-serif) !important; }
+.font-mono    { font-family: var(--font-mono, 'JetBrains Mono', monospace) !important; }
+.font-heading { font-family: var(--font-heading, 'Outfit', sans-serif) !important; }
+
+// ----------------------------------------------------------------------------
+// 2. Font Size Scale
+// ----------------------------------------------------------------------------
+.text-xs   { font-size: 0.75rem !important; line-height: 1rem !important; }      // 12px
+.text-sm   { font-size: 0.875rem !important; line-height: 1.25rem !important; }  // 14px
+.text-base { font-size: 1rem !important; line-height: 1.5rem !important; }      // 16px
+.text-lg   { font-size: 1.125rem !important; line-height: 1.75rem !important; }  // 18px
+.text-xl   { font-size: 1.25rem !important; line-height: 1.75rem !important; }   // 20px
+.text-2xl  { font-size: 1.5rem !important; line-height: 2rem !important; }       // 24px
+.text-3xl  { font-size: 1.875rem !important; line-height: 2.25rem !important; }  // 30px
+.text-4xl  { font-size: 2.25rem !important; line-height: 2.5rem !important; }    // 36px
+.text-5xl  { font-size: 3rem !important; line-height: 1 !important; }           // 48px
+.text-6xl  { font-size: 3.75rem !important; line-height: 1 !important; }        // 60px
+
+// ----------------------------------------------------------------------------
+// 3. Font Weights
+// ----------------------------------------------------------------------------
+.font-thin       { font-weight: 100 !important; }
+.font-extralight { font-weight: 200 !important; }
+.font-light      { font-weight: 300 !important; }
+.font-normal     { font-weight: 400 !important; }
+.font-medium     { font-weight: 500 !important; }
+.font-semibold   { font-weight: 600 !important; }
+.font-bold       { font-weight: 700 !important; }
+.font-extrabold  { font-weight: 800 !important; }
+.font-black      { font-weight: 900 !important; }
+
+// ----------------------------------------------------------------------------
+// 4. Letter Spacing (Tracking)
+// ----------------------------------------------------------------------------
+.tracking-tighter { letter-spacing: -0.05em !important; }
+.tracking-tight   { letter-spacing: -0.025em !important; }
+.tracking-normal  { letter-spacing: 0em !important; }
+.tracking-wide    { letter-spacing: 0.025em !important; }
+.tracking-wider   { letter-spacing: 0.05em !important; }
+.tracking-widest  { letter-spacing: 0.1em !important; }
+
+// ----------------------------------------------------------------------------
+// 5. Line Height (Leading)
+// ----------------------------------------------------------------------------
+.leading-none    { line-height: 1 !important; }
+.leading-tight   { line-height: 1.25 !important; }
+.leading-snug    { line-height: 1.375 !important; }
+.leading-normal  { line-height: 1.5 !important; }
+.leading-relaxed { line-height: 1.625 !important; }
+.leading-loose   { line-height: 2 !important; }
+
+// ----------------------------------------------------------------------------
+// 6. Text Alignment & Style
+// ----------------------------------------------------------------------------
+.text-left    { text-align: left !important; }
+.text-center  { text-align: center !important; }
+.text-right   { text-align: right !important; }
+.text-justify { text-align: justify !important; }
+
+.italic       { font-style: italic !important; }
+.not-italic   { font-style: normal !important; }
+
+.text-uppercase     { text-transform: uppercase !important; }
+.text-lowercase     { text-transform: lowercase !important; }
+.text-capitalize    { text-transform: capitalize !important; }
+.text-normal-case   { text-transform: none !important; }
+
+.underline          { text-decoration: underline !important; }
+.line-through       { text-decoration: line-through !important; }
+.no-underline       { text-decoration: none !important; }
+
+.underline-offset-2 { text-underline-offset: 2px !important; }
+.underline-offset-4 { text-underline-offset: 4px !important; }
+.underline-offset-8 { text-underline-offset: 8px !important; }
+
+// ----------------------------------------------------------------------------
+// 7. Text Colors & Tonal Shades
+// ----------------------------------------------------------------------------
+.text-primary   { color: var(--text-primary, #f8fafc) !important; }
+.text-secondary { color: var(--text-secondary, #94a3b8) !important; }
+.text-muted     { color: var(--text-muted, #64748b) !important; }
+.text-inverse   { color: var(--text-inverse, #0f172a) !important; }
+.text-accent    { color: var(--accent, #6366f1) !important; }
+.text-brand     { color: var(--primary, #4f46e5) !important; }
+.text-success   { color: var(--success, #10b981) !important; }
+.text-warning   { color: var(--warning, #f59e0b) !important; }
+.text-danger    { color: var(--danger, #f43f5e) !important; }
+.text-info      { color: var(--info, #0ea5e9) !important; }
+.text-white     { color: #ffffff !important; }
+
+// ----------------------------------------------------------------------------
+// 8. Gradient Text Utilities
+// ----------------------------------------------------------------------------
+.text-gradient-primary {
+  background: linear-gradient(135deg, var(--primary, #4f46e5) 0%, var(--accent, #6366f1) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
+.text-gradient-cyber {
+  background: linear-gradient(135deg, #fcee0a 0%, #00f0ff 50%, #ff0055 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
+.text-gradient-sunset {
+  background: linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
+// ----------------------------------------------------------------------------
+// 9. Overflow & Word Breaks
+// ----------------------------------------------------------------------------
+.text-truncate {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.break-words        { overflow-wrap: break-word !important; word-break: break-word !important; }
+.break-all          { word-break: break-all !important; }
+.break-normal       { overflow-wrap: normal !important; word-break: normal !important; }
+.whitespace-nowrap  { white-space: nowrap !important; }
+.whitespace-pre     { white-space: pre !important; }
+.whitespace-pre-wrap{ white-space: pre-wrap !important; }
+.whitespace-normal  { white-space: normal !important; }
+
+// Line Clamp (1, 2, 3, 4, 5)
+.line-clamp-1 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 1 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.line-clamp-2 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.line-clamp-3 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.line-clamp-4 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 4 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.line-clamp-5 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 5 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+// ----------------------------------------------------------------------------
+// 10. List Styles
+// ----------------------------------------------------------------------------
+.list-disc    { list-style-type: disc !important; }
+.list-decimal { list-style-type: decimal !important; }
+.list-none    { list-style-type: none !important; }
+.list-inside  { list-style-position: inside !important; }
+.list-outside { list-style-position: outside !important; }

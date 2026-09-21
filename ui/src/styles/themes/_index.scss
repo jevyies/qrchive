@@ -1,0 +1,30 @@
+// ============================================================================
+// THEMES INDEX
+// Master theme selector mapping for data-theme attributes and utility classes
+// ============================================================================
+
+@use 'light' as *;
+@use 'dark' as *;
+
+// Default Theme is Light
+:root {
+  @include theme-light-tokens;
+}
+
+// System Preference Dark Mode (if not explicitly set)
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    @include theme-dark-tokens;
+  }
+}
+
+// Explicit Data-Theme Attribute Selectors
+[data-theme='light'],
+.theme-light {
+  @include theme-light-tokens;
+}
+
+[data-theme='dark'],
+.theme-dark {
+  @include theme-dark-tokens;
+}

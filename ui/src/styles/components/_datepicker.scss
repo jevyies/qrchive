@@ -1,0 +1,689 @@
+// ============================================================================
+// COMPONENT: JDATEPICKER & TIME PICKER
+// Selection Styles: Rounded (Circle), Square (Crisp 2px), Squircle (Smooth curve)
+// Modes: Single Date, Date & Time, Date Range, Range & Time
+// Features: Direct Input, Fast Month/Year Jumper, Presets, Time Dial/Steppers
+// ============================================================================
+
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.j-datepicker {
+  position: relative;
+  display: block;
+  width: 100%;
+
+  // Anchor Input Container
+  .j-datepicker-input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  // Inner leading icon
+  .j-datepicker-inner-icon-start {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    color: var(--text-muted, #94a3b8);
+    pointer-events: none;
+  }
+
+  // Inner trailing action wrapper
+  .j-datepicker-inner-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  // Clear button inside input
+  .j-datepicker-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    color: var(--text-muted, #94a3b8);
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover {
+      color: var(--text-primary, #ffffff);
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  // Calendar toggle button inside input
+  .j-datepicker-calendar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    padding: 0;
+    font-size: 0.95rem;
+    color: var(--text-muted, #94a3b8);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover {
+      color: var(--primary, #6366f1);
+      transform: scale(1.08);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 1. FLOATING DROPDOWN POPOVER
+// ----------------------------------------------------------------------------
+.j-datepicker-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1060;
+  min-width: 320px;
+  background-color: var(--bg-surface-elevated, #1e293b);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  user-select: none;
+  animation: jDatepickerFadeIn 160ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.j-datepicker-popover-right {
+    left: auto;
+    right: 0;
+  }
+
+  &.has-presets {
+    min-width: 440px;
+  }
+
+  &.has-time {
+    min-width: 340px;
+  }
+
+  &.is-range.has-presets {
+    min-width: 460px;
+  }
+}
+
+@keyframes jDatepickerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. MAIN LAYOUT CONTAINER (PRESETS + CALENDAR + TIME)
+// ----------------------------------------------------------------------------
+.j-datepicker-layout {
+  display: flex;
+  flex-direction: column;
+
+  @media (min-width: 520px) {
+    &.has-sidebar {
+      flex-direction: row;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. PRESETS SIDEBAR / QUICK SHORTCUTS
+// ----------------------------------------------------------------------------
+.j-datepicker-presets {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.625rem;
+  background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.03));
+  border-bottom: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+
+  @media (min-width: 520px) {
+    .has-sidebar & {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      width: 125px;
+      border-bottom: none;
+      border-right: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+    }
+  }
+
+  .preset-btn {
+    display: block;
+    width: auto;
+    padding: 0.35rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: $text-secondary;
+    text-align: left;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 0.375rem);
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover {
+      color: var(--primary, #6366f1);
+      background-color: var(--primary-tonal, rgba(99, 102, 241, 0.12));
+    }
+
+    &.is-active {
+      color: var(--primary-text, #ffffff);
+      background-color: var(--primary, #6366f1);
+      font-weight: 600;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. CALENDAR CORE PANE
+// ----------------------------------------------------------------------------
+.j-datepicker-body {
+  flex: 1;
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// ----------------------------------------------------------------------------
+// 5. CALENDAR HEADER (NAV, MONTH/YEAR TITLES, JUMPERS)
+// ----------------------------------------------------------------------------
+.j-datepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.875rem;
+    color: $text-secondary;
+    background: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 0.5rem);
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover:not(:disabled) {
+      color: var(--primary, #6366f1);
+      border-color: var(--primary, #6366f1);
+      background-color: var(--primary-tonal, rgba(99, 102, 241, 0.12));
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
+  .title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+
+    .title-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: $text-primary;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm, 0.375rem);
+      cursor: pointer;
+      transition: $transition-fast;
+
+      &:hover {
+        color: var(--primary, #6366f1);
+        background-color: var(--primary-tonal, rgba(99, 102, 241, 0.12));
+      }
+    }
+  }
+}
+
+// Range Header info strip
+.j-datepicker-range-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 0.375rem);
+
+  .range-badge {
+    padding: 0.15rem 0.4rem;
+    font-weight: 600;
+    border-radius: var(--radius-xs, 0.25rem);
+    background: var(--primary-tonal, rgba(99, 102, 241, 0.15));
+    color: var(--primary, #6366f1);
+  }
+
+  .range-arrow {
+    color: $text-muted;
+    font-size: 0.8rem;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 6. WEEKDAY ROW
+// ----------------------------------------------------------------------------
+.j-datepicker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+
+  .weekday-cell {
+    padding: 0.25rem 0;
+    font-size: 0.725rem;
+    font-weight: 600;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 7. CALENDAR DAYS GRID & SELECTION STYLES
+// ----------------------------------------------------------------------------
+.j-datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px 0; // vertical gap, no horizontal gap for connected ranges
+  row-gap: 3px;
+
+  .day-cell-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+
+    // Range Highlight Connected Track
+    &.in-range {
+      background-color: var(--primary-tonal, rgba(99, 102, 241, 0.16));
+
+      &.range-start {
+        border-top-left-radius: var(--day-radius, 9999px);
+        border-bottom-left-radius: var(--day-radius, 9999px);
+      }
+
+      &.range-end {
+        border-top-right-radius: var(--day-radius, 9999px);
+        border-bottom-right-radius: var(--day-radius, 9999px);
+      }
+    }
+
+    &.hover-in-range {
+      background-color: var(--primary-tonal, rgba(99, 102, 241, 0.1));
+    }
+  }
+
+  .day-btn {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.125rem;
+    height: 2.125rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: $text-primary;
+    background: transparent;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: all 140ms ease;
+
+    &:hover:not(:disabled):not(.is-selected) {
+      background-color: var(--bg-hover, rgba(255, 255, 255, 0.08));
+      color: var(--primary, #6366f1);
+    }
+
+    // Other Month days
+    &.is-other-month {
+      color: $text-muted;
+      opacity: 0.45;
+    }
+
+    // Today indicator
+    &.is-today {
+      font-weight: 700;
+      border-color: var(--primary, #6366f1);
+      color: var(--primary, #6366f1);
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: currentColor;
+      }
+    }
+
+    // Selected state
+    &.is-selected {
+      background-color: var(--primary, #6366f1);
+      color: var(--primary-text, #ffffff) !important;
+      font-weight: 600;
+      box-shadow: 0 4px 10px var(--shadow-glow, rgba(99, 102, 241, 0.4));
+      border-color: transparent;
+
+      &.is-today::after {
+        background-color: #ffffff;
+      }
+    }
+
+    // Disabled state
+    &:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// SELECTION STYLE VARIATIONS: ROUNDED, SQUARE, SQUIRCLE
+// ----------------------------------------------------------------------------
+
+// A. ROUNDED (Default: Circle cells, pill range ends)
+.selection-rounded {
+  --day-radius: 9999px;
+
+  .day-btn {
+    border-radius: 9999px;
+  }
+
+  .month-btn,
+  .year-btn {
+    border-radius: var(--radius-md, 0.5rem);
+  }
+
+  .preset-btn {
+    border-radius: 9999px;
+  }
+}
+
+// B. SQUARE (Sharp crisp modern look: 2px border radius)
+.selection-square {
+  --day-radius: 2px;
+
+  .day-btn {
+    border-radius: 2px;
+  }
+
+  .month-btn,
+  .year-btn {
+    border-radius: 2px;
+  }
+
+  .preset-btn {
+    border-radius: 2px;
+  }
+
+  .time-stepper-btn,
+  .time-input {
+    border-radius: 2px !important;
+  }
+}
+
+// C. SQUIRCLE (Smooth iOS-style curved squircle: 9px border radius)
+.selection-squircle {
+  --day-radius: 9px;
+
+  .day-btn {
+    border-radius: 9px;
+  }
+
+  .month-btn,
+  .year-btn {
+    border-radius: 8px;
+  }
+
+  .preset-btn {
+    border-radius: 8px;
+  }
+
+  .time-stepper-btn,
+  .time-input {
+    border-radius: 8px !important;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 8. FAST MONTH & YEAR GRID PICKERS
+// ----------------------------------------------------------------------------
+.j-datepicker-month-grid,
+.j-datepicker-year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+
+  .month-btn,
+  .year-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $text-primary;
+    background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover:not(:disabled):not(.is-selected) {
+      color: var(--primary, #6366f1);
+      border-color: var(--primary, #6366f1);
+      background-color: var(--primary-tonal, rgba(99, 102, 241, 0.12));
+    }
+
+    &.is-selected {
+      background-color: var(--primary, #6366f1);
+      color: var(--primary-text, #ffffff);
+      font-weight: 600;
+      box-shadow: 0 4px 10px var(--shadow-glow, rgba(99, 102, 241, 0.4));
+      border-color: transparent;
+    }
+
+    &.is-current {
+      border-color: var(--primary, #6366f1);
+      color: var(--primary, #6366f1);
+      font-weight: 600;
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 9. TIME PICKER SECTION
+// ----------------------------------------------------------------------------
+.j-datepicker-time-panel {
+  padding: 0.75rem 0.875rem;
+  background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.02));
+  border-top: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+
+  .time-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .time-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: $text-secondary;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+  }
+
+  .time-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+  }
+
+  .time-stepper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 3.25rem;
+
+    .time-stepper-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 1.25rem;
+      padding: 0;
+      font-size: 0.75rem;
+      color: $text-secondary;
+      background: var(--bg-surface-tonal, rgba(255, 255, 255, 0.05));
+      border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+      border-radius: var(--radius-sm, 0.375rem);
+      cursor: pointer;
+      transition: $transition-fast;
+
+      &:hover {
+        color: var(--primary, #6366f1);
+        border-color: var(--primary, #6366f1);
+      }
+    }
+
+    .time-input {
+      width: 100%;
+      height: 2rem;
+      text-align: center;
+      font-family: $font-family-mono;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: $text-primary;
+      background: var(--bg-surface, #0f172a);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+      border-radius: var(--radius-sm, 0.375rem);
+      margin: 2px 0;
+
+      &:focus {
+        border-color: var(--primary, #6366f1);
+        outline: none;
+        box-shadow: 0 0 0 2px var(--primary-tonal, rgba(99, 102, 241, 0.25));
+      }
+    }
+  }
+
+  .time-separator {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: $text-muted;
+    line-height: 1;
+    margin-top: 1.25rem;
+  }
+
+  .time-ampm-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 1.25rem;
+
+    .ampm-btn {
+      padding: 0.15rem 0.4rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: $text-muted;
+      background: var(--bg-surface-tonal, rgba(255, 255, 255, 0.05));
+      border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+      border-radius: var(--radius-xs, 0.25rem);
+      cursor: pointer;
+      transition: $transition-fast;
+
+      &.is-active {
+        color: var(--primary-text, #ffffff);
+        background-color: var(--primary, #6366f1);
+        border-color: var(--primary, #6366f1);
+      }
+    }
+  }
+
+  // Quick Time Presets
+  .time-quick-presets {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+
+    .time-preset-pill {
+      padding: 0.2rem 0.45rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: $text-secondary;
+      background: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04));
+      border: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+      border-radius: var(--radius-full, 9999px);
+      cursor: pointer;
+      transition: $transition-fast;
+
+      &:hover {
+        color: var(--primary, #6366f1);
+        border-color: var(--primary, #6366f1);
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 10. POPOVER FOOTER (TODAY, CLEAR, APPLY ACTIONS)
+// ----------------------------------------------------------------------------
+.j-datepicker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.03));
+  border-top: 1px solid var(--border-color-subtle, rgba(255, 255, 255, 0.08));
+
+  .footer-left,
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+}

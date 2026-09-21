@@ -1,0 +1,96 @@
+// ============================================================================
+// SOLARIZED THEME TOKENS
+// Authentic Solarized Dark & Warm Cyan palette with precision contrast
+// ============================================================================
+
+@mixin theme-solarized-tokens {
+  --theme-name: 'solarized';
+
+  // Surface & Background Colors
+  --bg-body: #002b36;
+  --bg-surface: #073642;
+  --bg-surface-elevated: #094757;
+  --bg-surface-tonal: rgba(38, 139, 210, 0.08);
+  --bg-glass: rgba(7, 54, 66, 0.8);
+  --bg-hover: rgba(38, 139, 210, 0.12);
+  --bg-active: rgba(38, 139, 210, 0.2);
+  --bg-disabled: rgba(0, 0, 0, 0.25);
+
+  // Typography Colors
+  --text-primary: #eee8d5;
+  --text-secondary: #93a1a1;
+  --text-muted: #586e75;
+  --text-inverse: #002b36;
+
+  // Border Colors
+  --border-color: #0d5466;
+  --border-color-subtle: rgba(147, 161, 161, 0.15);
+  --border-color-focus: #268bd2;
+  --border-glass: rgba(42, 161, 152, 0.25);
+
+  // Palette Colors
+  --primary: #268bd2;
+  --primary-hover: #1f77b4;
+  --primary-active: #186094;
+  --primary-tonal: rgba(38, 139, 210, 0.18);
+  --primary-text: #ffffff;
+
+  --secondary: #2aa198;
+  --secondary-hover: #22827a;
+  --secondary-active: #19635d;
+  --secondary-tonal: rgba(42, 161, 152, 0.18);
+  --secondary-text: #ffffff;
+
+  --accent: #2aa198;
+  --accent-hover: #22827a;
+  --accent-tonal: rgba(42, 161, 152, 0.18);
+
+  --success: #859900;
+  --success-hover: #6c7d00;
+  --success-tonal: rgba(133, 153, 0, 0.18);
+  --success-text: #ffffff;
+
+  --warning: #b58900;
+  --warning-hover: #916d00;
+  --warning-tonal: rgba(181, 137, 0, 0.18);
+  --warning-text: #ffffff;
+
+  --danger: #dc322f;
+  --danger-hover: #b82421;
+  --danger-tonal: rgba(220, 50, 47, 0.18);
+  --danger-text: #ffffff;
+
+  --info: #268bd2;
+  --info-hover: #1f77b4;
+  --info-tonal: rgba(38, 139, 210, 0.18);
+  --info-text: #ffffff;
+
+  --neutral: #6c71c4;
+  --neutral-hover: #565aa3;
+  --neutral-tonal: rgba(108, 113, 196, 0.18);
+  --neutral-text: #ffffff;
+
+  // Focus Ring
+  --ring-color: rgba(38, 139, 210, 0.4);
+
+  // Shadows
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 25px rgba(42, 161, 152, 0.4);
+
+  // Component Overrides
+  --sidebar-bg: #073642;
+  --sidebar-text: #eee8d5;
+  --sidebar-active-bg: #268bd2;
+  --navbar-bg: #073642;
+  --table-striped: rgba(38, 139, 210, 0.04);
+  --table-hover: rgba(42, 161, 152, 0.08);
+  --table-header-bg: rgba(0, 43, 54, 0.6);
+
+  // App Logo
+  --logo-default-base: #eee8d5;
+  --logo-default-dark: #93a1a1;
+  --logo-default-light: #586e75;
+}

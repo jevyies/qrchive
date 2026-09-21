@@ -1,0 +1,30 @@
+// ============================================================================
+// BASE ROOT & GLOBAL STYLES
+// ============================================================================
+
+@use '../variables' as *;
+@use '../mixins' as *;
+
+html,
+body,
+#app {
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  transition: background-color 250ms ease, color 250ms ease;
+  @include custom-scrollbar;
+}
+
+::selection {
+  background-color: var(--accent, #6366f1);
+  color: #ffffff;
+}
+
+// Global SVG defaults
+svg {
+  flex-shrink: 0;
+}

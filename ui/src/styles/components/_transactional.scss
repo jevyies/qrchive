@@ -1,0 +1,185 @@
+// ============================================================================
+// COMPONENT: TRANSACTIONAL UI (KPIs, INVOICES, RECEIPT CARDS, TIMELINE)
+// Specifically tailored for financial, e-commerce, and transactional web apps
+// ============================================================================
+
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ----------------------------------------------------------------------------
+// 1. STAT / KPI METRIC CARDS
+// ----------------------------------------------------------------------------
+.stat-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background-color: $bg-surface;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  transition: $transition-base;
+
+  &:hover {
+    border-color: var(--accent, #6366f1);
+    box-shadow: $shadow-md;
+  }
+
+  .stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .stat-label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $text-secondary;
+  }
+
+  .stat-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: $radius-md;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    background-color: $bg-surface-tonal;
+    color: var(--accent, #6366f1);
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: $font-size-xs;
+    color: $text-muted;
+  }
+
+  .stat-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-weight: $font-weight-semibold;
+    padding: 0.15rem 0.35rem;
+    border-radius: $radius-xs;
+
+    &.stat-trend-up {
+      color: var(--success, #10b981);
+      background-color: var(--success-tonal, rgba(16, 185, 129, 0.12));
+    }
+
+    &.stat-trend-down {
+      color: var(--danger, #f43f5e);
+      background-color: var(--danger-tonal, rgba(244, 63, 94, 0.12));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. INVOICE & RECEIPT CARDS
+// ----------------------------------------------------------------------------
+.invoice-card {
+  padding: 1.5rem;
+  background-color: $bg-surface;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+
+  .invoice-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid $border-color;
+  }
+
+  .invoice-line-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0;
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    border-bottom: 1px dashed $border-color-subtle;
+
+    &:last-of-type {
+      border-bottom: none;
+    }
+  }
+
+  .invoice-total {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid $border-color;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. TRANSACTION ACTIVITY TIMELINE
+// ----------------------------------------------------------------------------
+.timeline {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-left: 0.5rem;
+  border-left: 2px solid $border-color;
+
+  .timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: calc(-1.5rem - 6px);
+    top: 0.15rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--accent, #6366f1);
+    box-shadow: 0 0 0 4px $bg-body;
+
+    &.dot-success {
+      background-color: var(--success, #10b981);
+    }
+    &.dot-warning {
+      background-color: var(--warning, #f59e0b);
+    }
+    &.dot-danger {
+      background-color: var(--danger, #f43f5e);
+    }
+  }
+
+  .timeline-content {
+    .timeline-title {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+      margin-bottom: 0.15rem;
+    }
+
+    .timeline-time {
+      font-size: $font-size-xs;
+      color: $text-muted;
+    }
+  }
+}

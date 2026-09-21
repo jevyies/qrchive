@@ -1,0 +1,18 @@
+// ============================================================================
+// MASTER SCSS DESIGN SYSTEM ENTRY POINT
+// JUI Multi-Theme Design System
+// ============================================================================
+
+// 1. Core Tokens & Themes
+@use 'themes' as *;
+
+// 2. Base Styles
+@use 'base/reset' as *;
+@use 'base/typography' as *;
+@use 'base/root' as *;
+
+// 3. Components
+@use 'components' as *;
+
+// 4. Utility Classes Boilerplate
+@use 'utilities' as *;

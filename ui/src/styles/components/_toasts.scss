@@ -1,0 +1,706 @@
+// ============================================================================
+// COMPONENT: TOAST NOTIFICATIONS
+// Multi-size, multi-location, multi-theme notification toast system
+// ============================================================================
+
+@use 'sass:map';
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ----------------------------------------------------------------------------
+// 1. Toast Viewport Containers (9 Screen Positions)
+// ----------------------------------------------------------------------------
+.toast-viewport {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  pointer-events: none;
+  max-width: 100vw;
+  box-sizing: border-box;
+
+  // Prevent scrollbars or overflow issues
+  padding: 0;
+  margin: 0;
+
+  // Top positions
+  &.toast-pos-top-left {
+    top: 1.25rem;
+    left: 1.25rem;
+    align-items: flex-start;
+  }
+
+  &.toast-pos-top-center {
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+  }
+
+  &.toast-pos-top-right {
+    top: 1.25rem;
+    right: 1.25rem;
+    align-items: flex-end;
+  }
+
+  // Center positions (Vertical middle)
+  &.toast-pos-center-left {
+    top: 50%;
+    left: 1.25rem;
+    transform: translateY(-50%);
+    align-items: flex-start;
+  }
+
+  &.toast-pos-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    align-items: center;
+  }
+
+  &.toast-pos-center-right {
+    top: 50%;
+    right: 1.25rem;
+    transform: translateY(-50%);
+    align-items: flex-end;
+  }
+
+  // Bottom positions
+  &.toast-pos-bottom-left {
+    bottom: 1.25rem;
+    left: 1.25rem;
+    align-items: flex-start;
+  }
+
+  &.toast-pos-bottom-center {
+    bottom: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+  }
+
+  &.toast-pos-bottom-right {
+    bottom: 1.25rem;
+    right: 1.25rem;
+    align-items: flex-end;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. Toast Item Core Card
+// ----------------------------------------------------------------------------
+.j-toast {
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: auto;
+  border-radius: $radius-lg;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+  user-select: none;
+
+  &:hover {
+    box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.55), 0 6px 16px -2px rgba(0, 0, 0, 0.35);
+  }
+
+  .toast-content-wrapper {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    height: 100%;
+  }
+
+  .toast-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .toast-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+  }
+
+  .toast-title {
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .toast-message {
+    line-height: 1.45;
+    opacity: 0.9;
+  }
+
+  .toast-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .toast-dismiss-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.25rem;
+    margin-left: 0.5rem;
+    opacity: 0.65;
+    transition: opacity 150ms ease, transform 150ms ease;
+    border-radius: $radius-xs;
+    flex-shrink: 0;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+  }
+
+  // Progress Bar Countdown
+  .toast-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    transform-origin: left;
+    background: currentColor;
+    opacity: 0.5;
+
+    &.animating {
+      animation: toastProgress linear forwards;
+    }
+
+    &.is-paused {
+      animation-play-state: paused !important;
+    }
+  }
+}
+
+@keyframes toastProgress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. Sizes (xs, sm, md, lg, xl)
+// ----------------------------------------------------------------------------
+.j-toast.toast-size-xs {
+  min-width: 240px;
+  max-width: 320px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: $radius-md;
+
+  .toast-icon-wrapper {
+    font-size: 0.95rem;
+    margin-right: 0.5rem;
+    margin-top: 0.05rem;
+  }
+
+  .toast-title {
+    font-size: 0.8rem;
+    margin-bottom: 0.125rem;
+  }
+
+  .toast-dismiss-btn {
+    font-size: 0.875rem;
+  }
+}
+
+.j-toast.toast-size-sm {
+  min-width: 280px;
+  max-width: 380px;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.8125rem;
+  border-radius: $radius-md;
+
+  .toast-icon-wrapper {
+    font-size: 1.1rem;
+    margin-right: 0.65rem;
+    margin-top: 0.08rem;
+  }
+
+  .toast-title {
+    font-size: 0.875rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .toast-dismiss-btn {
+    font-size: 1rem;
+  }
+}
+
+.j-toast.toast-size-md {
+  min-width: 320px;
+  max-width: 440px;
+  padding: 0.85rem 1.15rem;
+  font-size: 0.9375rem;
+  border-radius: $radius-lg;
+
+  .toast-icon-wrapper {
+    font-size: 1.3rem;
+    margin-right: 0.85rem;
+    margin-top: 0.1rem;
+  }
+
+  .toast-title {
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .toast-dismiss-btn {
+    font-size: 1.125rem;
+  }
+}
+
+.j-toast.toast-size-lg {
+  min-width: 380px;
+  max-width: 520px;
+  padding: 1.1rem 1.45rem;
+  font-size: 1.0625rem;
+  border-radius: $radius-lg;
+
+  .toast-icon-wrapper {
+    font-size: 1.55rem;
+    margin-right: 1rem;
+    margin-top: 0.12rem;
+  }
+
+  .toast-title {
+    font-size: 1.15rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .toast-dismiss-btn {
+    font-size: 1.3rem;
+  }
+}
+
+.j-toast.toast-size-xl {
+  min-width: 440px;
+  max-width: 600px;
+  padding: 1.35rem 1.8rem;
+  font-size: 1.1875rem;
+  border-radius: $radius-xl;
+
+  .toast-icon-wrapper {
+    font-size: 1.85rem;
+    margin-right: 1.25rem;
+    margin-top: 0.15rem;
+  }
+
+  .toast-title {
+    font-size: 1.3rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .toast-dismiss-btn {
+    font-size: 1.5rem;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. Color Palettes & Variant Styling (Tonal, Solid, Outlined, Glass)
+// ----------------------------------------------------------------------------
+$toast-colors: (
+  'primary': (
+    'main': var(--primary, #4f46e5),
+    'tonal-bg': rgba(79, 70, 229, 0.18),
+    'tonal-border': rgba(79, 70, 229, 0.45),
+    'solid-bg': #4f46e5,
+    'solid-text': #ffffff,
+  ),
+  'secondary': (
+    'main': var(--secondary, #64748b),
+    'tonal-bg': rgba(100, 116, 139, 0.2),
+    'tonal-border': rgba(100, 116, 139, 0.45),
+    'solid-bg': #475569,
+    'solid-text': #ffffff,
+  ),
+  'success': (
+    'main': var(--success, #10b981),
+    'tonal-bg': rgba(16, 185, 129, 0.18),
+    'tonal-border': rgba(16, 185, 129, 0.45),
+    'solid-bg': #059669,
+    'solid-text': #ffffff,
+  ),
+  'warning': (
+    'main': var(--warning, #f59e0b),
+    'tonal-bg': rgba(245, 158, 11, 0.18),
+    'tonal-border': rgba(245, 158, 11, 0.45),
+    'solid-bg': #d97706,
+    'solid-text': #ffffff,
+  ),
+  'danger': (
+    'main': var(--danger, #f43f5e),
+    'tonal-bg': rgba(244, 63, 94, 0.18),
+    'tonal-border': rgba(244, 63, 94, 0.45),
+    'solid-bg': #e11d48,
+    'solid-text': #ffffff,
+  ),
+  'info': (
+    'main': var(--info, #0ea5e9),
+    'tonal-bg': rgba(14, 165, 233, 0.18),
+    'tonal-border': rgba(14, 165, 233, 0.45),
+    'solid-bg': #0284c7,
+    'solid-text': #ffffff,
+  ),
+  'neutral': (
+    'main': var(--text-secondary, #94a3b8),
+    'tonal-bg': rgba(148, 163, 184, 0.16),
+    'tonal-border': rgba(148, 163, 184, 0.35),
+    'solid-bg': #334155,
+    'solid-text': #ffffff,
+  ),
+);
+
+@each $name, $props in $toast-colors {
+  $main: map.get($props, 'main');
+  $tonal-bg: map.get($props, 'tonal-bg');
+  $tonal-border: map.get($props, 'tonal-border');
+  $solid-bg: map.get($props, 'solid-bg');
+  $solid-text: map.get($props, 'solid-text');
+
+  // TONAL VARIANT (Default sleek modern semi-transparent)
+  .j-toast.toast-color-#{$name}.toast-variant-tonal {
+    background-color: var(--bg-surface-elevated, #1e293b);
+    background-image: linear-gradient(135deg, #{$tonal-bg}, transparent 80%);
+    border: 1px solid #{$tonal-border};
+    color: var(--text-primary, #f8fafc);
+
+    .toast-icon-wrapper,
+    .toast-title {
+      color: #{$main};
+    }
+
+    .toast-dismiss-btn {
+      color: var(--text-secondary, #94a3b8);
+      &:hover {
+        color: var(--text-primary, #f8fafc);
+      }
+    }
+
+    .toast-progress-bar {
+      background-color: #{$main};
+    }
+  }
+
+  // SOLID VARIANT (High impact solid color fill)
+  .j-toast.toast-color-#{$name}.toast-variant-solid {
+    background-color: #{$solid-bg};
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #{$solid-text};
+
+    .toast-icon-wrapper,
+    .toast-title {
+      color: #ffffff;
+    }
+
+    .toast-message {
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    .toast-dismiss-btn {
+      color: rgba(255, 255, 255, 0.85);
+      &:hover {
+        color: #ffffff;
+      }
+    }
+
+    .toast-progress-bar {
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
+  // OUTLINED VARIANT (Dark elevated surface with vibrant border)
+  .j-toast.toast-color-#{$name}.toast-variant-outlined {
+    background-color: var(--bg-surface, #0f172a);
+    border: 1.5px solid #{$main};
+    color: var(--text-primary, #f8fafc);
+
+    .toast-icon-wrapper,
+    .toast-title {
+      color: #{$main};
+    }
+
+    .toast-dismiss-btn {
+      color: var(--text-secondary, #94a3b8);
+      &:hover {
+        color: #{$main};
+      }
+    }
+
+    .toast-progress-bar {
+      background-color: #{$main};
+    }
+  }
+
+  // GLASS VARIANT (Ultra frosted adaptive glassmorphism)
+  .j-toast.toast-color-#{$name}.toast-variant-glass {
+    background-color: var(--bg-glass, rgba(30, 41, 59, 0.75));
+    background-image: linear-gradient(135deg, #{$tonal-bg}, transparent 70%);
+    border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.18));
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.25), 0 4px 12px -2px rgba(0, 0, 0, 0.1), inset 0 0 0 1px #{$tonal-border};
+    color: var(--text-primary, #f8fafc);
+
+    .toast-icon-wrapper,
+    .toast-title {
+      color: #{$main};
+    }
+
+    .toast-message {
+      color: var(--text-secondary, #94a3b8);
+    }
+
+    .toast-dismiss-btn {
+      color: var(--text-secondary, #94a3b8);
+      &:hover {
+        color: var(--text-primary, #f8fafc);
+      }
+    }
+
+    .toast-progress-bar {
+      background-color: #{$main};
+      box-shadow: 0 0 8px #{$main};
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 5. Directional Stack Transitions
+// ----------------------------------------------------------------------------
+// Top stack transitions (slide down)
+.toast-pos-top-left,
+.toast-pos-top-center,
+.toast-pos-top-right {
+  .toast-anim-enter-active,
+  .toast-anim-leave-active {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .toast-anim-enter-from {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.95);
+  }
+
+  .toast-anim-leave-to {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+}
+
+// Bottom stack transitions (slide up)
+.toast-pos-bottom-left,
+.toast-pos-bottom-center,
+.toast-pos-bottom-right {
+  .toast-anim-enter-active,
+  .toast-anim-leave-active {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .toast-anim-enter-from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.95);
+  }
+
+  .toast-anim-leave-to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+}
+
+// Center-Left transition (slide from left)
+.toast-pos-center-left {
+  .toast-anim-enter-active,
+  .toast-anim-leave-active {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .toast-anim-enter-from {
+    opacity: 0;
+    transform: translateX(-32px) scale(0.95);
+  }
+
+  .toast-anim-leave-to {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.92);
+  }
+}
+
+// Center-Right transition (slide from right)
+.toast-pos-center-right {
+  .toast-anim-enter-active,
+  .toast-anim-leave-active {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .toast-anim-enter-from {
+    opacity: 0;
+    transform: translateX(32px) scale(0.95);
+  }
+
+  .toast-anim-leave-to {
+    opacity: 0;
+    transform: translateX(20px) scale(0.92);
+  }
+}
+
+// True Center transition (pop/scale in)
+.toast-pos-center {
+  .toast-anim-enter-active,
+  .toast-anim-leave-active {
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .toast-anim-enter-from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  .toast-anim-leave-to {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+// Responsive mobile adjustment
+@media (max-width: 576px) {
+  .toast-viewport {
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    width: calc(100vw - 1.5rem);
+    transform: none !important;
+    align-items: stretch !important;
+
+    &.toast-pos-top-left,
+    &.toast-pos-top-center,
+    &.toast-pos-top-right {
+      top: 0.75rem;
+    }
+
+    &.toast-pos-bottom-left,
+    &.toast-pos-bottom-center,
+    &.toast-pos-bottom-right {
+      bottom: 0.75rem;
+    }
+
+    &.toast-pos-center-left,
+    &.toast-pos-center,
+    &.toast-pos-center-right {
+      top: 50%;
+      transform: translateY(-50%) !important;
+    }
+
+    .j-toast {
+      min-width: 100% !important;
+      max-width: 100% !important;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 6. Light Theme Specific Refinements
+// Ensures crisp frosted crystal glass, high contrast text, and clean shadows in light mode
+// ----------------------------------------------------------------------------
+[data-theme='light'] {
+  .j-toast {
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.1), 0 4px 8px -2px rgba(15, 23, 42, 0.05), 0 0 0 1px rgba(15, 23, 42, 0.06);
+
+    &:hover {
+      box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.14), 0 6px 12px -2px rgba(15, 23, 42, 0.07);
+    }
+
+    // Default dark text for light surface variants (tonal, outlined, glass)
+    &:not([class*='toast-variant-solid']) {
+      .toast-title {
+        color: var(--text-primary, #0f172a);
+      }
+
+      .toast-message {
+        color: var(--text-secondary, #475569);
+      }
+
+      .toast-dismiss-btn {
+        color: var(--text-muted, #94a3b8);
+        &:hover {
+          color: var(--text-primary, #0f172a);
+        }
+      }
+    }
+  }
+
+  // Solid variant in light mode: retains bright, high-contrast white text on solid colored background
+  .j-toast[class*='toast-variant-solid'] {
+    color: #ffffff !important;
+
+    .toast-icon-wrapper,
+    .toast-title {
+      color: #ffffff !important;
+    }
+
+    .toast-message {
+      color: rgba(255, 255, 255, 0.95) !important;
+    }
+
+    .toast-dismiss-btn {
+      color: rgba(255, 255, 255, 0.85) !important;
+      &:hover {
+        color: #ffffff !important;
+      }
+    }
+
+    .toast-progress-bar {
+      background-color: rgba(255, 255, 255, 0.7) !important;
+    }
+  }
+
+  // Tonal in light mode: crisp elevated surface with light theme wash
+  .j-toast[class*='toast-variant-tonal'] {
+    background-color: #ffffff;
+    color: var(--text-primary, #0f172a);
+  }
+
+  // Outlined in light mode: pure white surface
+  .j-toast[class*='toast-variant-outlined'] {
+    background-color: #ffffff;
+    color: var(--text-primary, #0f172a);
+  }
+
+  // Glass in light mode: frosted bright crystal glass with crisp contrast
+  .j-toast[class*='toast-variant-glass'] {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(203, 213, 225, 0.85);
+    box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.1), 0 4px 10px -2px rgba(15, 23, 42, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.95);
+    color: var(--text-primary, #0f172a);
+
+    .toast-message {
+      color: var(--text-secondary, #475569);
+    }
+
+    .toast-dismiss-btn {
+      color: var(--text-muted, #94a3b8);
+      &:hover {
+        color: var(--text-primary, #0f172a);
+      }
+    }
+  }
+}

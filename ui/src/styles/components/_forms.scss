@@ -1,0 +1,1313 @@
+// ============================================================================
+// COMPONENT: FORMS & INPUTS
+// 5 Patterns: Standard Boxed, Underlined, Filled / Surface Container,
+//             Floating Label, Rounded Corners (Pill)
+// 3 Sizes: SM, MD (Default), LG
+// Extras: Selects, Textareas, Checkboxes, Radios, Switches, Input Groups, Validation
+// ============================================================================
+
+@use 'sass:list';
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ----------------------------------------------------------------------------
+// Form Labels & Helper Text
+// ----------------------------------------------------------------------------
+.form-label {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $text-primary;
+  margin-bottom: 0.375rem;
+
+  &.required::after {
+    content: ' *';
+    color: var(--danger, #f43f5e);
+  }
+}
+
+.form-hint,
+.form-text {
+  display: block;
+  font-size: $font-size-xs;
+  color: $text-muted;
+  margin-top: 0.25rem;
+}
+
+// ----------------------------------------------------------------------------
+// 1. BASE & STANDARD BOXED PATTERN (Default Pattern)
+// ----------------------------------------------------------------------------
+.form-control,
+.form-select,
+.form-textarea {
+  display: block;
+  width: 100%;
+  font-family: $form-font-family;
+  font-size: $form-font-size-md;
+  line-height: $form-line-height;
+  color: $form-text;
+  background-color: $form-bg;
+  background-clip: padding-box;
+  border: $form-border-width solid $form-border-color;
+  border-radius: $form-border-radius;
+  padding: $form-padding-y-md $form-padding-x-md;
+  transition: $form-transition;
+
+  &::placeholder {
+    color: $form-placeholder;
+    opacity: 0.8;
+  }
+
+  &:focus {
+    color: $form-text;
+    background-color: $form-bg;
+    border-color: $form-focus-border;
+    outline: 0;
+    box-shadow: 0 0 0 $form-focus-ring-width $form-focus-ring-color;
+  }
+
+  &:disabled,
+  &[readonly] {
+    background-color: $form-disabled-bg;
+    color: $form-disabled-text;
+    border-color: $border-color-subtle;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. UNDERLINED PATTERN (Compact with Straight Active Bottom Border)
+// ----------------------------------------------------------------------------
+.form-control-underlined,
+.form-underlined .form-control,
+.form-underlined .form-select {
+  background-color: transparent;
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1.5px solid $form-border-color !important;
+  padding: 0.35rem 0.25rem; // Reduced compact padding
+  transition: $form-transition;
+  width: 100%;
+
+  // Size variations
+  &.form-control-sm,
+  .form-underlined-sm & {
+    padding: 0.2rem 0.15rem;
+    font-size: $form-font-size-sm;
+    border-radius: 0 !important;
+  }
+
+  &.form-control-lg,
+  .form-underlined-lg & {
+    padding: 0.55rem 0.35rem;
+    font-size: $form-font-size-lg;
+    border-radius: 0 !important;
+  }
+
+  &:hover:not(:disabled) {
+    border-bottom-color: var(--text-muted, #64748b) !important;
+  }
+
+  &:focus {
+    background-color: transparent;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 2px solid var(--accent, #6366f1) !important;
+    border-radius: 0 !important;
+    outline: 0;
+    box-shadow: 0 1px 0 0 var(--accent, #6366f1);
+  }
+
+  &:disabled,
+  &[readonly] {
+    background-color: transparent;
+    border-bottom-style: dashed !important;
+    border-radius: 0 !important;
+    opacity: 0.6;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. FILLED / SURFACE CONTAINER PATTERN (Compact with Straight Active Bottom Border)
+// ----------------------------------------------------------------------------
+.form-control-filled,
+.form-filled .form-control,
+.form-filled .form-select {
+  width: 100%;
+  background-color: $bg-surface-tonal;
+  border: 1px solid $border-color-subtle;
+  border-bottom: 2px solid $border-color;
+  border-radius: $radius-md $radius-md 0 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  padding: 0.42rem 0.75rem; // Reduced compact padding
+  transition: $form-transition;
+
+  // Size variations
+  &.form-control-sm,
+  .form-filled-sm & {
+    padding: 0.28rem 0.6rem;
+    font-size: $form-font-size-sm;
+    border-radius: $radius-sm $radius-sm 0 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
+  &.form-control-lg,
+  .form-filled-lg & {
+    padding: 0.65rem 1rem;
+    font-size: $form-font-size-lg;
+    border-radius: $radius-lg $radius-lg 0 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: $bg-hover;
+    border-color: $border-color-subtle;
+    border-bottom-color: var(--accent, #6366f1);
+  }
+
+  &:focus {
+    background-color: $bg-surface-elevated;
+    border-color: $border-color-subtle;
+    border-bottom: 2px solid var(--accent, #6366f1) !important;
+    border-radius: $radius-md $radius-md 0 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    outline: 0;
+    box-shadow: 0 1px 0 0 var(--accent, #6366f1); // Flat straight bottom active line
+  }
+
+  &:disabled,
+  &[readonly] {
+    background-color: $form-disabled-bg;
+    border-color: transparent;
+    opacity: 0.6;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. ROUNDED CORNERS PATTERN (Pill Shaped)
+// ----------------------------------------------------------------------------
+.form-control-rounded,
+.form-pill .form-control,
+.form-pill .form-select {
+  border-radius: $radius-full !important;
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+
+  // Size variations
+  &.form-control-sm,
+  .form-pill-sm & {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-top: $form-padding-y-sm;
+    padding-bottom: $form-padding-y-sm;
+    font-size: $form-font-size-sm;
+  }
+
+  &.form-control-lg,
+  .form-pill-lg & {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    padding-top: $form-padding-y-lg;
+    padding-bottom: $form-padding-y-lg;
+    font-size: $form-font-size-lg;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// 5. NOTCH / INSET TOP-LEFT BORDER LABEL PATTERN (Interactive Inset Border Label)
+// ----------------------------------------------------------------------------
+.form-notch,
+.form-group-notch {
+  position: relative;
+  margin-top: 0.5rem;
+
+  .form-control,
+  .form-select {
+    position: relative;
+    width: 100%;
+    height: 2.75rem;
+    border: 1.5px solid $border-color;
+    border-radius: $radius-md;
+    padding: 0 0.875rem;
+    background-color: transparent;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+
+    &::placeholder {
+      color: transparent;
+      transition: color 200ms ease;
+    }
+
+    &:hover:not(:disabled) {
+      border-color: var(--text-muted, #64748b);
+    }
+
+    &:focus {
+      border-color: var(--accent, #6366f1);
+      outline: 0;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+
+      &::placeholder {
+        color: $form-placeholder;
+      }
+
+      ~ .form-notch-label {
+        top: 0 !important;
+        transform: translateY(-50%) !important;
+        font-size: 0.75rem;
+        font-weight: $font-weight-semibold;
+        color: var(--accent, #6366f1);
+        background-color: var(--bg-surface, #1e293b);
+      }
+    }
+
+    &:not(:placeholder-shown) {
+      ~ .form-notch-label {
+        top: 0 !important;
+        transform: translateY(-50%) !important;
+        font-size: 0.75rem;
+        font-weight: $font-weight-medium;
+        color: $text-secondary;
+        background-color: var(--bg-surface, #1e293b);
+      }
+    }
+
+    &:disabled,
+    &[readonly] {
+      background-color: $form-disabled-bg;
+      border-color: $border-color-subtle;
+      opacity: 0.7;
+
+      ~ .form-notch-label {
+        color: $text-muted;
+      }
+    }
+  }
+
+  // Multiline Textarea adjustment
+  .form-textarea {
+    position: relative;
+    width: 100%;
+    min-height: 5.5rem;
+    height: auto;
+    border: 1.5px solid $border-color;
+    border-radius: $radius-md;
+    padding: 0.75rem 0.875rem;
+    background-color: transparent;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+
+    &::placeholder {
+      color: transparent;
+      transition: color 200ms ease;
+    }
+
+    &:hover:not(:disabled) {
+      border-color: var(--text-muted, #64748b);
+    }
+
+    &:focus {
+      border-color: var(--accent, #6366f1);
+      outline: 0;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+
+      &::placeholder {
+        color: $form-placeholder;
+      }
+
+      ~ .form-notch-label {
+        top: 0 !important;
+        transform: translateY(-50%) !important;
+        font-size: 0.75rem;
+        font-weight: $font-weight-semibold;
+        color: var(--accent, #6366f1);
+        background-color: var(--bg-surface, #1e293b);
+      }
+    }
+
+    &:not(:placeholder-shown) {
+      ~ .form-notch-label {
+        top: 0 !important;
+        transform: translateY(-50%) !important;
+        font-size: 0.75rem;
+        font-weight: $font-weight-medium;
+        color: $text-secondary;
+        background-color: var(--bg-surface, #1e293b);
+      }
+    }
+
+    ~ .form-notch-label {
+      top: 1.25rem !important;
+      transform: translateY(-50%) !important;
+    }
+  }
+
+  // Select dropdowns (dock at top border)
+  .form-select {
+    ~ .form-notch-label {
+      top: 0 !important;
+      transform: translateY(-50%) !important;
+      font-size: 0.75rem;
+      font-weight: $font-weight-medium;
+      color: $text-secondary;
+      background-color: var(--bg-surface, #1e293b);
+    }
+
+    &:focus ~ .form-notch-label {
+      color: var(--accent, #6366f1);
+      font-weight: $font-weight-semibold;
+    }
+  }
+
+  // Resting label default state: center-left inside the input
+  .form-notch-label {
+    position: absolute;
+    top: 50%;
+    left: 0.875rem;
+    transform: translateY(-50%);
+    padding: 0 0.35rem;
+    font-size: $form-font-size-md;
+    font-weight: $font-weight-normal;
+    color: $form-placeholder;
+    background-color: transparent;
+    line-height: 1;
+    pointer-events: none;
+    transition: top 180ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+                font-size 180ms cubic-bezier(0.4, 0, 0.2, 1),
+                color 180ms ease,
+                background-color 180ms ease,
+                font-weight 180ms ease;
+    z-index: 2;
+    white-space: nowrap;
+
+    &.required::after {
+      content: ' *';
+      color: var(--danger, #f43f5e);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Notch size variations: SM & LG
+  // --------------------------------------------------------------------------
+  &.form-notch-sm,
+  &:has(.form-control-sm),
+  &:has(.form-select-sm),
+  .form-control-sm,
+  .form-select-sm {
+    &.form-control,
+    &.form-select,
+    .form-control,
+    .form-select {
+      height: 2rem !important;
+      padding: 0 0.65rem;
+      font-size: 0.8125rem;
+      border-radius: $radius-sm;
+    }
+
+    ~ .form-notch-label,
+    .form-notch-label {
+      top: 50%;
+      left: 0.65rem;
+      font-size: 0.8125rem;
+    }
+
+    &.form-control:focus ~ .form-notch-label,
+    &.form-control:not(:placeholder-shown) ~ .form-notch-label,
+    &.form-select ~ .form-notch-label,
+    .form-control:focus ~ .form-notch-label,
+    .form-control:not(:placeholder-shown) ~ .form-notch-label,
+    .form-select ~ .form-notch-label {
+      top: 0 !important;
+      font-size: 0.6875rem !important;
+    }
+  }
+
+  &.form-notch-lg,
+  &:has(.form-control-lg),
+  &:has(.form-select-lg),
+  .form-control-lg,
+  .form-select-lg {
+    &.form-control,
+    &.form-select,
+    .form-control,
+    .form-select {
+      height: 3.5rem !important;
+      padding: 0 1.125rem;
+      font-size: $font-size-lg;
+      border-radius: $radius-lg;
+    }
+
+    ~ .form-notch-label,
+    .form-notch-label {
+      top: 50%;
+      left: 1.125rem;
+      font-size: 1.05rem;
+    }
+
+    &.form-control:focus ~ .form-notch-label,
+    &.form-control:not(:placeholder-shown) ~ .form-notch-label,
+    &.form-select ~ .form-notch-label,
+    .form-control:focus ~ .form-notch-label,
+    .form-control:not(:placeholder-shown) ~ .form-notch-label,
+    .form-select ~ .form-notch-label {
+      top: 0 !important;
+      font-size: 0.8125rem !important;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 5. FLOATING LABEL PATTERN
+// ----------------------------------------------------------------------------
+.form-floating {
+  position: relative;
+
+  > .form-control,
+  > .form-select {
+    height: calc(3.5rem + 2px);
+    line-height: 1.25;
+    padding: 1.625rem 0.875rem 0.625rem;
+
+    &::placeholder {
+      color: transparent;
+    }
+
+    &:focus,
+    &:not(:placeholder-shown) {
+      padding-top: 1.625rem;
+      padding-bottom: 0.625rem;
+
+      ~ label {
+        opacity: 0.75;
+        transform: scale(0.85) translateY(-0.75rem) translateX(0.15rem);
+        color: var(--accent, #6366f1);
+      }
+    }
+
+    // Floating Select label handling
+    &:-webkit-autofill ~ label {
+      opacity: 0.75;
+      transform: scale(0.85) translateY(-0.75rem) translateX(0.15rem);
+    }
+  }
+
+  > label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    padding: 1rem 0.875rem;
+    pointer-events: none;
+    border: 1px solid transparent;
+    transform-origin: 0 0;
+    transition: opacity 150ms ease-in-out, transform 150ms ease-in-out, color 150ms ease-in-out;
+    color: $text-secondary;
+    margin-bottom: 0;
+  }
+
+  // Floating variant sizes: SM
+  &.form-floating-sm,
+  &:has(.form-control-sm),
+  &:has(.form-select-sm) {
+    > .form-control,
+    > .form-select {
+      height: calc(2.75rem + 2px);
+      padding: 1.15rem 0.625rem 0.25rem;
+      font-size: $form-font-size-sm;
+
+      &:focus,
+      &:not(:placeholder-shown) {
+        padding-top: 1.15rem;
+        padding-bottom: 0.25rem;
+
+        ~ label {
+          transform: scale(0.75) translateY(-0.55rem) translateX(0.1rem);
+          opacity: 0.85;
+          color: var(--accent, #6366f1);
+        }
+      }
+    }
+
+    > label {
+      padding: 0.65rem 0.625rem;
+      font-size: $form-font-size-sm;
+    }
+  }
+
+  // Floating variant sizes: LG
+  &.form-floating-lg,
+  &:has(.form-control-lg),
+  &:has(.form-select-lg) {
+    > .form-control,
+    > .form-select {
+      height: calc(4.15rem + 2px);
+      padding: 1.85rem 1rem 0.75rem;
+      font-size: $form-font-size-lg;
+
+      &:focus,
+      &:not(:placeholder-shown) {
+        padding-top: 1.85rem;
+        padding-bottom: 0.75rem;
+
+        ~ label {
+          transform: scale(0.85) translateY(-0.85rem) translateX(0.15rem);
+          opacity: 0.85;
+          color: var(--accent, #6366f1);
+        }
+      }
+    }
+
+    > label {
+      padding: 1.15rem 1rem;
+      font-size: $form-font-size-lg;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Form Control Sizes (SM, MD, LG)
+// ----------------------------------------------------------------------------
+.form-control-sm,
+.form-select-sm {
+  font-size: $form-font-size-sm;
+  padding: $form-padding-y-sm $form-padding-x-sm;
+  border-radius: $form-radius-sm;
+}
+
+.form-control-lg,
+.form-select-lg {
+  font-size: $form-font-size-lg;
+  padding: $form-padding-y-lg $form-padding-x-lg;
+  border-radius: $form-radius-lg;
+}
+
+// ----------------------------------------------------------------------------
+// Select Dropdown
+// ----------------------------------------------------------------------------
+.form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  cursor: pointer;
+
+  &::-ms-expand {
+    display: none;
+  }
+
+  &[multiple],
+  &[size]:not([size='1']) {
+    padding-right: $form-padding-x-md;
+    background-image: none;
+  }
+
+  option {
+    background-color: $bg-surface-elevated;
+    color: $text-primary;
+    padding: 0.5rem;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Textarea
+// ----------------------------------------------------------------------------
+.form-textarea {
+  min-height: $textarea-min-height;
+  resize: $textarea-resize;
+}
+
+// ----------------------------------------------------------------------------
+// Checkbox & Radio
+// ----------------------------------------------------------------------------
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  min-height: 1.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.form-check-input,
+.form-radio-input {
+  width: $check-size;
+  height: $check-size;
+  margin-top: 0;
+  vertical-align: top;
+  background-color: $bg-surface;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  border: 1.5px solid $form-border-color;
+  border-radius: $check-border-radius;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: $form-transition;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent, #6366f1);
+  }
+
+  &:focus {
+    border-color: var(--accent, #6366f1);
+    outline: 0;
+    box-shadow: 0 0 0 3px $form-focus-ring-color;
+  }
+
+  &:checked {
+    background-color: var(--primary, #4f46e5);
+    border-color: var(--primary, #4f46e5);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.form-radio-input {
+  border-radius: 50% !important;
+
+  &:checked {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2.5' fill='%23fff'/%3e%3c/svg%3e");
+  }
+}
+
+.form-check-label {
+  font-size: $font-size-sm;
+  color: $text-primary;
+  cursor: pointer;
+}
+
+// ----------------------------------------------------------------------------
+// Checkbox & Radio Sizes (SM, MD, LG)
+// ----------------------------------------------------------------------------
+.form-check-sm {
+  min-height: 1.25rem;
+  gap: 0.375rem;
+
+  .form-check-input,
+  .form-radio-input {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .form-check-label {
+    font-size: $font-size-xs;
+  }
+}
+
+.form-check-input-sm,
+.form-radio-input-sm {
+  width: 1rem !important;
+  height: 1rem !important;
+}
+
+.form-check-lg {
+  min-height: 1.75rem;
+  gap: 0.625rem;
+
+  .form-check-input,
+  .form-radio-input {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .form-check-label {
+    font-size: $font-size-md;
+  }
+}
+
+.form-check-input-lg,
+.form-radio-input-lg {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+}
+
+// ----------------------------------------------------------------------------
+// Switch / Toggle Control
+// ----------------------------------------------------------------------------
+.form-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+
+  .form-switch-input {
+    width: $switch-width;
+    height: $switch-height;
+    background-color: $bg-surface-elevated;
+    border: 1.5px solid $border-color;
+    border-radius: $radius-full;
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: $transition-fast;
+    cursor: pointer;
+    flex-shrink: 0;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 1.5px;
+      left: 2px;
+      width: $switch-thumb-size;
+      height: $switch-thumb-size;
+      background-color: $text-secondary;
+      border-radius: 50%;
+      transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1), background-color 180ms;
+      box-shadow: $shadow-sm;
+    }
+
+    &:checked {
+      background-color: var(--primary, #4f46e5);
+      border-color: var(--primary, #4f46e5);
+
+      &::after {
+        transform: translateX(1.15rem);
+        background-color: #ffffff;
+      }
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px $form-focus-ring-color;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .form-switch-label {
+    font-size: $font-size-sm;
+    color: $text-primary;
+    cursor: pointer;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Switch Sizes (SM, MD, LG)
+// ----------------------------------------------------------------------------
+.form-switch-sm {
+  gap: 0.5rem;
+
+  .form-switch-input {
+    width: 2.125rem;
+    height: 1.2rem;
+
+    &::after {
+      top: 1.5px;
+      left: 1.5px;
+      width: 0.95rem;
+      height: 0.95rem;
+    }
+
+    &:checked::after {
+      transform: translateX(0.875rem);
+    }
+  }
+
+  .form-switch-label {
+    font-size: $font-size-xs;
+  }
+}
+
+.form-switch-input-sm {
+  width: 2.125rem !important;
+  height: 1.2rem !important;
+
+  &::after {
+    top: 1.5px !important;
+    left: 1.5px !important;
+    width: 0.95rem !important;
+    height: 0.95rem !important;
+  }
+
+  &:checked::after {
+    transform: translateX(0.875rem) !important;
+  }
+}
+
+.form-switch-lg {
+  gap: 0.875rem;
+
+  .form-switch-input {
+    width: 3.25rem;
+    height: 1.75rem;
+
+    &::after {
+      top: 2px;
+      left: 2.5px;
+      width: 1.35rem;
+      height: 1.35rem;
+    }
+
+    &:checked::after {
+      transform: translateX(1.45rem);
+    }
+  }
+
+  .form-switch-label {
+    font-size: $font-size-md;
+  }
+}
+
+.form-switch-input-lg {
+  width: 3.25rem !important;
+  height: 1.75rem !important;
+
+  &::after {
+    top: 2px !important;
+    left: 2.5px !important;
+    width: 1.35rem !important;
+    height: 1.35rem !important;
+  }
+
+  &:checked::after {
+    transform: translateX(1.45rem) !important;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Checkbox, Radio & Switch Theme Colors (Primary, Secondary, Accent, Success, Danger, Warning, Info)
+// ----------------------------------------------------------------------------
+$form-theme-colors: (
+  'primary': (var(--primary, #4f46e5), rgba(79, 70, 229, 0.25)),
+  'secondary': (var(--secondary, #64748b), rgba(100, 116, 139, 0.25)),
+  'accent': (var(--accent, #6366f1), rgba(99, 102, 241, 0.25)),
+  'success': (var(--success, #10b981), rgba(16, 185, 129, 0.25)),
+  'danger': (var(--danger, #f43f5e), rgba(244, 63, 94, 0.25)),
+  'warning': (var(--warning, #f59e0b), rgba(245, 158, 11, 0.25)),
+  'info': (var(--info, #0ea5e9), rgba(14, 165, 233, 0.25)),
+);
+
+@each $name, $colors in $form-theme-colors {
+  $color: list.nth($colors, 1);
+  $focus-ring: list.nth($colors, 2);
+
+  // Container-based color classes
+  .form-check-#{$name} {
+    .form-check-input:hover:not(:disabled),
+    .form-radio-input:hover:not(:disabled) {
+      border-color: #{$color};
+    }
+    .form-check-input:checked,
+    .form-radio-input:checked {
+      background-color: #{$color} !important;
+      border-color: #{$color} !important;
+    }
+    .form-check-input:focus,
+    .form-radio-input:focus {
+      border-color: #{$color};
+      box-shadow: 0 0 0 3px #{$focus-ring};
+    }
+  }
+
+  // Direct input color classes
+  .form-check-input-#{$name},
+  .form-radio-input-#{$name} {
+    &:hover:not(:disabled) {
+      border-color: #{$color};
+    }
+    &:checked {
+      background-color: #{$color} !important;
+      border-color: #{$color} !important;
+    }
+    &:focus {
+      border-color: #{$color};
+      box-shadow: 0 0 0 3px #{$focus-ring};
+    }
+  }
+
+  // Switch Container-based color classes
+  .form-switch-#{$name} {
+    .form-switch-input:checked {
+      background-color: #{$color} !important;
+      border-color: #{$color} !important;
+    }
+    .form-switch-input:focus {
+      box-shadow: 0 0 0 3px #{$focus-ring};
+    }
+  }
+
+  // Switch Direct input color classes
+  .form-switch-input-#{$name} {
+    &:checked {
+      background-color: #{$color} !important;
+      border-color: #{$color} !important;
+    }
+    &:focus {
+      box-shadow: 0 0 0 3px #{$focus-ring};
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Input Groups
+// ----------------------------------------------------------------------------
+// Input Groups & Pattern Variants
+// ----------------------------------------------------------------------------
+.input-group {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  width: 100%;
+
+  > .form-control,
+  > .form-select {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+
+    &:focus {
+      z-index: 3;
+    }
+  }
+
+  > .form-floating {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+
+    &:focus-within {
+      z-index: 3;
+    }
+  }
+
+  > .form-notch {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    margin-top: 0;
+
+    &:focus-within {
+      z-index: 3;
+    }
+  }
+
+  > .input-group-text {
+    display: flex;
+    align-items: center;
+    padding: $form-padding-y-md $form-padding-x-md;
+    font-size: $form-font-size-md;
+    font-weight: $font-weight-normal;
+    color: $text-secondary;
+    text-align: center;
+    white-space: nowrap;
+    background-color: $bg-surface-tonal;
+    border: $form-border-width solid $form-border-color;
+  }
+
+  // Radii connection for group direct children
+  > :first-child {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+
+    > .form-control,
+    > .form-select {
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+  }
+
+  > :last-child {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+
+    > .form-control,
+    > .form-select {
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+    }
+  }
+
+  > :not(:first-child):not(:last-child) {
+    border-radius: 0 !important;
+
+    > .form-control,
+    > .form-select {
+      border-radius: 0 !important;
+    }
+  }
+
+  > :not(:first-child) {
+    margin-left: -$form-border-width;
+  }
+
+  // --------------------------------------------------------------------------
+  // Pattern 2: Underlined Input Group
+  // --------------------------------------------------------------------------
+  &.input-group-underlined,
+  &:has(.form-control-underlined) {
+    > .input-group-text {
+      background-color: transparent;
+      border-top: none !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-bottom: 1.5px solid $form-border-color !important;
+      border-radius: 0 !important;
+      padding-left: 0.25rem;
+      padding-right: 0.5rem;
+    }
+
+    > .btn {
+      border-radius: 0 !important;
+      border-top: none !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-bottom: 1.5px solid $form-border-color !important;
+    }
+
+    &:focus-within {
+      > .input-group-text {
+        border-bottom-color: var(--accent, #6366f1) !important;
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Pattern 3: Filled / Surface Container Input Group
+  // --------------------------------------------------------------------------
+  &.input-group-filled,
+  &:has(.form-control-filled) {
+    > .input-group-text {
+      background-color: $bg-surface-tonal;
+      border: 1px solid $border-color-subtle;
+      border-bottom: 2px solid $border-color;
+      border-bottom-left-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+
+    > :first-child {
+      border-top-left-radius: $radius-md !important;
+      border-bottom-left-radius: 0 !important;
+    }
+
+    > :last-child {
+      border-top-right-radius: $radius-md !important;
+      border-bottom-right-radius: 0 !important;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Pattern 4: Rounded Corners (Pill) Input Group
+  // --------------------------------------------------------------------------
+  &.input-group-pill,
+  &.input-group-rounded,
+  &:has(.form-control-rounded) {
+    > :first-child {
+      border-top-left-radius: $radius-full !important;
+      border-bottom-left-radius: $radius-full !important;
+      padding-left: 1.25rem;
+
+      > .form-control,
+      > .form-select {
+        border-top-left-radius: $radius-full !important;
+        border-bottom-left-radius: $radius-full !important;
+        padding-left: 1.25rem !important;
+      }
+    }
+
+    > :last-child {
+      border-top-right-radius: $radius-full !important;
+      border-bottom-right-radius: $radius-full !important;
+      padding-right: 1.25rem;
+
+      > .form-control,
+      > .form-select {
+        border-top-right-radius: $radius-full !important;
+        border-bottom-right-radius: $radius-full !important;
+        padding-right: 1.25rem !important;
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Pattern 5: Notch Inset Label Input Group
+  // --------------------------------------------------------------------------
+  &.input-group-notch,
+  &:has(.form-notch) {
+    > .input-group-text {
+      height: 2.75rem;
+      border: 1.5px solid $border-color;
+      font-size: $form-font-size-md;
+    }
+
+    > .btn {
+      height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    > .form-notch {
+      .form-control,
+      .form-select {
+        height: 2.75rem;
+      }
+    }
+
+    // Notch Input Group SM
+    &.input-group-sm,
+    &:has(.form-notch-sm),
+    &:has(.form-control-sm),
+    &:has(.form-select-sm) {
+      > .input-group-text {
+        height: 2rem !important;
+        padding: 0 0.55rem !important;
+        font-size: 0.8125rem !important;
+        line-height: 2rem;
+      }
+
+      > .btn {
+        height: 2rem !important;
+        padding: 0 0.65rem !important;
+        font-size: 0.8125rem !important;
+      }
+
+      > .form-notch {
+        .form-control,
+        .form-select {
+          height: 2rem !important;
+        }
+      }
+    }
+
+    // Notch Input Group LG
+    &.input-group-lg,
+    &:has(.form-notch-lg),
+    &:has(.form-control-lg),
+    &:has(.form-select-lg) {
+      > .input-group-text {
+        height: 3.5rem !important;
+        padding: 0 1rem !important;
+        font-size: 1.05rem !important;
+        line-height: 3.5rem;
+      }
+
+      > .btn {
+        height: 3.5rem !important;
+        padding: 0 1.25rem !important;
+        font-size: 1.05rem !important;
+      }
+
+      > .form-notch {
+        .form-control,
+        .form-select {
+          height: 3.5rem !important;
+        }
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Pattern 6: Floating Label Input Group
+  // --------------------------------------------------------------------------
+  &:has(.form-floating) {
+    > .input-group-text {
+      height: calc(3.5rem + 2px);
+    }
+
+    &.input-group-sm,
+    &:has(.form-floating-sm) {
+      > .input-group-text {
+        height: calc(2.75rem + 2px);
+      }
+    }
+
+    &.input-group-lg,
+    &:has(.form-floating-lg) {
+      > .input-group-text {
+        height: calc(4.15rem + 2px);
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Size Variations: Input Group SM & LG
+  // --------------------------------------------------------------------------
+  &.input-group-sm {
+    > .form-control,
+    > .form-select {
+      height: 2.25rem;
+      padding: $form-padding-y-sm $form-padding-x-sm;
+      font-size: $form-font-size-sm;
+    }
+
+    > .input-group-text {
+      padding: $form-padding-y-sm $form-padding-x-sm;
+      font-size: $form-font-size-sm;
+    }
+  }
+
+  &.input-group-lg {
+    > .form-control,
+    > .form-select {
+      height: 3.25rem;
+      padding: $form-padding-y-lg $form-padding-x-lg;
+      font-size: $form-font-size-lg;
+    }
+
+    > .input-group-text {
+      padding: $form-padding-y-lg $form-padding-x-lg;
+      font-size: $form-font-size-lg;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Form Validation States
+// ----------------------------------------------------------------------------
+.is-valid {
+  border-color: var(--success, #10b981) !important;
+
+  &:focus {
+    box-shadow: 0 0 0 $form-focus-ring-width rgba(16, 185, 129, 0.25) !important;
+  }
+}
+
+.is-invalid {
+  border-color: var(--danger, #f43f5e) !important;
+
+  &:focus {
+    box-shadow: 0 0 0 $form-focus-ring-width rgba(244, 63, 94, 0.25) !important;
+  }
+}
+
+.valid-feedback {
+  display: block;
+  font-size: $font-size-xs;
+  color: var(--success, #10b981);
+  margin-top: 0.25rem;
+  font-weight: $font-weight-medium;
+}
+
+.invalid-feedback {
+  display: block;
+  font-size: $font-size-xs;
+  color: var(--danger, #f43f5e);
+  margin-top: 0.25rem;
+  font-weight: $font-weight-medium;
+}

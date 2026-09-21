@@ -1,0 +1,47 @@
+// ============================================================================
+// UTILITIES: CSS GRID
+// Classes: d-grid, grid-cols-1 through grid-cols-12, col-span-*, etc.
+// ============================================================================
+
+.d-grid {
+  display: grid !important;
+}
+
+@for $i from 1 through 12 {
+  .grid-cols-#{$i} {
+    grid-template-columns: repeat(#{$i}, minmax(0, 1fr)) !important;
+  }
+
+  .col-span-#{$i} {
+    grid-column: span #{$i} / span #{$i} !important;
+  }
+}
+
+.col-span-full {
+  grid-column: 1 / -1 !important;
+}
+
+// Responsive Grid Shortcuts
+@media (min-width: 640px) {
+  @for $i from 1 through 6 {
+    .grid-cols-sm-#{$i} {
+      grid-template-columns: repeat(#{$i}, minmax(0, 1fr)) !important;
+    }
+  }
+}
+
+@media (min-width: 768px) {
+  @for $i from 1 through 6 {
+    .grid-cols-md-#{$i} {
+      grid-template-columns: repeat(#{$i}, minmax(0, 1fr)) !important;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  @for $i from 1 through 12 {
+    .grid-cols-lg-#{$i} {
+      grid-template-columns: repeat(#{$i}, minmax(0, 1fr)) !important;
+    }
+  }
+}

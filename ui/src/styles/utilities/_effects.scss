@@ -1,0 +1,190 @@
+// ============================================================================
+// UTILITIES: EFFECTS, SHADOWS, RADII, BORDERS & RINGS (EXTENDED)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. Border Radii
+// ----------------------------------------------------------------------------
+.rounded-none { border-radius: 0 !important; }
+.rounded-xs   { border-radius: var(--radius-xs, 0.25rem) !important; }
+.rounded-sm   { border-radius: var(--radius-sm, 0.375rem) !important; }
+.rounded-md   { border-radius: var(--radius-md, 0.5rem) !important; }
+.rounded-lg   { border-radius: var(--radius-lg, 0.75rem) !important; }
+.rounded-xl   { border-radius: var(--radius-xl, 1rem) !important; }
+.rounded-2xl  { border-radius: var(--radius-2xl, 1.5rem) !important; }
+.rounded-full { border-radius: 9999px !important; }
+.rounded-circle { border-radius: 50% !important; }
+.rounded-pill   { border-radius: 50rem !important; }
+
+.rounded-t-lg { border-top-left-radius: var(--radius-lg, 0.75rem) !important; border-top-right-radius: var(--radius-lg, 0.75rem) !important; }
+.rounded-b-lg { border-bottom-left-radius: var(--radius-lg, 0.75rem) !important; border-bottom-right-radius: var(--radius-lg, 0.75rem) !important; }
+.rounded-l-lg { border-top-left-radius: var(--radius-lg, 0.75rem) !important; border-bottom-left-radius: var(--radius-lg, 0.75rem) !important; }
+.rounded-r-lg { border-top-right-radius: var(--radius-lg, 0.75rem) !important; border-bottom-right-radius: var(--radius-lg, 0.75rem) !important; }
+
+// ----------------------------------------------------------------------------
+// 2. Shadows & Elevation
+// ----------------------------------------------------------------------------
+.shadow-none { box-shadow: none !important; }
+.shadow-xs   { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; }
+.shadow-sm   { box-shadow: var(--shadow-sm) !important; }
+.shadow-md   { box-shadow: var(--shadow-md) !important; }
+.shadow-lg   { box-shadow: var(--shadow-lg) !important; }
+.shadow-xl   { box-shadow: var(--shadow-xl) !important; }
+.shadow-glow { box-shadow: var(--shadow-glow) !important; }
+.shadow-inner{ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important; }
+
+// ----------------------------------------------------------------------------
+// 3. Borders & Border Widths
+// ----------------------------------------------------------------------------
+.border        { border: 1px solid var(--border-color, #334155) !important; }
+.border-0      { border: 0 !important; }
+.border-1      { border-width: 1px !important; }
+.border-2      { border-width: 2px !important; }
+.border-3      { border-width: 3px !important; }
+.border-4      { border-width: 4px !important; }
+
+.border-t      { border-top: 1px solid var(--border-color, #334155) !important; }
+.border-b      { border-bottom: 1px solid var(--border-color, #334155) !important; }
+.border-l      { border-left: 1px solid var(--border-color, #334155) !important; }
+.border-r      { border-right: 1px solid var(--border-color, #334155) !important; }
+
+.border-solid  { border-style: solid !important; }
+.border-dashed { border-style: dashed !important; }
+.border-dotted { border-style: dotted !important; }
+.border-double { border-style: double !important; }
+.border-none   { border-style: none !important; }
+
+// Border Colors
+.border-subtle   { border-color: var(--border-color-subtle, rgba(255, 255, 255, 0.08)) !important; }
+.border-primary  { border-color: var(--primary, #4f46e5) !important; }
+.border-secondary{ border-color: var(--secondary, #64748b) !important; }
+.border-accent   { border-color: var(--accent, #6366f1) !important; }
+.border-success  { border-color: var(--success, #10b981) !important; }
+.border-warning  { border-color: var(--warning, #f59e0b) !important; }
+.border-danger   { border-color: var(--danger, #f43f5e) !important; }
+.border-info     { border-color: var(--info, #0ea5e9) !important; }
+.border-glass    { border-color: var(--border-glass, rgba(255, 255, 255, 0.12)) !important; }
+
+// ----------------------------------------------------------------------------
+// 4. Divide Utilities (Dividers between child elements)
+// ----------------------------------------------------------------------------
+.divide-y > * + * {
+  border-top: 1px solid var(--border-color, #334155) !important;
+}
+
+.divide-x > * + * {
+  border-left: 1px solid var(--border-color, #334155) !important;
+}
+
+.divide-subtle > * + * {
+  border-color: var(--border-color-subtle, rgba(255, 255, 255, 0.08)) !important;
+}
+
+// ----------------------------------------------------------------------------
+// 5. ENHANCED RING UTILITIES (Widths: 0 to 5, Offsets & All Colors)
+// ----------------------------------------------------------------------------
+
+// Ring Width Scales (0, 1, 2, 3, 4, 5)
+.ring-0 {
+  --ring-width: 0px;
+  box-shadow: 0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent),
+              0 0 0 calc(0px + var(--ring-offset-width, 0px)) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+.ring,
+.ring-1 {
+  --ring-width: 1px;
+  box-shadow: 0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent),
+              0 0 0 calc(1px + var(--ring-offset-width, 0px)) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+.ring-2 {
+  --ring-width: 2px;
+  box-shadow: 0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent),
+              0 0 0 calc(2px + var(--ring-offset-width, 0px)) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+.ring-3 {
+  --ring-width: 3px;
+  box-shadow: 0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent),
+              0 0 0 calc(3px + var(--ring-offset-width, 0px)) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+.ring-4 {
+  --ring-width: 4px;
+  box-shadow: 0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent),
+              0 0 0 calc(4px + var(--ring-offset-width, 0px)) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+.ring-5 {
+  --ring-width: 5px;
+  box-shadow: 0 0 0 var(--ring-offset-width, 0px) var(--ring-offset-color, transparent),
+              0 0 0 calc(5px + var(--ring-offset-width, 0px)) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+// Inset Ring
+.ring-inset {
+  box-shadow: inset 0 0 0 var(--ring-width, 2px) var(--ring-color, var(--accent, #6366f1)) !important;
+}
+
+// Ring Offset Widths
+.ring-offset-0 { --ring-offset-width: 0px; }
+.ring-offset-1 { --ring-offset-width: 1px; }
+.ring-offset-2 { --ring-offset-width: 2px; }
+.ring-offset-3 { --ring-offset-width: 3px; }
+.ring-offset-4 { --ring-offset-width: 4px; }
+
+// Ring Offset Background Colors
+.ring-offset-body    { --ring-offset-color: var(--bg-body, #0f172a) !important; }
+.ring-offset-surface { --ring-offset-color: var(--bg-surface, #1e293b) !important; }
+.ring-offset-elevated{ --ring-offset-color: var(--bg-surface-elevated, #243048) !important; }
+.ring-offset-white   { --ring-offset-color: #ffffff !important; }
+.ring-offset-dark    { --ring-offset-color: #0b0f19 !important; }
+
+// Ring Colors (Solid)
+.ring-primary   { --ring-color: var(--primary, #4f46e5) !important; }
+.ring-secondary { --ring-color: var(--secondary, #64748b) !important; }
+.ring-accent    { --ring-color: var(--accent, #6366f1) !important; }
+.ring-success   { --ring-color: var(--success, #10b981) !important; }
+.ring-warning   { --ring-color: var(--warning, #f59e0b) !important; }
+.ring-danger    { --ring-color: var(--danger, #f43f5e) !important; }
+.ring-info      { --ring-color: var(--info, #0ea5e9) !important; }
+.ring-neutral   { --ring-color: var(--neutral, #64748b) !important; }
+.ring-white     { --ring-color: #ffffff !important; }
+.ring-black     { --ring-color: #000000 !important; }
+.ring-subtle    { --ring-color: var(--border-color, #334155) !important; }
+
+// Ring Colors (Translucent Soft Glow / Tonal)
+.ring-primary-subtle   { --ring-color: var(--primary-tonal, rgba(79, 70, 229, 0.35)) !important; }
+.ring-secondary-subtle { --ring-color: var(--secondary-tonal, rgba(100, 116, 139, 0.35)) !important; }
+.ring-accent-subtle    { --ring-color: var(--accent-tonal, rgba(99, 102, 241, 0.35)) !important; }
+.ring-success-subtle   { --ring-color: var(--success-tonal, rgba(16, 185, 129, 0.35)) !important; }
+.ring-warning-subtle   { --ring-color: var(--warning-tonal, rgba(245, 158, 11, 0.35)) !important; }
+.ring-danger-subtle    { --ring-color: var(--danger-tonal, rgba(244, 63, 94, 0.35)) !important; }
+.ring-info-subtle      { --ring-color: var(--info-tonal, rgba(14, 165, 233, 0.35)) !important; }
+
+// ----------------------------------------------------------------------------
+// 6. Backdrop Blur Filters
+// ----------------------------------------------------------------------------
+.backdrop-blur-none { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.backdrop-blur-sm   { backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; }
+.backdrop-blur-md   { backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; }
+.backdrop-blur-lg   { backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important; }
+.backdrop-blur-xl   { backdrop-filter: blur(24px) !important; -webkit-backdrop-filter: blur(24px) !important; }
+
+// ----------------------------------------------------------------------------
+// 7. Opacity & Transitions
+// ----------------------------------------------------------------------------
+.opacity-0   { opacity: 0 !important; }
+.opacity-10  { opacity: 0.1 !important; }
+.opacity-25  { opacity: 0.25 !important; }
+.opacity-50  { opacity: 0.5 !important; }
+.opacity-75  { opacity: 0.75 !important; }
+.opacity-90  { opacity: 0.9 !important; }
+.opacity-100 { opacity: 1 !important; }
+
+.transition      { transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important; }
+.transition-fast { transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1) !important; }
+.transition-slow { transition: all 350ms cubic-bezier(0.4, 0, 0.2, 1) !important; }
+.transition-colors { transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease !important; }
+.transition-transform { transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1) !important; }

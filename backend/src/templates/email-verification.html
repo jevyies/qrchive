@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>QRchive - Verification Code</title>
+  <style>
+    /* Reset & Client-Specific Styles */
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    
+    /* Code Box Selection */
+    .code-display {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 10px;
+      color: #60a5fa;
+      user-select: all;
+      -webkit-user-select: all;
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f17; color: #cbd5e1;">
+  <center style="width: 100%; background-color: #0b0f17;">
+    <!-- Main Email Container Table -->
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto;">
+      <tr>
+        <td style="padding: 40px 20px 30px 20px; text-align: center;">
+
+          <!-- Card Wrapper -->
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #131b2e; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            
+            <!-- Header with Logo -->
+            <tr>
+              <td style="padding: 36px 30px 20px 30px; text-align: center; background: linear-gradient(180deg, #1e293b 0%, #131b2e 100%); border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="display: inline-block; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 12px 18px; margin-bottom: 12px;">
+                  <!-- Logo Graphic (CID Image with SVG Inline fallback) -->
+                  <img src="cid:qrchive_logo" alt="QRchive Logo" width="60" height="30" style="display: block; max-width: 60px; height: auto; margin: 0 auto;" />
+                </div>
+                <h1 style="margin: 8px 0 0 0; color: #f8fafc; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                  QRchive
+                </h1>
+                <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px; font-weight: 500;">
+                  Account Verification
+                </p>
+              </td>
+            </tr>
+
+            <!-- Body Content -->
+            <tr>
+              <td style="padding: 32px 30px; text-align: left;">
+                <p style="margin: 0 0 16px 0; color: #e2e8f0; font-size: 15px; line-height: 24px;">
+                  Hello<span id="recipient-name">{{NAME_GREETING}}</span>,
+                </p>
+                <p style="margin: 0 0 24px 0; color: #94a3b8; font-size: 14px; line-height: 22px;">
+                  Thank you for creating an account on <strong style="color: #f8fafc;">QRchive</strong>. To finish your registration and secure your account, please enter the following 6-digit verification code on the registration page:
+                </p>
+
+                <!-- 6-Digit Code Highlight Box -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0;">
+                  <tr>
+                    <td align="center" style="background-color: #0b1120; border: 2px dashed #6366f1; border-radius: 12px; padding: 22px 16px; text-align: center;">
+                      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #818cf8; font-weight: 700; margin-bottom: 8px;">
+                        Your Verification Code
+                      </div>
+                      <div class="code-display" style="font-family: 'SFMono-Regular', Consolas, 'Courier New', monospace; font-size: 38px; font-weight: 800; letter-spacing: 10px; color: #38bdf8; text-shadow: 0 0 12px rgba(56, 189, 248, 0.4); margin: 4px 0;">
+                        {{CODE}}
+                      </div>
+                      <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
+                        Click or tap code to select and copy
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Instructions / Security Notes -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: rgba(234, 179, 8, 0.08); border-left: 3px solid #eab308; border-radius: 4px; margin: 20px 0;">
+                  <tr>
+                    <td style="padding: 12px 14px; font-size: 13px; line-height: 20px; color: #fef08a;">
+                      ⏱️ <strong>Note:</strong> This verification code is valid for <strong>10 minutes</strong>. Never share this code with anyone.
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 24px 0 0 0; color: #94a3b8; font-size: 13px; line-height: 20px;">
+                  If you did not attempt to register an account with QRchive, you can safely ignore this email. No account will be created without this verification code.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Card Footer -->
+            <tr>
+              <td style="padding: 24px 30px; background-color: #0d1322; border-top: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                <p style="margin: 0 0 6px 0; color: #64748b; font-size: 12px;">
+                  Have questions or need assistance? Reply directly to this email or reach us at
+                  <a href="mailto:ababafamily2024@gmail.com" style="color: #818cf8; text-decoration: none; font-weight: 600;">ababafamily2024@gmail.com</a>
+                </p>
+                <p style="margin: 0; color: #475569; font-size: 11px;">
+                  &copy; {{YEAR}} QRchive. All rights reserved.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+          <!-- End Card Wrapper -->
+
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>

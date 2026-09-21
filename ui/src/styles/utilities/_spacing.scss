@@ -1,0 +1,44 @@
+// ============================================================================
+// UTILITIES: SPACING (MARGIN & PADDING)
+// Classes: m-*, p-*, mx-*, my-*, px-*, py-*, mt-*, mb-*, pt-*, pb-*, etc.
+// ============================================================================
+
+$spacers: (
+  0: 0,
+  1: 0.25rem,  // 4px
+  2: 0.5rem,   // 8px
+  3: 0.75rem,  // 12px
+  4: 1rem,     // 16px
+  5: 1.25rem,  // 20px
+  6: 1.5rem,   // 24px
+  8: 2rem,     // 32px
+  10: 2.5rem,  // 40px
+  12: 3rem,    // 48px
+  16: 4rem     // 64px
+);
+
+@each $key, $val in $spacers {
+  // Margins
+  .m-#{$key}  { margin: $val !important; }
+  .mt-#{$key} { margin-top: $val !important; }
+  .mb-#{$key} { margin-bottom: $val !important; }
+  .ml-#{$key}, .ms-#{$key} { margin-left: $val !important; }
+  .mr-#{$key}, .me-#{$key} { margin-right: $val !important; }
+  .mx-#{$key} { margin-left: $val !important; margin-right: $val !important; }
+  .my-#{$key} { margin-top: $val !important; margin-bottom: $val !important; }
+
+  // Paddings
+  .p-#{$key}  { padding: $val !important; }
+  .pt-#{$key} { padding-top: $val !important; }
+  .pb-#{$key} { padding-bottom: $val !important; }
+  .pl-#{$key}, .ps-#{$key} { padding-left: $val !important; }
+  .pr-#{$key}, .pe-#{$key} { padding-right: $val !important; }
+  .px-#{$key} { padding-left: $val !important; padding-right: $val !important; }
+  .py-#{$key} { padding-top: $val !important; padding-bottom: $val !important; }
+}
+
+.m-auto  { margin: auto !important; }
+.mx-auto { margin-left: auto !important; margin-right: auto !important; }
+.my-auto { margin-top: auto !important; margin-bottom: auto !important; }
+.ms-auto { margin-left: auto !important; }
+.me-auto { margin-right: auto !important; }

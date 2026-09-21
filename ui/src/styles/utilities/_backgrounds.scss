@@ -1,0 +1,67 @@
+// ============================================================================
+// UTILITIES: BACKGROUNDS & GRADIENTS
+// Surface colors, tonal fills, glass backgrounds, and linear gradients
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. Surface & Base Backgrounds
+// ----------------------------------------------------------------------------
+.bg-body             { background-color: var(--bg-body, #0f172a) !important; }
+.bg-surface          { background-color: var(--bg-surface, #1e293b) !important; }
+.bg-surface-elevated { background-color: var(--bg-surface-elevated, #243048) !important; }
+.bg-surface-tonal    { background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04)) !important; }
+.bg-glass            { background-color: var(--bg-glass, rgba(30, 41, 59, 0.7)) !important; }
+.bg-transparent      { background-color: transparent !important; }
+.bg-hover            { background-color: var(--bg-hover, rgba(255, 255, 255, 0.06)) !important; }
+
+// ----------------------------------------------------------------------------
+// 2. Palette Solid Backgrounds
+// ----------------------------------------------------------------------------
+.bg-primary   { background-color: var(--primary, #4f46e5) !important; color: var(--primary-text, #ffffff) !important; }
+.bg-secondary { background-color: var(--secondary, #64748b) !important; color: var(--secondary-text, #ffffff) !important; }
+.bg-accent    { background-color: var(--accent, #6366f1) !important; color: #ffffff !important; }
+.bg-success   { background-color: var(--success, #10b981) !important; color: var(--success-text, #ffffff) !important; }
+.bg-warning   { background-color: var(--warning, #f59e0b) !important; color: var(--warning-text, #ffffff) !important; }
+.bg-danger    { background-color: var(--danger, #f43f5e) !important; color: var(--danger-text, #ffffff) !important; }
+.bg-info      { background-color: var(--info, #0ea5e9) !important; color: var(--info-text, #ffffff) !important; }
+
+// ----------------------------------------------------------------------------
+// 3. Tonal / Soft Surface Backgrounds
+// ----------------------------------------------------------------------------
+.bg-tonal-primary   { background-color: var(--primary-tonal, rgba(79, 70, 229, 0.12)) !important; color: var(--primary, #4f46e5) !important; }
+.bg-tonal-secondary { background-color: var(--secondary-tonal, rgba(100, 116, 139, 0.12)) !important; color: var(--secondary, #64748b) !important; }
+.bg-tonal-accent    { background-color: var(--accent-tonal, rgba(99, 102, 241, 0.15)) !important; color: var(--accent, #6366f1) !important; }
+.bg-tonal-success   { background-color: var(--success-tonal, rgba(16, 185, 129, 0.12)) !important; color: var(--success, #10b981) !important; }
+.bg-tonal-warning   { background-color: var(--warning-tonal, rgba(245, 158, 11, 0.12)) !important; color: var(--warning, #f59e0b) !important; }
+.bg-tonal-danger    { background-color: var(--danger-tonal, rgba(244, 63, 94, 0.12)) !important; color: var(--danger, #f43f5e) !important; }
+.bg-tonal-info      { background-color: var(--info-tonal, rgba(14, 165, 233, 0.12)) !important; color: var(--info, #0ea5e9) !important; }
+
+// ----------------------------------------------------------------------------
+// 4. Gradient Fill Utilities
+// ----------------------------------------------------------------------------
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary, #4f46e5) 0%, var(--accent, #6366f1) 100%) !important;
+  color: #ffffff !important;
+}
+
+.bg-gradient-dark {
+  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-surface-elevated) 100%) !important;
+}
+
+.bg-gradient-cyber {
+  background: linear-gradient(135deg, #121222 0%, #1f1f38 50%, #0d0d15 100%) !important;
+}
+
+.bg-gradient-sunset {
+  background: linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%) !important;
+  color: #ffffff !important;
+}
+
+.bg-gradient-emerald {
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%) !important;
+  color: #ffffff !important;
+}
+
+.bg-gradient-radial {
+  background: radial-gradient(circle at top right, var(--bg-surface-elevated) 0%, var(--bg-body) 100%) !important;
+}

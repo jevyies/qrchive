@@ -1,0 +1,134 @@
+// ============================================================================
+// COMPONENT: DIVIDERS (HR & VR)
+// Default ultra-thin 1px divider with customizable thickness, dashed, dotted,
+// color accents, vertical orientation, and center text badges.
+// ============================================================================
+
+@use '../variables' as *;
+
+// ----------------------------------------------------------------------------
+// Base HR (Thin by Default)
+// ----------------------------------------------------------------------------
+hr,
+.hr {
+  margin: $hr-margin-y 0;
+  color: inherit;
+  border: 0;
+  border-top: $hr-border-width solid $hr-border-color;
+  opacity: $hr-opacity;
+  width: 100%;
+}
+
+// ----------------------------------------------------------------------------
+// Thickness Variations
+// ----------------------------------------------------------------------------
+.hr-thin {
+  border-top-width: 1px;
+}
+
+.hr-md {
+  border-top-width: 2px;
+}
+
+.hr-lg {
+  border-top-width: 3px;
+}
+
+.hr-thick {
+  border-top-width: 4px;
+}
+
+.hr-xl {
+  border-top-width: 6px;
+  border-radius: $radius-full;
+}
+
+// ----------------------------------------------------------------------------
+// Border Style Variations
+// ----------------------------------------------------------------------------
+.hr-dashed {
+  border-top-style: dashed;
+}
+
+.hr-dotted {
+  border-top-style: dotted;
+}
+
+// ----------------------------------------------------------------------------
+// Color Variations
+// ----------------------------------------------------------------------------
+.hr-primary {
+  border-top-color: var(--primary, #4f46e5);
+}
+
+.hr-secondary {
+  border-top-color: var(--secondary, #64748b);
+}
+
+.hr-accent {
+  border-top-color: var(--accent, #6366f1);
+}
+
+.hr-success {
+  border-top-color: var(--success, #10b981);
+}
+
+.hr-warning {
+  border-top-color: var(--warning, #f59e0b);
+}
+
+.hr-danger {
+  border-top-color: var(--danger, #f43f5e);
+}
+
+// ----------------------------------------------------------------------------
+// Text / Badge Divider (e.g. "OR CONTINUE WITH")
+// ----------------------------------------------------------------------------
+.hr-text {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: $hr-margin-y 0;
+  color: $text-muted;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-bottom: $hr-border-width solid $hr-border-color;
+  }
+
+  &:not(:empty)::before {
+    margin-right: 0.75rem;
+  }
+
+  &:not(:empty)::after {
+    margin-left: 0.75rem;
+  }
+
+  &.hr-thick::before,
+  &.hr-thick::after {
+    border-bottom-width: 3px;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Vertical Divider
+// ----------------------------------------------------------------------------
+.vr {
+  display: inline-block;
+  align-self: stretch;
+  width: $vr-width;
+  min-height: 1em;
+  background-color: $border-color;
+  opacity: $hr-opacity;
+  margin: 0 0.5rem;
+
+  &.vr-thick {
+    width: 3px;
+  }
+}

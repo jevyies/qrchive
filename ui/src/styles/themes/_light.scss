@@ -1,0 +1,96 @@
+// ============================================================================
+// LIGHT THEME TOKENS
+// Modern, crisp slate & indigo theme with clean contrast and subtle borders
+// ============================================================================
+
+@mixin theme-light-tokens {
+  --theme-name: 'light';
+
+  // Surface & Background Colors
+  --bg-body: #fff8f5;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-surface-tonal: #fcf2ec;
+  --bg-glass: rgba(255, 248, 245, 0.88);
+  --bg-hover: #f6ece7;
+  --bg-active: #ebe0db;
+  --bg-disabled: #f6ece7;
+
+  // Typography Colors
+  --text-primary: #1f1b18;
+  --text-secondary: #4e4639;
+  --text-muted: #7f7667;
+  --text-inverse: #ffffff;
+
+  // Border Colors
+  --border-color: #d1c5b4;
+  --border-color-subtle: #ebe0db;
+  --border-color-focus: #775a19;
+  --border-glass: rgba(197, 160, 89, 0.25);
+
+  // Palette Colors
+  --primary: #775a19;
+  --primary-hover: #5d4201;
+  --primary-active: #4a3501;
+  --primary-tonal: rgba(119, 90, 25, 0.12);
+  --primary-text: #ffffff;
+
+  --secondary: #516072;
+  --secondary-hover: #39485a;
+  --secondary-active: #283442;
+  --secondary-tonal: rgba(81, 96, 114, 0.1);
+  --secondary-text: #ffffff;
+
+  --accent: #c5a059;
+  --accent-hover: #b08d48;
+  --accent-tonal: rgba(197, 160, 89, 0.15);
+
+  --success: #10b981;
+  --success-hover: #059669;
+  --success-tonal: rgba(16, 185, 129, 0.1);
+  --success-text: #ffffff;
+
+  --warning: #f59e0b;
+  --warning-hover: #d97706;
+  --warning-tonal: rgba(245, 158, 11, 0.12);
+  --warning-text: #ffffff;
+
+  --danger: #f43f5e;
+  --danger-hover: #e11d48;
+  --danger-tonal: rgba(244, 63, 94, 0.1);
+  --danger-text: #ffffff;
+
+  --info: #0284c7;
+  --info-hover: #0369a1;
+  --info-tonal: rgba(2, 132, 199, 0.1);
+  --info-text: #ffffff;
+
+  --neutral: #516072;
+  --neutral-hover: #39485a;
+  --neutral-tonal: rgba(81, 96, 114, 0.08);
+  --neutral-text: #ffffff;
+
+  // Focus Ring
+  --ring-color: rgba(119, 90, 25, 0.25);
+
+  // Shadows
+  --shadow-sm: 0 1px 2px 0 rgba(119, 90, 25, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(119, 90, 25, 0.08), 0 2px 4px -2px rgba(119, 90, 25, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(119, 90, 25, 0.08), 0 4px 6px -4px rgba(119, 90, 25, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(119, 90, 25, 0.1), 0 8px 10px -6px rgba(119, 90, 25, 0.04);
+  --shadow-glow: 0 0 20px rgba(197, 160, 89, 0.25);
+
+  // Component Overrides
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #1f1b18;
+  --sidebar-active-bg: #775a19;
+  --navbar-bg: #ffffff;
+  --table-striped: #fcf2ec;
+  --table-hover: #f6ece7;
+  --table-header-bg: #fcf2ec;
+
+  // App Logo
+  --logo-default-base: #1f1b18;
+  --logo-default-dark: #4e4639;
+  --logo-default-light: #7f7667;
+}

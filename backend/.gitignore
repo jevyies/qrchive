@@ -1,0 +1,44 @@
+# Environment files
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!.env.*.example
+
+# Build & Distribution outputs
+dist/
+dist-ssr/
+build/
+out/
+*.tsbuildinfo
+
+# Graphify
+graphify-out/
+.graphify*
+*graphify*
+
+# Workspace & IDE
+*.code-workspace
+*.workspace
+.workspace/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# System
+.DS_Store
+Thumbs.db

@@ -1,0 +1,378 @@
+// ============================================================================
+// DESIGN SYSTEM CORE SCSS VARIABLES
+// All variables are declared with `!default` to allow seamless project overrides
+// Values link to dynamic CSS custom properties for instant runtime theming
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. BRAND & COLOR PALETTE TOKENS
+// ----------------------------------------------------------------------------
+$primary:                 var(--primary, #4f46e5) !default;
+$primary-hover:           var(--primary-hover, #4338ca) !default;
+$primary-active:          var(--primary-active, #3730a3) !default;
+$primary-tonal:           var(--primary-tonal, rgba(79, 70, 229, 0.12)) !default;
+$primary-text:            var(--primary-text, #ffffff) !default;
+
+$secondary:               var(--secondary, #64748b) !default;
+$secondary-hover:         var(--secondary-hover, #475569) !default;
+$secondary-active:        var(--secondary-active, #334155) !default;
+$secondary-tonal:         var(--secondary-tonal, rgba(100, 116, 139, 0.12)) !default;
+$secondary-text:          var(--secondary-text, #ffffff) !default;
+
+$accent:                  var(--accent, #6366f1) !default;
+$accent-hover:            var(--accent-hover, #4f46e5) !default;
+$accent-tonal:            var(--accent-tonal, rgba(99, 102, 241, 0.15)) !default;
+
+$success:                 var(--success, #10b981) !default;
+$success-hover:           var(--success-hover, #059669) !default;
+$success-tonal:           var(--success-tonal, rgba(16, 185, 129, 0.12)) !default;
+$success-text:            var(--success-text, #ffffff) !default;
+
+$warning:                 var(--warning, #f59e0b) !default;
+$warning-hover:           var(--warning-hover, #d97706) !default;
+$warning-tonal:           var(--warning-tonal, rgba(245, 158, 11, 0.12)) !default;
+$warning-text:            var(--warning-text, #ffffff) !default;
+
+$danger:                  var(--danger, #f43f5e) !default;
+$danger-hover:            var(--danger-hover, #e11d48) !default;
+$danger-tonal:            var(--danger-tonal, rgba(244, 63, 94, 0.12)) !default;
+$danger-text:             var(--danger-text, #ffffff) !default;
+
+$info:                    var(--info, #0ea5e9) !default;
+$info-hover:              var(--info-hover, #0284c7) !default;
+$info-tonal:              var(--info-tonal, rgba(14, 165, 233, 0.12)) !default;
+$info-text:               var(--info-text, #ffffff) !default;
+
+$neutral:                 var(--neutral, #64748b) !default;
+$neutral-hover:           var(--neutral-hover, #475569) !default;
+$neutral-tonal:           var(--neutral-tonal, rgba(100, 116, 139, 0.1)) !default;
+$neutral-text:            var(--neutral-text, #ffffff) !default;
+
+// Surface & Background Colors
+$bg-body:                 var(--bg-body, #0f172a) !default;
+$bg-surface:              var(--bg-surface, #1e293b) !default;
+$bg-surface-elevated:     var(--bg-surface-elevated, #243048) !default;
+$bg-surface-tonal:        var(--bg-surface-tonal, rgba(255, 255, 255, 0.04)) !default;
+$bg-glass:                var(--bg-glass, rgba(30, 41, 59, 0.7)) !default;
+$bg-hover:                var(--bg-hover, rgba(255, 255, 255, 0.06)) !default;
+$bg-active:               var(--bg-active, rgba(255, 255, 255, 0.1)) !default;
+
+// Typography Colors
+$text-primary:            var(--text-primary, #f8fafc) !default;
+$text-secondary:          var(--text-secondary, #94a3b8) !default;
+$text-muted:              var(--text-muted, #64748b) !default;
+$text-inverse:            var(--text-inverse, #0f172a) !default;
+
+// Border Colors
+$border-color:            var(--border-color, #334155) !default;
+$border-color-subtle:     var(--border-color-subtle, rgba(255, 255, 255, 0.08)) !default;
+$border-color-focus:      var(--border-color-focus, var(--accent, #6366f1)) !default;
+$border-glass:            var(--border-glass, rgba(255, 255, 255, 0.12)) !default;
+
+// ----------------------------------------------------------------------------
+// 2. TYPOGRAPHY & SIZING
+// ----------------------------------------------------------------------------
+$font-family-base:        var(--font-sans, 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif) !default;
+$font-family-mono:        var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace) !default;
+$font-family-heading:     var(--font-heading, var(--font-sans)) !default;
+
+$font-size-xs:            0.75rem !default;    // 12px
+$font-size-sm:            0.875rem !default;   // 14px
+$font-size-md:            1rem !default;       // 16px (Base)
+$font-size-lg:            1.125rem !default;   // 18px
+$font-size-xl:            1.25rem !default;    // 20px
+$font-size-2xl:           1.5rem !default;     // 24px
+$font-size-3xl:           1.875rem !default;   // 30px
+$font-size-4xl:           2.25rem !default;    // 36px
+
+$font-weight-light:       300 !default;
+$font-weight-normal:      400 !default;
+$font-weight-medium:      500 !default;
+$font-weight-semibold:    600 !default;
+$font-weight-bold:        700 !default;
+$font-weight-extrabold:   800 !default;
+
+$line-height-tight:       1.2 !default;
+$line-height-normal:      1.5 !default;
+$line-height-relaxed:     1.75 !default;
+
+// ----------------------------------------------------------------------------
+// 3. RADII & SHADOWS
+// ----------------------------------------------------------------------------
+$radius-none:             0 !default;
+$radius-xs:               var(--radius-xs, 0.25rem) !default;  // 4px
+$radius-sm:               var(--radius-sm, 0.375rem) !default; // 6px
+$radius-md:               var(--radius-md, 0.5rem) !default;   // 8px
+$radius-lg:               var(--radius-lg, 0.75rem) !default;  // 12px
+$radius-xl:               var(--radius-xl, 1rem) !default;     // 16px
+$radius-2xl:              var(--radius-2xl, 1.5rem) !default;  // 24px
+$radius-full:             var(--radius-full, 9999px) !default;
+
+$shadow-sm:               var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05)) !default;
+$shadow-md:               var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)) !default;
+$shadow-lg:               var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)) !default;
+$shadow-xl:               var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)) !default;
+$shadow-glow:             var(--shadow-glow, 0 0 20px rgba(99, 102, 241, 0.35)) !default;
+
+// ----------------------------------------------------------------------------
+// 4. TRANSITIONS & Z-INDEX
+// ----------------------------------------------------------------------------
+$transition-fast:         all 150ms cubic-bezier(0.4, 0, 0.2, 1) !default;
+$transition-base:         all 200ms cubic-bezier(0.4, 0, 0.2, 1) !default;
+$transition-slow:         all 300ms cubic-bezier(0.4, 0, 0.2, 1) !default;
+
+$z-index-dropdown:        1000 !default;
+$z-index-sticky:          1020 !default;
+$z-index-fixed:           1030 !default;
+$z-index-modal-backdrop:  1040 !default;
+$z-index-modal:           1050 !default;
+$z-index-popover:         1060 !default;
+$z-index-tooltip:         1070 !default;
+$z-index-toast:           1080 !default;
+
+// ----------------------------------------------------------------------------
+// 5. BUTTONS
+// ----------------------------------------------------------------------------
+$btn-font-family:         inherit !default;
+$btn-font-weight:         500 !default;
+$btn-line-height:         1.25 !default;
+$btn-border-width:        1px !default;
+$btn-border-radius:       $radius-md !default;
+$btn-transition:          $transition-fast !default;
+$btn-focus-ring-width:    3px !default;
+$btn-focus-ring-color:    var(--ring-color, rgba(99, 102, 241, 0.35)) !default;
+
+// Button Sizes (padding-y, padding-x, font-size, gap)
+$btn-padding-y-xs:        0.25rem !default;
+$btn-padding-x-xs:        0.5rem !default;
+$btn-font-size-xs:        0.75rem !default;
+$btn-gap-xs:              0.25rem !default;
+$btn-radius-xs:           $radius-xs !default;
+
+$btn-padding-y-sm:        0.375rem !default;
+$btn-padding-x-sm:        0.75rem !default;
+$btn-font-size-sm:        0.875rem !default;
+$btn-gap-sm:              0.375rem !default;
+$btn-radius-sm:           $radius-sm !default;
+
+$btn-padding-y-md:        0.55rem !default;
+$btn-padding-x-md:        1.125rem !default;
+$btn-font-size-md:        0.9375rem !default;
+$btn-gap-md:              0.5rem !default;
+$btn-radius-md:           $radius-md !default;
+
+$btn-padding-y-lg:        0.75rem !default;
+$btn-padding-x-lg:        1.5rem !default;
+$btn-font-size-lg:        1.0625rem !default;
+$btn-gap-lg:              0.625rem !default;
+$btn-radius-lg:           $radius-lg !default;
+
+$btn-padding-y-xl:        0.95rem !default;
+$btn-padding-x-xl:        2rem !default;
+$btn-font-size-xl:        1.2rem !default;
+$btn-gap-xl:              0.75rem !default;
+$btn-radius-xl:           $radius-xl !default;
+
+// Button Default/Neutral Variants
+$btn-bg:                  $bg-surface !default;
+$btn-text:                $text-primary !default;
+$btn-border-color:        $border-color !default;
+$btn-hover-bg:            $bg-hover !default;
+$btn-active-bg:           $bg-active !default;
+
+// ----------------------------------------------------------------------------
+// 6. FORMS & CONTROLS
+// ----------------------------------------------------------------------------
+$form-font-family:        inherit !default;
+$form-line-height:        1.5 !default;
+$form-border-width:       1px !default;
+$form-border-radius:      $radius-md !default;
+$form-transition:         $transition-fast !default;
+
+// Form Sizes (Padding & Font Size)
+$form-font-size-sm:       0.8125rem !default;
+$form-padding-y-sm:       0.35rem !default;
+$form-padding-x-sm:       0.625rem !default;
+$form-radius-sm:          $radius-sm !default;
+
+$form-font-size-md:       0.9375rem !default;
+$form-padding-y-md:       0.55rem !default;
+$form-padding-x-md:       0.875rem !default;
+$form-radius-md:          $radius-md !default;
+
+$form-font-size-lg:       1.0625rem !default;
+$form-padding-y-lg:       0.75rem !default;
+$form-padding-x-lg:       1.125rem !default;
+$form-radius-lg:          $radius-lg !default;
+
+// Form Colors & States
+$form-bg:                 $bg-surface !default;
+$form-text:               $text-primary !default;
+$form-placeholder:        $text-muted !default;
+$form-border-color:       $border-color !default;
+
+// Focus & Disabled States
+$form-focus-border:       var(--accent, #6366f1) !default;
+$form-focus-ring-width:   3px !default;
+$form-focus-ring-color:   var(--ring-color, rgba(99, 102, 241, 0.25)) !default;
+$form-disabled-bg:        var(--bg-disabled, rgba(255, 255, 255, 0.04)) !default;
+$form-disabled-text:      $text-muted !default;
+
+// Textarea Specific
+$textarea-min-height:     5.5rem !default;
+$textarea-resize:         vertical !default;
+
+// Select Specific
+$select-indicator-size:   1rem !default;
+$select-indicator-color:  $text-secondary !default;
+
+// Checkbox, Radio & Switch
+$check-size:              1.125rem !default;
+$check-border-radius:     $radius-xs !default;
+$switch-width:            2.5rem !default;
+$switch-height:           1.375rem !default;
+$switch-thumb-size:       1.05rem !default;
+
+// ----------------------------------------------------------------------------
+// 7. CARDS
+// ----------------------------------------------------------------------------
+$card-bg:                 $bg-surface !default;
+$card-text:               $text-primary !default;
+$card-border-width:       1px !default;
+$card-border-color:       $border-color !default;
+$card-border-radius:      $radius-lg !default;
+$card-padding-sm:         1rem !default;
+$card-padding-md:         1.5rem !default;
+$card-padding-lg:         2rem !default;
+$card-shadow:             $shadow-md !default;
+$card-glass-blur:         16px !default;
+
+// ----------------------------------------------------------------------------
+// 8. LISTS & DROPDOWNS
+// ----------------------------------------------------------------------------
+$list-group-bg:           $bg-surface !default;
+$list-group-border:       $border-color !default;
+$list-group-radius:       $radius-md !default;
+$list-item-padding-y:     0.75rem !default;
+$list-item-padding-x:     1rem !default;
+
+// 3 Density Padding Styles (Compact, Comfortable, Convenient)
+$list-item-padding-compact-y:     0.375rem !default;
+$list-item-padding-compact-x:     0.75rem !default;
+$list-item-padding-comfortable-y: 0.75rem !default;
+$list-item-padding-comfortable-x: 1rem !default;
+$list-item-padding-convenient-y:  1.125rem !default;
+$list-item-padding-convenient-x:  1.25rem !default;
+
+$list-item-hover-bg:      $bg-hover !default;
+$list-item-active-bg:     var(--accent-tonal, rgba(99, 102, 241, 0.15)) !default;
+$list-item-active-text:   var(--accent, #6366f1) !default;
+$list-item-active-border: var(--accent, #6366f1) !default;
+
+$dropdown-bg:             $bg-surface-elevated !default;
+$dropdown-border:         $border-color !default;
+$dropdown-radius:         $radius-lg !default;
+$dropdown-shadow:         $shadow-xl !default;
+$dropdown-padding:        0.5rem !default;
+$dropdown-z-index:        $z-index-dropdown !default;
+
+// 3 Density Padding & Size Styles for Dropdown Items (Distinct Scales)
+$dropdown-item-padding-compact-y:     0.5rem !default;  
+$dropdown-item-padding-compact-x:     0.6rem !default;  
+$dropdown-item-font-size-compact:     0.85rem !default;  
+
+$dropdown-item-padding-comfortable-y: 0.55rem !default;  // 9px
+$dropdown-item-padding-comfortable-x: 0.9rem !default;   // 14px
+$dropdown-item-font-size-comfortable: 0.875rem !default; // 14px
+
+$dropdown-item-padding-convenient-y:  0.95rem !default;  // 15px
+$dropdown-item-padding-convenient-x:  1.35rem !default;  // 22px
+$dropdown-item-font-size-convenient:  1.05rem !default;  // 17px
+
+// ----------------------------------------------------------------------------
+// 9. DIVIDERS (HR)
+// ----------------------------------------------------------------------------
+$hr-border-width:         1px !default; // Thin by default
+$hr-border-color:         $border-color !default;
+$hr-margin-y:             1.25rem !default;
+$hr-opacity:              1 !default;
+$vr-width:                1px !default;
+
+// ----------------------------------------------------------------------------
+// 10. SIDEBAR & NAVIGATION
+// ----------------------------------------------------------------------------
+$sidebar-width:           16.5rem !default; // 264px
+$sidebar-width-collapsed: 4.5rem !default;  // 72px
+$sidebar-bg:              var(--sidebar-bg, $bg-surface) !default;
+$sidebar-text:            var(--sidebar-text, $text-primary) !default;
+$sidebar-border-width:    1px !default;
+$sidebar-border-color:    $border-color !default;
+$sidebar-padding:         1.25rem 1rem !default;
+$sidebar-z-index:         $z-index-sticky !default;
+$sidebar-transition:      width 250ms cubic-bezier(0.4, 0, 0.2, 1) !default;
+
+// Sidebar Nav Items
+$sidebar-nav-radius:      $radius-md !default;
+$sidebar-nav-padding:     0.5rem 0.875rem !default;
+$sidebar-nav-active-bg:   var(--sidebar-active-bg, var(--accent, #6366f1)) !default;
+$sidebar-nav-active-text: #ffffff !default;
+$sidebar-nav-hover-bg:    $bg-hover !default;
+
+// Navbar Topbar
+$navbar-height:           4rem !default;
+$navbar-bg:               var(--navbar-bg, $bg-surface) !default;
+$navbar-border-color:     $border-color !default;
+$navbar-padding-x:        1.5rem !default;
+
+// ----------------------------------------------------------------------------
+// 11. TABLES
+// ----------------------------------------------------------------------------
+$table-cell-padding-y:    0.875rem !default;
+$table-cell-padding-x:    1rem !default;
+$table-cell-padding-sm:   0.5rem 0.75rem !default;
+$table-bg:                transparent !default;
+$table-striped-bg:        var(--table-striped, rgba(255, 255, 255, 0.02)) !default;
+$table-hover-bg:          var(--table-hover, rgba(255, 255, 255, 0.04)) !default;
+$table-border-color:      $border-color !default;
+$table-header-bg:         var(--table-header-bg, rgba(255, 255, 255, 0.03)) !default;
+$table-header-text:       $text-secondary !default;
+
+// ----------------------------------------------------------------------------
+// 12. PAGINATION
+// ----------------------------------------------------------------------------
+$pagination-item-size-xs:       1.75rem !default; // 28px
+$pagination-font-size-xs:       0.75rem !default;
+$pagination-radius-xs:          $radius-xs !default;
+
+$pagination-item-size-sm:       2rem !default;    // 32px
+$pagination-font-size-sm:       0.8125rem !default;
+$pagination-radius-sm:          $radius-sm !default;
+
+$pagination-item-size-md:       2.375rem !default;// 38px
+$pagination-font-size-md:       0.875rem !default;
+$pagination-radius-md:          $radius-md !default;
+
+$pagination-item-size-lg:       2.875rem !default;// 46px
+$pagination-font-size-lg:       1rem !default;
+$pagination-radius-lg:          $radius-lg !default;
+
+$pagination-item-size-xl:       3.25rem !default; // 52px
+$pagination-font-size-xl:       1.125rem !default;
+$pagination-radius-xl:          $radius-xl !default;
+
+$pagination-gap:                0.375rem !default;
+$pagination-gap-sm:             0.25rem !default;
+$pagination-gap-lg:             0.5rem !default;
+
+$pagination-bg:                 transparent !default;
+$pagination-item-bg:            var(--bg-surface-elevated, #243048) !default;
+$pagination-item-text:          var(--text-secondary, #94a3b8) !default;
+$pagination-item-hover-bg:      var(--bg-hover, rgba(255, 255, 255, 0.08)) !default;
+$pagination-item-hover-text:    var(--text-primary, #f8fafc) !default;
+$pagination-item-border:        var(--border-color, #334155) !default;
+
+$pagination-active-bg:          var(--accent, #6366f1) !default;
+$pagination-active-text:        #ffffff !default;
+$pagination-active-border:      transparent !default;
+$pagination-active-shadow:      0 2px 8px rgba(99, 102, 241, 0.4) !default;
+

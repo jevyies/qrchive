@@ -1,0 +1,677 @@
+// ============================================================================
+// COMPONENT: PAGINATION
+// Complete responsive pagination system for JUI Design System
+// Sizes: XS, SM, MD (Default), LG, XL
+// Shapes: Rounded, Pill/Circle, Square, Attached/Grouped
+// Patterns: Solid, Outlined, Tonal/Soft, Ghost/Text, Glass
+// Colors: Primary, Secondary, Success, Warning, Danger, Info, Neutral
+// Extras: Quick Jumper, Page Size Selector, Total Summary, First/Last Jumps
+// ============================================================================
+
+@use 'sass:map';
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ----------------------------------------------------------------------------
+// 1. Root Container
+// ----------------------------------------------------------------------------
+.pagination-container,
+.j-pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+  font-family: $font-family-base;
+
+  // Alignments
+  &.align-start {
+    justify-content: flex-start;
+  }
+  &.align-center {
+    justify-content: center;
+  }
+  &.align-end {
+    justify-content: flex-end;
+  }
+  &.align-between {
+    justify-content: space-between;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. Base Pagination List & Items
+// ----------------------------------------------------------------------------
+.pagination {
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: $pagination-gap;
+  user-select: none;
+
+  // Base Button / Item
+  .pagination-btn,
+  .pagination-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: $pagination-item-size-md;
+    height: $pagination-item-size-md;
+    padding: 0 0.5rem;
+    font-size: $pagination-font-size-md;
+    font-weight: $font-weight-medium;
+    line-height: 1;
+    color: $pagination-item-text;
+    background-color: $pagination-item-bg;
+    border: 1px solid $pagination-item-border;
+    border-radius: $pagination-radius-md;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    outline: none;
+
+    // Hover
+    &:hover:not(:disabled):not(.is-disabled):not(.is-active) {
+      color: $pagination-item-hover-text;
+      background-color: $pagination-item-hover-bg;
+      border-color: var(--border-color-focus, rgba(255, 255, 255, 0.2));
+      transform: translateY(-1px);
+    }
+
+    // Active Pressed
+    &:active:not(:disabled):not(.is-disabled) {
+      transform: translateY(0);
+    }
+
+    // Focus Visible
+    &:focus-visible {
+      @include focus-ring($btn-focus-ring-color, 3px);
+      z-index: 2;
+    }
+
+    // Disabled
+    &:disabled,
+    &.is-disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    // Active Selected State
+    &.is-active,
+    &.active {
+      color: $pagination-active-text;
+      background-color: $pagination-active-bg;
+      border-color: $pagination-active-border;
+      font-weight: $font-weight-bold;
+      box-shadow: $pagination-active-shadow;
+      z-index: 1;
+    }
+  }
+
+  // Prev / Next / First / Last Nav Buttons with Labels
+  .pagination-nav-btn {
+    padding: 0 0.75rem;
+    gap: 0.35rem;
+
+    svg,
+    i {
+      font-size: 0.9em;
+      line-height: 1;
+    }
+  }
+
+  // Ellipsis Item
+  .pagination-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: $pagination-item-size-md;
+    height: $pagination-item-size-md;
+    padding: 0 0.25rem;
+    font-size: $pagination-font-size-md;
+    color: $text-muted;
+    user-select: none;
+    cursor: default;
+    transition: all 180ms ease;
+
+    &.is-interactive {
+      cursor: pointer;
+      border-radius: $pagination-radius-md;
+      border: 1px solid transparent;
+
+      &:hover {
+        color: var(--accent, #6366f1);
+        background-color: $pagination-item-hover-bg;
+        border-color: $pagination-item-border;
+
+        .ellipsis-dots {
+          display: none;
+        }
+        .ellipsis-jump {
+          display: inline-flex;
+        }
+      }
+
+      .ellipsis-jump {
+        display: none;
+        font-size: 0.75em;
+        font-weight: bold;
+        letter-spacing: -1px;
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. SIZES: XS, SM, MD (Default), LG, XL
+// ----------------------------------------------------------------------------
+
+// Extra Small
+.pagination-xs,
+.j-pagination-xs .pagination {
+  gap: $pagination-gap-sm;
+
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    min-width: $pagination-item-size-xs;
+    height: $pagination-item-size-xs;
+    font-size: $pagination-font-size-xs;
+    border-radius: $pagination-radius-xs;
+    padding: 0 0.35rem;
+  }
+
+  .pagination-nav-btn {
+    padding: 0 0.5rem;
+  }
+}
+
+// Small
+.pagination-sm,
+.j-pagination-sm .pagination {
+  gap: $pagination-gap-sm;
+
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    min-width: $pagination-item-size-sm;
+    height: $pagination-item-size-sm;
+    font-size: $pagination-font-size-sm;
+    border-radius: $pagination-radius-sm;
+    padding: 0 0.4rem;
+  }
+
+  .pagination-nav-btn {
+    padding: 0 0.6rem;
+  }
+}
+
+// Medium (Default)
+.pagination-md,
+.j-pagination-md .pagination {
+  gap: $pagination-gap;
+
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    min-width: $pagination-item-size-md;
+    height: $pagination-item-size-md;
+    font-size: $pagination-font-size-md;
+    border-radius: $pagination-radius-md;
+  }
+}
+
+// Large
+.pagination-lg,
+.j-pagination-lg .pagination {
+  gap: $pagination-gap-lg;
+
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    min-width: $pagination-item-size-lg;
+    height: $pagination-item-size-lg;
+    font-size: $pagination-font-size-lg;
+    border-radius: $pagination-radius-lg;
+    padding: 0 0.75rem;
+  }
+
+  .pagination-nav-btn {
+    padding: 0 1rem;
+  }
+}
+
+// Extra Large
+.pagination-xl,
+.j-pagination-xl .pagination {
+  gap: $pagination-gap-lg;
+
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    min-width: $pagination-item-size-xl;
+    height: $pagination-item-size-xl;
+    font-size: $pagination-font-size-xl;
+    border-radius: $pagination-radius-xl;
+    padding: 0 0.9rem;
+  }
+
+  .pagination-nav-btn {
+    padding: 0 1.25rem;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. SHAPES: Rounded, Pill / Circle, Square, Attached/Grouped
+// ----------------------------------------------------------------------------
+
+// Rounded (Default standard border-radius)
+.pagination-rounded {
+  // Uses default responsive radius tokens per size
+}
+
+// Pill / Circle
+.pagination-pill,
+.pagination-circle,
+.j-pagination-pill .pagination,
+.j-pagination-circle .pagination {
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    border-radius: 9999px !important;
+  }
+}
+
+// Square
+.pagination-square,
+.j-pagination-square .pagination {
+  .pagination-btn,
+  .pagination-link,
+  .pagination-ellipsis {
+    border-radius: 0 !important;
+  }
+}
+
+// Attached / Grouped (Connected toolbar)
+.pagination-attached,
+.pagination-grouped,
+.j-pagination-attached .pagination {
+  gap: 0;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+
+  .pagination-btn,
+  .pagination-link {
+    border-radius: 0;
+    margin-left: -1px;
+
+    &:first-child,
+    &:first-of-type {
+      margin-left: 0;
+      border-top-left-radius: $radius-md;
+      border-bottom-left-radius: $radius-md;
+    }
+
+    &:last-child,
+    &:last-of-type {
+      border-top-right-radius: $radius-md;
+      border-bottom-right-radius: $radius-md;
+    }
+
+    &.is-active,
+    &.active {
+      z-index: 2;
+    }
+
+    &:hover:not(:disabled):not(.is-disabled) {
+      z-index: 3;
+    }
+  }
+
+  &.pagination-pill,
+  &.pagination-circle {
+    border-radius: 9999px;
+
+    .pagination-btn:first-child {
+      border-top-left-radius: 9999px;
+      border-bottom-left-radius: 9999px;
+    }
+    .pagination-btn:last-child {
+      border-top-right-radius: 9999px;
+      border-bottom-right-radius: 9999px;
+    }
+  }
+
+  &.pagination-square {
+    border-radius: 0;
+    .pagination-btn {
+      border-radius: 0 !important;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 5. VARIANTS: Solid, Outlined, Tonal, Ghost/Text, Glass
+// ----------------------------------------------------------------------------
+
+// Outlined Variant
+.pagination-outlined,
+.j-pagination-outlined .pagination {
+  .pagination-btn,
+  .pagination-link {
+    background-color: transparent;
+    border-color: $border-color;
+
+    &:hover:not(:disabled):not(.is-disabled):not(.is-active) {
+      background-color: $bg-hover;
+      border-color: var(--border-color-focus, #6366f1);
+      color: $text-primary;
+    }
+
+    &.is-active,
+    &.active {
+      background-color: transparent;
+      border-color: var(--accent, #6366f1);
+      color: var(--accent, #6366f1);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+    }
+  }
+}
+
+// Tonal / Soft Variant
+.pagination-tonal,
+.pagination-soft,
+.j-pagination-tonal .pagination {
+  .pagination-btn,
+  .pagination-link {
+    background-color: var(--bg-surface-tonal, rgba(255, 255, 255, 0.04));
+    border-color: transparent;
+    color: $text-secondary;
+
+    &:hover:not(:disabled):not(.is-disabled):not(.is-active) {
+      background-color: var(--bg-hover, rgba(255, 255, 255, 0.08));
+      color: $text-primary;
+      border-color: transparent;
+    }
+
+    &.is-active,
+    &.active {
+      background-color: var(--accent-tonal, rgba(99, 102, 241, 0.18));
+      color: var(--accent, #6366f1);
+      border-color: transparent;
+      box-shadow: none;
+    }
+  }
+}
+
+// Ghost / Text Variant
+.pagination-ghost,
+.pagination-text,
+.j-pagination-ghost .pagination {
+  .pagination-btn,
+  .pagination-link {
+    background-color: transparent;
+    border-color: transparent;
+    color: $text-secondary;
+
+    &:hover:not(:disabled):not(.is-disabled):not(.is-active) {
+      background-color: $bg-hover;
+      color: $text-primary;
+    }
+
+    &.is-active,
+    &.active {
+      background-color: transparent;
+      color: var(--accent, #6366f1);
+      font-weight: $font-weight-extrabold;
+      border-bottom: 2px solid var(--accent, #6366f1);
+      border-radius: 0;
+      box-shadow: none;
+    }
+  }
+}
+
+// Glass Variant
+.pagination-glass,
+.j-pagination-glass .pagination {
+  .pagination-btn,
+  .pagination-link {
+    @include glassmorphism(12px, rgba(30, 41, 59, 0.5), rgba(255, 255, 255, 0.08));
+
+    &:hover:not(:disabled):not(.is-disabled):not(.is-active) {
+      background-color: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    &.is-active,
+    &.active {
+      background-color: var(--accent, #6366f1);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 6. COLOR THEMES (Primary, Secondary, Success, Warning, Danger, Info, Neutral)
+// ----------------------------------------------------------------------------
+$pagination-colors: (
+  'primary': (
+    'base': var(--primary, #4f46e5),
+    'tonal': var(--primary-tonal, rgba(79, 70, 229, 0.15)),
+    'text': #ffffff,
+    'shadow': 0 2px 10px rgba(79, 70, 229, 0.4),
+  ),
+  'secondary': (
+    'base': var(--secondary, #64748b),
+    'tonal': var(--secondary-tonal, rgba(100, 116, 139, 0.15)),
+    'text': #ffffff,
+    'shadow': 0 2px 10px rgba(100, 116, 139, 0.3),
+  ),
+  'success': (
+    'base': var(--success, #10b981),
+    'tonal': var(--success-tonal, rgba(16, 185, 129, 0.15)),
+    'text': #ffffff,
+    'shadow': 0 2px 10px rgba(16, 185, 129, 0.4),
+  ),
+  'warning': (
+    'base': var(--warning, #f59e0b),
+    'tonal': var(--warning-tonal, rgba(245, 158, 11, 0.15)),
+    'text': #ffffff,
+    'shadow': 0 2px 10px rgba(245, 158, 11, 0.4),
+  ),
+  'danger': (
+    'base': var(--danger, #f43f5e),
+    'tonal': var(--danger-tonal, rgba(244, 63, 94, 0.15)),
+    'text': #ffffff,
+    'shadow': 0 2px 10px rgba(244, 63, 94, 0.4),
+  ),
+  'info': (
+    'base': var(--info, #0ea5e9),
+    'tonal': var(--info-tonal, rgba(14, 165, 233, 0.15)),
+    'text': #ffffff,
+    'shadow': 0 2px 10px rgba(14, 165, 233, 0.4),
+  ),
+  'neutral': (
+    'base': var(--neutral, #64748b),
+    'tonal': var(--neutral-tonal, rgba(100, 116, 139, 0.1)),
+    'text': #ffffff,
+    'shadow': 0 2px 8px rgba(100, 116, 139, 0.25),
+  ),
+);
+
+@each $name, $colors in $pagination-colors {
+  $color-base: map.get($colors, 'base');
+  $color-tonal: map.get($colors, 'tonal');
+  $color-text: map.get($colors, 'text');
+  $color-shadow: map.get($colors, 'shadow');
+
+  .pagination-#{$name},
+  .j-pagination-#{$name} .pagination {
+    // Solid (Default)
+    .pagination-btn.is-active,
+    .pagination-btn.active {
+      background-color: $color-base;
+      border-color: $color-base;
+      color: $color-text;
+      box-shadow: $color-shadow;
+    }
+
+    // Outlined
+    &.pagination-outlined,
+    &.pagination-bordered {
+      .pagination-btn.is-active,
+      .pagination-btn.active {
+        background-color: transparent;
+        border-color: $color-base;
+        color: $color-base;
+        box-shadow: 0 0 10px rgba($color-base, 0.25);
+      }
+    }
+
+    // Tonal
+    &.pagination-tonal,
+    &.pagination-soft {
+      .pagination-btn.is-active,
+      .pagination-btn.active {
+        background-color: $color-tonal;
+        border-color: transparent;
+        color: $color-base;
+        box-shadow: none;
+      }
+    }
+
+    // Ghost
+    &.pagination-ghost,
+    &.pagination-text {
+      .pagination-btn.is-active,
+      .pagination-btn.active {
+        background-color: transparent;
+        color: $color-base;
+        border-bottom-color: $color-base;
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 7. COMPACT / SIMPLE PAGINATION
+// ----------------------------------------------------------------------------
+.pagination-simple {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+
+  .pagination-simple-text {
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    padding: 0 0.5rem;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 8. AUXILIARY UTILITIES (Total Info, Jumper, Page Size Select)
+// ----------------------------------------------------------------------------
+.pagination-info {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  white-space: nowrap;
+
+  b,
+  strong {
+    color: $text-primary;
+    font-weight: $font-weight-bold;
+  }
+}
+
+.pagination-jumper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  white-space: nowrap;
+
+  .pagination-jumper-input {
+    width: 3.5rem;
+    height: $pagination-item-size-md;
+    text-align: center;
+    background-color: $bg-surface-elevated;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    color: $text-primary;
+    font-size: $font-size-sm;
+    padding: 0 0.35rem;
+    outline: none;
+    transition: all 180ms ease;
+
+    &:focus {
+      border-color: var(--accent, #6366f1);
+      @include focus-ring($btn-focus-ring-color, 2px);
+    }
+  }
+}
+
+.pagination-size-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  white-space: nowrap;
+
+  .pagination-select-control {
+    height: $pagination-item-size-md;
+    padding: 0 1.75rem 0 0.65rem;
+    background-color: $bg-surface-elevated;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    color: $text-primary;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 0.85rem;
+    transition: all 180ms ease;
+
+    &:focus {
+      border-color: var(--accent, #6366f1);
+      @include focus-ring($btn-focus-ring-color, 2px);
+    }
+  }
+}
+
+// Size scaling for auxiliary controls
+.j-pagination-sm {
+  .pagination-jumper .pagination-jumper-input,
+  .pagination-size-select .pagination-select-control {
+    height: $pagination-item-size-sm;
+    font-size: $font-size-xs;
+  }
+  .pagination-info {
+    font-size: $font-size-xs;
+  }
+}
+
+.j-pagination-lg {
+  .pagination-jumper .pagination-jumper-input,
+  .pagination-size-select .pagination-select-control {
+    height: $pagination-item-size-lg;
+    font-size: $font-size-md;
+  }
+  .pagination-info {
+    font-size: $font-size-md;
+  }
+}

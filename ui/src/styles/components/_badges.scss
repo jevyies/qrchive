@@ -1,0 +1,176 @@
+// ============================================================================
+// COMPONENT: BADGES, STATUS PILLS & CHIPS
+// Status indicators, tonal badges, pill shapes, and interactive chips
+// ============================================================================
+
+@use 'sass:map';
+@use '../variables' as *;
+
+// ----------------------------------------------------------------------------
+// Base Badge
+// ----------------------------------------------------------------------------
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  line-height: 1;
+  color: #ffffff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: $radius-sm;
+  background-color: var(--secondary, #64748b);
+  transition: $transition-fast;
+}
+
+// ----------------------------------------------------------------------------
+// Badge Sizes
+// ----------------------------------------------------------------------------
+.badge-xs {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.35rem;
+}
+
+.badge-sm {
+  font-size: $font-size-xs;
+  padding: 0.2rem 0.45rem;
+}
+
+.badge-lg {
+  font-size: $font-size-sm;
+  padding: 0.35rem 0.75rem;
+}
+
+.badge-pill {
+  border-radius: $radius-full;
+}
+
+// ----------------------------------------------------------------------------
+// Badge Colors (Solid, Tonal, Outlined)
+// ----------------------------------------------------------------------------
+$badge-colors: (
+  'primary': (
+    'bg': var(--primary, #4f46e5),
+    'text': var(--primary-text, #ffffff),
+    'tonal-bg': var(--primary-tonal, rgba(79, 70, 229, 0.12)),
+    'tonal-text': var(--primary, #4f46e5),
+  ),
+  'secondary': (
+    'bg': var(--secondary, #64748b),
+    'text': #ffffff,
+    'tonal-bg': var(--secondary-tonal, rgba(100, 116, 139, 0.12)),
+    'tonal-text': var(--secondary, #64748b),
+  ),
+  'success': (
+    'bg': var(--success, #10b981),
+    'text': #ffffff,
+    'tonal-bg': var(--success-tonal, rgba(16, 185, 129, 0.12)),
+    'tonal-text': var(--success, #10b981),
+  ),
+  'warning': (
+    'bg': var(--warning, #f59e0b),
+    'text': #ffffff,
+    'tonal-bg': var(--warning-tonal, rgba(245, 158, 11, 0.12)),
+    'tonal-text': var(--warning, #f59e0b),
+  ),
+  'danger': (
+    'bg': var(--danger, #f43f5e),
+    'text': #ffffff,
+    'tonal-bg': var(--danger-tonal, rgba(244, 63, 94, 0.12)),
+    'tonal-text': var(--danger, #f43f5e),
+  ),
+  'info': (
+    'bg': var(--info, #0ea5e9),
+    'text': #ffffff,
+    'tonal-bg': var(--info-tonal, rgba(14, 165, 233, 0.12)),
+    'tonal-text': var(--info, #0ea5e9),
+  ),
+  'neutral': (
+    'bg': $bg-surface-elevated,
+    'text': $text-primary,
+    'tonal-bg': $bg-surface-tonal,
+    'tonal-text': $text-primary,
+  ),
+);
+
+@each $name, $val in $badge-colors {
+  .badge-#{$name} {
+    background-color: map.get($val, 'bg');
+    color: map.get($val, 'text');
+  }
+
+  .badge-tonal-#{$name} {
+    background-color: map.get($val, 'tonal-bg');
+    color: map.get($val, 'tonal-text');
+  }
+
+  .badge-outlined-#{$name} {
+    background-color: transparent;
+    @if $name == 'neutral' {
+      border: 1px solid $border-color;
+      color: $text-primary;
+    } @else {
+      border: 1px solid map.get($val, 'bg');
+      color: map.get($val, 'bg');
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Status Dot Indicator
+// ----------------------------------------------------------------------------
+.badge-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: currentColor;
+
+  &.badge-dot-lg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Interactive Chips
+// ----------------------------------------------------------------------------
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $text-primary;
+  background-color: $bg-surface-elevated;
+  border: 1px solid $border-color;
+  border-radius: $radius-full;
+  user-select: none;
+  transition: $transition-fast;
+
+  &:hover {
+    background-color: $bg-hover;
+    border-color: var(--accent, #6366f1);
+  }
+
+  .chip-remove {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    color: $text-muted;
+    transition: $transition-fast;
+
+    &:hover {
+      color: var(--danger, #f43f5e);
+      background-color: rgba(244, 63, 94, 0.15);
+    }
+  }
+}

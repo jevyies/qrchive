@@ -1,0 +1,367 @@
+// ============================================================================
+// COMPONENT: LISTS & DROPDOWNS
+// List groups, dropdown menus, default hover transitions, selected colored items
+// ============================================================================
+
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ----------------------------------------------------------------------------
+// List Group
+// ----------------------------------------------------------------------------
+.list-group {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0;
+  margin-bottom: 0;
+  border-radius: $list-group-radius;
+  background-color: $list-group-bg;
+  border: 1px solid $list-group-border;
+  overflow: hidden;
+}
+
+.list-group-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: $list-item-padding-y $list-item-padding-x;
+  color: $text-primary;
+  text-decoration: none;
+  background-color: transparent;
+  border-bottom: 1px solid $border-color;
+  transition: $transition-fast;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  // Hover Effect for interactive items
+  &.list-group-item-action,
+  &:hover:not(.disabled):not(:disabled) {
+    background-color: $list-item-hover-bg;
+    color: $text-primary;
+    cursor: pointer;
+  }
+
+  // Active / Selected List Item
+  &.active,
+  &.is-selected {
+    z-index: 2;
+    background-color: $list-item-active-bg !important;
+    color: $list-item-active-text !important;
+    font-weight: $font-weight-medium;
+    border-left: 3px solid $list-item-active-border;
+
+    .text-secondary,
+    .text-muted {
+      color: $list-item-active-text !important;
+      opacity: 0.85;
+    }
+  }
+
+  // Disabled
+  &.disabled,
+  &:disabled {
+    color: $text-muted;
+    pointer-events: none;
+    background-color: transparent;
+    opacity: 0.6;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// List Group Density Styles (Compact, Comfortable, Convenient)
+// ----------------------------------------------------------------------------
+
+// 1. Compact Style (Tighter row padding, dense typography & icons)
+.list-group-compact,
+.list-compact {
+  .list-group-item {
+    padding: $list-item-padding-compact-y $list-item-padding-compact-x;
+    gap: 0.5rem;
+
+    .stat-icon {
+      width: 1.625rem !important;
+      height: 1.625rem !important;
+      font-size: 0.8rem !important;
+    }
+  }
+}
+
+// 2. Comfortable Style (Balanced default spacing)
+.list-group-comfortable,
+.list-comfortable {
+  .list-group-item {
+    padding: $list-item-padding-comfortable-y $list-item-padding-comfortable-x;
+    gap: 0.75rem;
+
+    .stat-icon {
+      width: 2rem !important;
+      height: 2rem !important;
+      font-size: 0.95rem !important;
+    }
+  }
+}
+
+// 3. Convenient Style (Generous spacious padding, rich multiline metadata)
+.list-group-convenient,
+.list-convenient {
+  .list-group-item {
+    padding: $list-item-padding-convenient-y $list-item-padding-convenient-x;
+    gap: 1rem;
+
+    .stat-icon {
+      width: 2.5rem !important;
+      height: 2.5rem !important;
+      font-size: 1.15rem !important;
+    }
+  }
+}
+
+// Item-level density modifier utilities
+.list-group-item-compact {
+  padding: $list-item-padding-compact-y $list-item-padding-compact-x !important;
+  gap: 0.5rem !important;
+}
+
+.list-group-item-comfortable {
+  padding: $list-item-padding-comfortable-y $list-item-padding-comfortable-x !important;
+  gap: 0.75rem !important;
+}
+
+.list-group-item-convenient {
+  padding: $list-item-padding-convenient-y $list-item-padding-convenient-x !important;
+  gap: 1rem !important;
+}
+
+// ----------------------------------------------------------------------------
+// Dropdowns & Dropdown Menus
+// ----------------------------------------------------------------------------
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: $dropdown-z-index;
+  min-width: 12rem;
+  padding: $dropdown-padding;
+  margin-top: 0.375rem;
+  font-size: $font-size-sm;
+  color: $text-primary;
+  text-align: left;
+  list-style: none;
+  background-color: $dropdown-bg;
+  background-clip: padding-box;
+  border: 1px solid $dropdown-border;
+  border-radius: $dropdown-radius;
+  box-shadow: $dropdown-shadow;
+  display: none;
+  animation: dropdown-fade-in 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.show,
+  &.is-open {
+    display: block;
+  }
+
+  &.dropdown-menu-end,
+  &.dropdown-menu-right {
+    left: auto;
+    right: 0;
+  }
+}
+
+@keyframes dropdown-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: $dropdown-item-padding-comfortable-y $dropdown-item-padding-comfortable-x;
+  clear: both;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $text-primary;
+  text-align: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  background-color: transparent;
+  border: 0;
+  border-radius: $radius-sm;
+  transition: $transition-fast;
+  cursor: pointer;
+
+  // Default Hovering Color
+  &:hover:not(.disabled):not(:disabled),
+  &:focus:not(.disabled):not(:disabled) {
+    color: $text-primary;
+    background-color: $list-item-hover-bg;
+    outline: none;
+  }
+
+  // Selected List Item Colored in Dropdowns
+  &.active,
+  &.is-selected {
+    color: var(--primary-text, #ffffff) !important;
+    text-decoration: none;
+    background-color: var(--primary, #4f46e5) !important;
+    font-weight: $font-weight-medium;
+
+    svg {
+      color: inherit;
+    }
+  }
+
+  // Disabled Dropdown item
+  &.disabled,
+  &:disabled {
+    color: $text-muted;
+    pointer-events: none;
+    background-color: transparent;
+    opacity: 0.5;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Dropdown Menu Density Styles (Compact, Comfortable, Convenient)
+// ----------------------------------------------------------------------------
+
+// 1. Compact Dropdown Menu (Dense, space-saving)
+.dropdown-menu-compact {
+  padding: 0.25rem !important;
+
+  .dropdown-item,
+  a.dropdown-item,
+  button.dropdown-item {
+    padding: $dropdown-item-padding-compact-y $dropdown-item-padding-compact-x !important;
+    font-size: $dropdown-item-font-size-compact !important;
+    line-height: 1.25 !important;
+    gap: 0.375rem !important;
+    border-radius: $radius-xs !important;
+
+    span, svg {
+      font-size: 0.8rem !important;
+    }
+  }
+
+  .dropdown-header {
+    padding: 0.25rem 0.55rem 0.15rem !important;
+    font-size: 0.65rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .dropdown-divider {
+    margin: 0.2rem 0 !important;
+  }
+}
+
+// 2. Comfortable Dropdown Menu (Balanced default spacing)
+.dropdown-menu-comfortable {
+  padding: 0.45rem !important;
+
+  .dropdown-item,
+  a.dropdown-item,
+  button.dropdown-item {
+    padding: $dropdown-item-padding-comfortable-y $dropdown-item-padding-comfortable-x !important;
+    font-size: $dropdown-item-font-size-comfortable !important;
+    line-height: 1.4 !important;
+    gap: 0.625rem !important;
+    border-radius: $radius-sm !important;
+
+    span, svg {
+      font-size: 1rem !important;
+    }
+  }
+
+  .dropdown-header {
+    padding: 0.45rem 0.9rem 0.25rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .dropdown-divider {
+    margin: 0.375rem 0 !important;
+  }
+}
+
+// 3. Convenient Dropdown Menu (Spacious touch-friendly)
+.dropdown-menu-convenient {
+  padding: 0.75rem !important;
+
+  .dropdown-item,
+  a.dropdown-item,
+  button.dropdown-item {
+    padding: $dropdown-item-padding-convenient-y $dropdown-item-padding-convenient-x !important;
+    font-size: $dropdown-item-font-size-convenient !important;
+    line-height: 1.5 !important;
+    gap: 0.875rem !important;
+    border-radius: $radius-md !important;
+
+    span, svg {
+      font-size: 1.25rem !important;
+    }
+  }
+
+  .dropdown-header {
+    padding: 0.65rem 1.35rem 0.35rem !important;
+    font-size: 0.8125rem !important;
+  }
+
+  .dropdown-divider {
+    margin: 0.5rem 0 !important;
+  }
+}
+
+// Item-level density modifier utilities for dropdown items
+.dropdown-item-compact {
+  padding: $dropdown-item-padding-compact-y $dropdown-item-padding-compact-x !important;
+  font-size: $dropdown-item-font-size-compact !important;
+  line-height: 1.25 !important;
+  gap: 0.375rem !important;
+}
+
+.dropdown-item-comfortable {
+  padding: $dropdown-item-padding-comfortable-y $dropdown-item-padding-comfortable-x !important;
+  font-size: $dropdown-item-font-size-comfortable !important;
+  line-height: 1.4 !important;
+  gap: 0.625rem !important;
+}
+
+.dropdown-item-convenient {
+  padding: $dropdown-item-padding-convenient-y $dropdown-item-padding-convenient-x !important;
+  font-size: $dropdown-item-font-size-convenient !important;
+  line-height: 1.5 !important;
+  gap: 0.875rem !important;
+}
+
+.dropdown-header {
+  display: block;
+  padding: 0.5rem 0.875rem 0.25rem;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.dropdown-divider {
+  height: 0;
+  margin: 0.375rem 0;
+  overflow: hidden;
+  border-top: 1px solid $border-color;
+}

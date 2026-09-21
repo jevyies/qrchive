@@ -1,0 +1,578 @@
+// ============================================================================
+// COMPONENT: BUTTONS
+// 5 Sizes: XS, SM, MD (Default), LG, XL
+// 5 Patterns: Flat (Solid), Outlined, Tonal, Text (Ghost), Link
+// Variants: Primary, Secondary, Success, Warning, Danger, Info, Neutral
+// Extras: Icon buttons, Pill buttons, Button groups, Loading spinners
+// ============================================================================
+
+@use 'sass:map';
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ----------------------------------------------------------------------------
+// Base Button
+// ----------------------------------------------------------------------------
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $btn-gap-md;
+  font-family: $btn-font-family;
+  font-size: $btn-font-size-md;
+  font-weight: $btn-font-weight;
+  line-height: $btn-line-height;
+  padding: $btn-padding-y-md $btn-padding-x-md;
+  border-radius: $btn-border-radius;
+  border: $btn-border-width solid transparent;
+  transition: $btn-transition;
+  user-select: none;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: middle;
+  position: relative;
+  overflow: hidden;
+
+  // Focus visible ring
+  &:focus-visible {
+    @include focus-ring($btn-focus-ring-color, $btn-focus-ring-width);
+  }
+
+  // Disabled state
+  &:disabled,
+  &.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none !important;
+  }
+
+  // Loading State
+  &.is-loading {
+    position: relative;
+    pointer-events: none;
+    cursor: wait;
+    color: transparent !important;
+    text-shadow: none !important;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 1.1rem;
+      height: 1.1rem;
+      margin-top: -0.55rem;
+      margin-left: -0.55rem;
+      border: 2px solid #ffffff;
+      border-right-color: transparent !important;
+      border-radius: 50%;
+      animation: btn-spin 0.65s linear infinite;
+      z-index: 2;
+    }
+
+    // Size adaptations for spinner
+    &.btn-xs::after {
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-top: -0.375rem;
+      margin-left: -0.375rem;
+      border-width: 1.5px;
+    }
+
+    &.btn-sm::after {
+      width: 0.875rem;
+      height: 0.875rem;
+      margin-top: -0.4375rem;
+      margin-left: -0.4375rem;
+      border-width: 2px;
+    }
+
+    &.btn-md::after {
+      width: 1.1rem;
+      height: 1.1rem;
+      margin-top: -0.55rem;
+      margin-left: -0.55rem;
+      border-width: 2px;
+    }
+
+    &.btn-lg::after {
+      width: 1.35rem;
+      height: 1.35rem;
+      margin-top: -0.675rem;
+      margin-left: -0.675rem;
+      border-width: 2.5px;
+    }
+
+    &.btn-xl::after {
+      width: 1.6rem;
+      height: 1.6rem;
+      margin-top: -0.8rem;
+      margin-left: -0.8rem;
+      border-width: 3px;
+    }
+  }
+}
+
+@keyframes btn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Standalone Spinner Component
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent !important;
+  border-radius: 50%;
+  animation: btn-spin 0.65s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+
+  &.spinner-xs {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-width: 1.5px;
+  }
+  &.spinner-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 1.75px;
+  }
+  &.spinner-md {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-width: 2px;
+  }
+  &.spinner-lg {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-width: 2.5px;
+  }
+  &.spinner-xl {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-width: 3px;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Button Sizes (XS, SM, MD, LG, XL)
+// ----------------------------------------------------------------------------
+.btn-xs {
+  padding: $btn-padding-y-xs $btn-padding-x-xs;
+  font-size: $btn-font-size-xs;
+  gap: $btn-gap-xs;
+  border-radius: $btn-radius-xs;
+}
+
+.btn-sm {
+  padding: $btn-padding-y-sm $btn-padding-x-sm;
+  font-size: $btn-font-size-sm;
+  gap: $btn-gap-sm;
+  border-radius: $btn-radius-sm;
+}
+
+.btn-md {
+  padding: $btn-padding-y-md $btn-padding-x-md;
+  font-size: $btn-font-size-md;
+  gap: $btn-gap-md;
+  border-radius: $btn-radius-md;
+}
+
+.btn-lg {
+  padding: $btn-padding-y-lg $btn-padding-x-lg;
+  font-size: $btn-font-size-lg;
+  gap: $btn-gap-lg;
+  border-radius: $btn-radius-lg;
+}
+
+.btn-xl {
+  padding: $btn-padding-y-xl $btn-padding-x-xl;
+  font-size: $btn-font-size-xl;
+  gap: $btn-gap-xl;
+  border-radius: $btn-radius-xl;
+  font-weight: 600;
+}
+
+// ----------------------------------------------------------------------------
+// Color Maps & Generation
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// Color Maps & Generation
+// ----------------------------------------------------------------------------
+$btn-variants: (
+  'primary': (
+    'solid-bg': var(--primary, #4f46e5),
+    'solid-hover': var(--primary-hover, #4338ca),
+    'solid-active': var(--primary-active, #3730a3),
+    'solid-text': var(--primary-text, #ffffff),
+    'tonal-bg': var(--primary-tonal, rgba(79, 70, 229, 0.12)),
+    'tonal-text': var(--primary, #4f46e5),
+    'outline-text': var(--primary, #4f46e5),
+    'border': var(--primary, #4f46e5),
+    'ring': var(--primary, #4f46e5),
+  ),
+  'secondary': (
+    'solid-bg': var(--secondary, #64748b),
+    'solid-hover': var(--secondary-hover, #475569),
+    'solid-active': var(--secondary-active, #334155),
+    'solid-text': var(--secondary-text, #ffffff),
+    'tonal-bg': var(--secondary-tonal, rgba(100, 116, 139, 0.12)),
+    'tonal-text': var(--secondary, #64748b),
+    'outline-text': var(--secondary, #64748b),
+    'border': var(--secondary, #64748b),
+    'ring': var(--secondary, #64748b),
+  ),
+  'success': (
+    'solid-bg': var(--success, #10b981),
+    'solid-hover': var(--success-hover, #059669),
+    'solid-active': var(--success-active, #047857),
+    'solid-text': var(--success-text, #ffffff),
+    'tonal-bg': var(--success-tonal, rgba(16, 185, 129, 0.12)),
+    'tonal-text': var(--success, #10b981),
+    'outline-text': var(--success, #10b981),
+    'border': var(--success, #10b981),
+    'ring': var(--success, #10b981),
+  ),
+  'warning': (
+    'solid-bg': var(--warning, #f59e0b),
+    'solid-hover': var(--warning-hover, #d97706),
+    'solid-active': var(--warning-active, #b45309),
+    'solid-text': var(--warning-text, #ffffff),
+    'tonal-bg': var(--warning-tonal, rgba(245, 158, 11, 0.12)),
+    'tonal-text': var(--warning, #f59e0b),
+    'outline-text': var(--warning, #f59e0b),
+    'border': var(--warning, #f59e0b),
+    'ring': var(--warning, #f59e0b),
+  ),
+  'danger': (
+    'solid-bg': var(--danger, #f43f5e),
+    'solid-hover': var(--danger-hover, #e11d48),
+    'solid-active': var(--danger-active, #be123c),
+    'solid-text': var(--danger-text, #ffffff),
+    'tonal-bg': var(--danger-tonal, rgba(244, 63, 94, 0.12)),
+    'tonal-text': var(--danger, #f43f5e),
+    'outline-text': var(--danger, #f43f5e),
+    'border': var(--danger, #f43f5e),
+    'ring': var(--danger, #f43f5e),
+  ),
+  'info': (
+    'solid-bg': var(--info, #0ea5e9),
+    'solid-hover': var(--info-hover, #0284c7),
+    'solid-active': var(--info-active, #0369a1),
+    'solid-text': var(--info-text, #ffffff),
+    'tonal-bg': var(--info-tonal, rgba(14, 165, 233, 0.12)),
+    'tonal-text': var(--info, #0ea5e9),
+    'outline-text': var(--info, #0ea5e9),
+    'border': var(--info, #0ea5e9),
+    'ring': var(--info, #0ea5e9),
+  ),
+  'neutral': (
+    'solid-bg': $bg-surface-elevated,
+    'solid-hover': $bg-hover,
+    'solid-active': $bg-active,
+    'solid-text': $text-primary,
+    'tonal-bg': $bg-surface-tonal,
+    'tonal-text': $text-primary,
+    'outline-text': $text-primary,
+    'border': $border-color,
+    'ring': $border-color,
+  ),
+);
+
+// ----------------------------------------------------------------------------
+// 1. FLAT / SOLID PATTERN (Default Pattern)
+// ----------------------------------------------------------------------------
+@each $name, $colors in $btn-variants {
+  .btn-#{$name},
+  .btn-flat-#{$name} {
+    background-color: map.get($colors, 'solid-bg');
+    color: map.get($colors, 'solid-text');
+    border-color: map.get($colors, 'border');
+    box-shadow: $shadow-sm;
+
+    &.is-loading::after {
+      border-color: map.get($colors, 'solid-text');
+      border-right-color: transparent !important;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: map.get($colors, 'solid-hover');
+      border-color: map.get($colors, 'solid-hover');
+      transform: translateY(-1px);
+      box-shadow: $shadow-md;
+    }
+
+    &:active:not(:disabled) {
+      background-color: map.get($colors, 'solid-active');
+      border-color: map.get($colors, 'solid-active');
+      transform: translateY(0);
+      box-shadow: $shadow-sm;
+    }
+
+    &:focus-visible {
+      @include focus-ring(map.get($colors, 'ring'));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. OUTLINED PATTERN
+// ----------------------------------------------------------------------------
+.btn-outlined {
+  background-color: transparent;
+  border-width: 1.5px;
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+@each $name, $colors in $btn-variants {
+  .btn-outlined-#{$name},
+  .btn-outlined.btn-#{$name} {
+    background-color: transparent;
+    border-color: map.get($colors, 'border');
+    color: map.get($colors, 'outline-text');
+
+    &.is-loading::after {
+      border-color: map.get($colors, 'outline-text');
+      border-right-color: transparent !important;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: map.get($colors, 'tonal-bg');
+      @if $name == 'neutral' {
+        border-color: var(--text-secondary, #94a3b8);
+      } @else {
+        border-color: map.get($colors, 'border');
+      }
+      color: map.get($colors, 'outline-text');
+    }
+
+    &:active:not(:disabled) {
+      background-color: map.get($colors, 'solid-bg');
+      border-color: map.get($colors, 'border');
+      color: map.get($colors, 'solid-text');
+    }
+
+    &:focus-visible {
+      @include focus-ring(map.get($colors, 'ring'));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. TONAL / SURFACE CONTAINER PATTERN (Soft Background)
+// ----------------------------------------------------------------------------
+.btn-tonal {
+  border-color: transparent;
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+@each $name, $colors in $btn-variants {
+  .btn-tonal-#{$name},
+  .btn-tonal.btn-#{$name} {
+    background-color: map.get($colors, 'tonal-bg');
+    color: map.get($colors, 'tonal-text');
+    border-color: transparent;
+
+    &.is-loading::after {
+      border-color: map.get($colors, 'tonal-text');
+      border-right-color: transparent !important;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: map.get($colors, 'solid-bg');
+      color: map.get($colors, 'solid-text');
+      box-shadow: $shadow-sm;
+    }
+
+    &:active:not(:disabled) {
+      background-color: map.get($colors, 'solid-active');
+      color: map.get($colors, 'solid-text');
+    }
+
+    &:focus-visible {
+      @include focus-ring(map.get($colors, 'ring'));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. TEXT / GHOST PATTERN
+// ----------------------------------------------------------------------------
+.btn-text {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    background-color: $bg-hover;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $bg-active;
+  }
+}
+
+@each $name, $colors in $btn-variants {
+  .btn-text-#{$name},
+  .btn-text.btn-#{$name} {
+    background-color: transparent;
+    border-color: transparent;
+    color: map.get($colors, 'outline-text');
+
+    &.is-loading::after {
+      border-color: map.get($colors, 'outline-text');
+      border-right-color: transparent !important;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: map.get($colors, 'tonal-bg');
+      color: map.get($colors, 'outline-text');
+    }
+
+    &:active:not(:disabled) {
+      background-color: map.get($colors, 'solid-bg');
+      color: map.get($colors, 'solid-text');
+    }
+
+    &:focus-visible {
+      @include focus-ring(map.get($colors, 'ring'));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 5. LINK PATTERN
+// ----------------------------------------------------------------------------
+.btn-link {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding-left: 0;
+  padding-right: 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+    opacity: 0.85;
+    background: transparent;
+  }
+}
+
+@each $name, $colors in $btn-variants {
+  .btn-link-#{$name},
+  .btn-link.btn-#{$name} {
+    color: map.get($colors, 'outline-text');
+
+    &.is-loading::after {
+      border-color: map.get($colors, 'outline-text');
+      border-right-color: transparent !important;
+    }
+
+    &:hover:not(:disabled) {
+      color: map.get($colors, 'solid-hover');
+    }
+
+    &:focus-visible {
+      @include focus-ring(map.get($colors, 'ring'));
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Button Shapes & Helpers
+// ----------------------------------------------------------------------------
+.btn-pill {
+  border-radius: $radius-full !important;
+}
+
+.btn-square {
+  border-radius: 0 !important;
+}
+
+.btn-icon {
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.btn-xs {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  &.btn-sm {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  &.btn-md,
+  &:not([class*='btn-xs']):not([class*='btn-sm']):not([class*='btn-lg']):not([class*='btn-xl']) {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  &.btn-lg {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  &.btn-xl {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+}
+
+.btn-block,
+.btn-full {
+  width: 100%;
+  display: flex;
+}
+
+// ----------------------------------------------------------------------------
+// Button Groups
+// ----------------------------------------------------------------------------
+.btn-group {
+  display: inline-flex;
+  vertical-align: middle;
+
+  .btn {
+    border-radius: 0;
+    margin-left: -1px;
+
+    &:first-child {
+      margin-left: 0;
+      border-top-left-radius: $btn-border-radius;
+      border-bottom-left-radius: $btn-border-radius;
+    }
+
+    &:last-child {
+      border-top-right-radius: $btn-border-radius;
+      border-bottom-right-radius: $btn-border-radius;
+    }
+
+    &:hover,
+    &:focus,
+    &:active,
+    &.active {
+      z-index: 2;
+    }
+  }
+}

@@ -7,6 +7,7 @@ meta:
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AppLogo from '@core/components/AppLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -379,8 +380,7 @@ onBeforeUnmount(() => {
             class="fixed top-0 w-full z-40 pt-safe bg-surface/85 backdrop-blur-xl shadow-[0_1px_12px_rgba(43,38,35,0.04)] header-border">
             <div class="h-16 px-gutter flex items-center justify-between gap-space-sm">
                 <div class="flex items-center gap-space-sm min-w-0 flex-1 cursor-pointer" @click="navigateToWelcome">
-                    <img alt="QRchive Logo" class="h-8 w-auto object-contain shrink-0"
-                        src="https://lh3.googleusercontent.com/aida/AEtjO1XUa6mJN9JdZkbSaf4giXuA5Dt9CprqznZwqb78PfF5N5_Je0ZK_IWogao1hTViaBPomjIKmkhZEMxzHaTMSCrjJEO6h6xdG0oUPun2r9pvKc4RRoWdexBGQtgS7aqpAtWqbDS-EqNf5RVMc2SP9vy0fVD9dAqwBupF2ZQ4gGU6PFlP4mcg34qQruGfswnHwSEOq3fXVx27NYazCZo3zqridJto7xQ_bBJzfXx00Y2igDyXSnnki8sUxOw">
+                    <AppLogo :width="28" :height="28" color="primary" class="shrink-0" />
                     <div class="flex flex-col min-w-0">
                         <span class="font-label-sm text-label-sm uppercase tracking-widest text-primary truncate">
                             {{ currentWedding.title }}

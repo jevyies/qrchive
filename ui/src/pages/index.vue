@@ -217,7 +217,7 @@ const handleUserClick = () => {
                 <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
               </button>
 
-              <button type="button" class="btn-secondary-tonal hero-cta-btn" @click="scrollTo('steps')">
+              <button type="button" class="btn-secondary-tonal hero-cta-btn" @click="router.push('/event/keann-and-jenny')">
                 <span class="material-symbols-outlined text-accent text-[20px]">play_circle</span>
                 <span>Try Our Guest Demo</span>
               </button>

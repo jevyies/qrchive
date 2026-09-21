@@ -8,6 +8,7 @@ meta:
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
+import AppLogo from '@core/components/AppLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,9 +112,12 @@ onMounted(() => {
                     <header class="relative z-20 w-full px-5 pt-4 flex items-center justify-between">
                         <!-- Left: QRchive Atelier Emblem -->
                         <div
-                            class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-surface-container-lowest/15 backdrop-blur-md shadow-sm">
-                            <img alt="QRchive Logo" class="w-6 h-6 rounded-full object-cover shadow-inner"
-                                src="https://lh3.googleusercontent.com/aida/AEtjO1XUa6mJN9JdZkbSaf4giXuA5Dt9CprqznZwqb78PfF5N5_Je0ZK_IWogao1hTViaBPomjIKmkhZEMxzHaTMSCrjJEO6h6xdG0oUPun2r9pvKc4RRoWdexBGQtgS7aqpAtWqbDS-EqNf5RVMc2SP9vy0fVD9dAqwBupF2ZQ4gGU6PFlP4mcg34qQruGfswnHwSEOq3fXVx27NYazCZo3zqridJto7xQ_bBJzfXx00Y2igDyXSnnki8sUxOw">
+                            class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-surface-container-lowest/15 backdrop-blur-md shadow-sm cursor-pointer active:scale-95 transition-transform"
+                            role="button"
+                            tabindex="0"
+                            aria-label="Return to Homepage"
+                            @click="router.push('/')">
+                            <AppLogo :width="24" :height="24" color="#fff8f5" class="brand-logo" />
                             <div class="flex flex-col">
                                 <span
                                     class="font-headline-sm text-[12px] tracking-[0.14em] text-surface font-semibold uppercase leading-none">QRchive</span>

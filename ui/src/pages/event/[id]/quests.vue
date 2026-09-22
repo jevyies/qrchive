@@ -57,7 +57,7 @@ const eventHeaderTitle = computed(() => {
 })
 
 // Experience Switcher state: 'checklist' or 'quick'
-const captureMode = ref('checklist')
+const captureMode = ref('quick')
 
 const switchExperience = (mode) => {
     captureMode.value = mode
@@ -432,171 +432,174 @@ onBeforeUnmount(() => {
             <!-- Content Sheet Overlay (Slides over sticky hero on scroll) -->
             <div class="checklist-content">
                 <div class="checklist-container">
-                <!-- Interactive Hidden File Input for Native Camera Upload Feel -->
-                <input id="photo-upload-input" ref="fileInput" accept="image/*" capture="environment"
-                    class="checklist-hidden-input" type="file" @change="handleFileChange">
+                    <!-- Interactive Hidden File Input for Native Camera Upload Feel -->
+                    <input id="photo-upload-input" ref="fileInput" accept="image/*" capture="environment"
+                        class="checklist-hidden-input" type="file" @change="handleFileChange">
 
-                <!-- Toast Notification Container for Delight Moment -->
-                <div id="toast-delight" class="checklist-toast" :class="{ 'is-visible': toast.show }">
-                    <div class="checklist-toast__inner">
-                        <span class="material-symbols-outlined checklist-toast__icon"
-                            style="font-variation-settings: 'FILL' 1;">sparkles</span>
-                        <span id="toast-message" class="checklist-toast__text">{{ toast.message }}</span>
-                    </div>
-                </div>
-
-                <!-- Hero Header Progress Card: Experience Switcher -->
-                <div class="checklist-experience-switcher">
-                    <div class="checklist-experience-switcher__header">
-                        <span class="checklist-experience-switcher__label">Select Capture Experience</span>
-                        <span class="checklist-experience-switcher__badge">
-                            <span class="material-symbols-outlined">tune</span>
-                            Switch anytime
-                        </span>
-                    </div>
-
-                    <div class="checklist-experience-switcher__grid">
-                        <!-- Quick Capture Button -->
-                        <button id="btn-quick-capture" class="checklist-experience-card"
-                            :class="{ 'is-active': captureMode === 'quick' }" type="button"
-                            @click="switchExperience('quick')">
-                            <div class="checklist-experience-card__top">
-                                <div class="checklist-experience-card__icon-wrap">
-                                    <span class="material-symbols-outlined">shutter_speed</span>
-                                </div>
-                                <span class="checklist-experience-card__check-indicator">
-                                    <span v-if="captureMode === 'quick'" class="material-symbols-outlined">check</span>
-                                    <span v-else class="checklist-experience-card__check-dot"></span>
-                                </span>
-                            </div>
-                            <div class="checklist-experience-card__title-row">
-                                <span class="checklist-experience-card__title">Quick Capture</span>
-                            </div>
-                            <span class="checklist-experience-card__desc">Snap or upload freely as moments happen</span>
-                        </button>
-
-                        <!-- Photo Checklist Button -->
-                        <button id="btn-checklist-capture" class="checklist-experience-card"
-                            :class="{ 'is-active': captureMode === 'checklist' }" type="button"
-                            @click="switchExperience('checklist')">
-                            <div class="checklist-experience-card__top">
-                                <div class="checklist-experience-card__icon-wrap">
-                                    <span class="material-symbols-outlined">checklist</span>
-                                </div>
-                                <span class="checklist-experience-card__check-indicator">
-                                    <span v-if="captureMode === 'checklist'"
-                                        class="material-symbols-outlined">check</span>
-                                    <span v-else class="checklist-experience-card__check-dot"></span>
-                                </span>
-                            </div>
-                            <div class="checklist-experience-card__title-row">
-                                <span class="checklist-experience-card__title">Photo Checklist</span>
-                            </div>
-                            <span class="checklist-experience-card__desc">Follow guided moments to capture &amp; earn
-                                memories</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Quick Capture Prominent CTA Section -->
-                <div v-show="captureMode === 'quick'" id="quick-capture-section" class="checklist-quick-section">
-                    <div class="checklist-quick-card">
-                        <div class="checklist-quick-card__icon-wrap">
-                            <span class="material-symbols-outlined"
-                                style="font-variation-settings: 'FILL' 1;">photo_camera</span>
-                        </div>
-                        <span class="checklist-quick-card__eyebrow">Unrestricted Uploads</span>
-                        <h2 class="checklist-quick-card__title">Instant Photo Drop</h2>
-                        <p class="checklist-quick-card__desc">
-                            Capture spontaneous laughter, candid toasts, and celebration moments as they happen.
-                            Everything saves straight to {{ currentWedding.couple }}'s vault.
-                        </p>
-                        <div class="checklist-quick-card__actions">
-                            <button class="checklist-quick-card__submit-btn" type="button"
-                                @click="openCamera({ id: 'quick', number: '⚡', title: 'Quick Snapshot', description: 'Instant candid capture saved to vault' })">
-                                <span class="material-symbols-outlined"
-                                    style="font-variation-settings: 'FILL' 1;">photo_camera</span>
-                                <span>Snap &amp; Share Now</span>
-                            </button>
+                    <!-- Toast Notification Container for Delight Moment -->
+                    <div id="toast-delight" class="checklist-toast" :class="{ 'is-visible': toast.show }">
+                        <div class="checklist-toast__inner">
+                            <span class="material-symbols-outlined checklist-toast__icon"
+                                style="font-variation-settings: 'FILL' 1;">sparkles</span>
+                            <span id="toast-message" class="checklist-toast__text">{{ toast.message }}</span>
                         </div>
                     </div>
-                </div>
 
-                <!-- Photo Checklist Complete Experience Section -->
-                <div v-show="captureMode === 'checklist'" id="checklist-section-wrapper" class="checklist-section">
-                    <!-- Progress Card -->
-                    <div id="checklist-progress-card" class="checklist-progress-card">
-                        <div class="checklist-progress-card__header">
-                            <span id="checklist-counter" class="checklist-progress-card__counter">
-                                {{ capturedCount }} of {{ totalCount }} Captured
+                    <!-- Hero Header Progress Card: Experience Switcher -->
+                    <div class="checklist-experience-switcher">
+                        <div class="checklist-experience-switcher__header">
+                            <span class="checklist-experience-switcher__label">Select Capture Experience</span>
+                            <span class="checklist-experience-switcher__badge">
+                                <span class="material-symbols-outlined">tune</span>
+                                Switch anytime
                             </span>
                         </div>
-                        <h1 class="checklist-progress-card__title">Photo Checklist</h1>
-                        <p class="checklist-progress-card__desc">
-                            Help capture {{ currentWedding.couple }}'s special day.
-                            <strong>1 photo or video per moment.</strong> You can replace your entry anytime.
-                        </p>
-                        <div class="checklist-progress-card__bar-wrap">
-                            <div class="checklist-progress-card__track">
-                                <div class="checklist-progress-card__fill" :style="{ width: `${progressPercent}%` }">
+
+                        <div class="checklist-experience-switcher__grid">
+                            <!-- Quick Capture Button -->
+                            <button id="btn-quick-capture" class="checklist-experience-card"
+                                :class="{ 'is-active': captureMode === 'quick' }" type="button"
+                                @click="switchExperience('quick')">
+                                <div class="checklist-experience-card__top">
+                                    <div class="checklist-experience-card__icon-wrap">
+                                        <span class="material-symbols-outlined">shutter_speed</span>
+                                    </div>
+                                    <span class="checklist-experience-card__check-indicator">
+                                        <span v-if="captureMode === 'quick'"
+                                            class="material-symbols-outlined">check</span>
+                                        <span v-else class="checklist-experience-card__check-dot"></span>
+                                    </span>
                                 </div>
+                                <div class="checklist-experience-card__title-row">
+                                    <span class="checklist-experience-card__title">Quick Capture</span>
+                                </div>
+                                <span class="checklist-experience-card__desc">Snap or upload freely as moments
+                                    happen</span>
+                            </button>
+
+                            <!-- Photo Checklist Button -->
+                            <button id="btn-checklist-capture" class="checklist-experience-card"
+                                :class="{ 'is-active': captureMode === 'checklist' }" type="button"
+                                @click="switchExperience('checklist')">
+                                <div class="checklist-experience-card__top">
+                                    <div class="checklist-experience-card__icon-wrap">
+                                        <span class="material-symbols-outlined">checklist</span>
+                                    </div>
+                                    <span class="checklist-experience-card__check-indicator">
+                                        <span v-if="captureMode === 'checklist'"
+                                            class="material-symbols-outlined">check</span>
+                                        <span v-else class="checklist-experience-card__check-dot"></span>
+                                    </span>
+                                </div>
+                                <div class="checklist-experience-card__title-row">
+                                    <span class="checklist-experience-card__title">Photo Checklist</span>
+                                </div>
+                                <span class="checklist-experience-card__desc">Follow guided moments to capture &amp;
+                                    earn
+                                    memories</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Capture Prominent CTA Section -->
+                    <div v-show="captureMode === 'quick'" id="quick-capture-section" class="checklist-quick-section">
+                        <div class="checklist-quick-card">
+                            <div class="checklist-quick-card__icon-wrap">
+                                <span class="material-symbols-outlined"
+                                    style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+                            </div>
+                            <h2 class="checklist-quick-card__title">Instant Photo Drop</h2>
+                            <p class="checklist-quick-card__desc">
+                                Capture spontaneous laughter, candid toasts, and celebration moments as they happen.
+                            </p>
+                            <div class="checklist-quick-card__actions">
+                                <button class="checklist-quick-card__submit-btn" type="button"
+                                    @click="openCamera({ id: 'quick', number: '⚡', title: 'Quick Snapshot', description: 'Instant candid capture saved to vault' })">
+                                    <span class="material-symbols-outlined"
+                                        style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+                                    <span>Snap &amp; Share Now</span>
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Checklist Stream -->
-                    <div id="checklist-items-container" class="checklist-stream">
-                        <div v-for="item in moments" :key="item.id" class="moment-item" :data-category="item.category">
-                            <div class="moment-item__content">
-                                <!-- Thumbnail if uploaded -->
-                                <div v-if="item.captured && item.image" class="moment-item__thumb-wrap">
-                                    <img :alt="item.title" class="moment-item__thumb-img" :src="item.image">
-                                    <div class="moment-item__thumb-badge">
-                                        <span class="material-symbols-outlined"
-                                            style="font-variation-settings: 'FILL' 1;">check</span>
+                    <!-- Photo Checklist Complete Experience Section -->
+                    <div v-show="captureMode === 'checklist'" id="checklist-section-wrapper" class="checklist-section">
+                        <!-- Progress Card -->
+                        <div id="checklist-progress-card" class="checklist-progress-card">
+                            <div class="checklist-progress-card__header">
+                                <span id="checklist-counter" class="checklist-progress-card__counter">
+                                    {{ capturedCount }} of {{ totalCount }} Captured
+                                </span>
+                            </div>
+                            <h1 class="checklist-progress-card__title">Photo Checklist</h1>
+                            <p class="checklist-progress-card__desc">
+                                Help capture {{ currentWedding.couple }}'s special day.
+                                <strong>1 photo or video per moment.</strong> You can replace your entry anytime.
+                            </p>
+                            <div class="checklist-progress-card__bar-wrap">
+                                <div class="checklist-progress-card__track">
+                                    <div class="checklist-progress-card__fill"
+                                        :style="{ width: `${progressPercent}%` }">
                                     </div>
-                                </div>
-
-                                <!-- Placeholder if pending -->
-                                <div v-else class="moment-item__placeholder-wrap">
-                                    <span class="material-symbols-outlined">broken_image</span>
-                                </div>
-
-                                <!-- Moment Details -->
-                                <div class="moment-item__details">
-                                    <div class="moment-item__meta">
-                                        <span v-if="item.captured" class="moment-item__status-verified">
-                                            <span class="material-symbols-outlined"
-                                                style="font-variation-settings: 'FILL' 1;">verified</span>
-                                            1/1 Uploaded
-                                        </span>
-                                        <span v-else class="moment-item__category-label">
-                                            {{ item.categoryLabel || 'Reception' }}
-                                        </span>
-                                    </div>
-                                    <h2 class="moment-item__title">{{ item.title }}</h2>
-                                    <span class="moment-item__subtitle">{{ item.description }}</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Button Actions -->
-                            <button v-if="item.captured" class="moment-item__btn moment-item__btn--replace"
-                                type="button" @click="openCamera(item)">
-                                <span class="material-symbols-outlined">sync</span>
-                                <span>REPLACE ENTRY</span>
-                            </button>
+                        <!-- Checklist Stream -->
+                        <div id="checklist-items-container" class="checklist-stream">
+                            <div v-for="item in moments" :key="item.id" class="moment-item"
+                                :data-category="item.category">
+                                <div class="moment-item__content">
+                                    <!-- Thumbnail if uploaded -->
+                                    <div v-if="item.captured && item.image" class="moment-item__thumb-wrap">
+                                        <img :alt="item.title" class="moment-item__thumb-img" :src="item.image">
+                                        <div class="moment-item__thumb-badge">
+                                            <span class="material-symbols-outlined"
+                                                style="font-variation-settings: 'FILL' 1;">check</span>
+                                        </div>
+                                    </div>
 
-                            <button v-else class="moment-item__btn moment-item__btn--add" type="button"
-                                @click="openCamera(item)">
-                                <span class="material-symbols-outlined"
-                                    style="font-variation-settings: 'FILL' 1;">photo_camera</span>
-                                <span>ADD ENTRY</span>
-                            </button>
+                                    <!-- Placeholder if pending -->
+                                    <div v-else class="moment-item__placeholder-wrap">
+                                        <span class="material-symbols-outlined">broken_image</span>
+                                    </div>
+
+                                    <!-- Moment Details -->
+                                    <div class="moment-item__details">
+                                        <div class="moment-item__meta">
+                                            <span v-if="item.captured" class="moment-item__status-verified">
+                                                <span class="material-symbols-outlined"
+                                                    style="font-variation-settings: 'FILL' 1;">verified</span>
+                                                1/1 Uploaded
+                                            </span>
+                                            <span v-else class="moment-item__category-label">
+                                                {{ item.categoryLabel || 'Reception' }}
+                                            </span>
+                                        </div>
+                                        <h2 class="moment-item__title">{{ item.title }}</h2>
+                                        <span class="moment-item__subtitle">{{ item.description }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Button Actions -->
+                                <button v-if="item.captured" class="moment-item__btn moment-item__btn--replace"
+                                    type="button" @click="openCamera(item)">
+                                    <span class="material-symbols-outlined">sync</span>
+                                    <span>REPLACE ENTRY</span>
+                                </button>
+
+                                <button v-else class="moment-item__btn moment-item__btn--add" type="button"
+                                    @click="openCamera(item)">
+                                    <span class="material-symbols-outlined"
+                                        style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+                                    <span>ADD ENTRY</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </main>
 
         <!-- Bottom Navigation Bar -->

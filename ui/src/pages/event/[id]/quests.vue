@@ -66,20 +66,6 @@ const switchExperience = (mode) => {
 // File upload & Toast notification state
 const fileInput = ref(null)
 const currentTargetTitle = ref('')
-const toast = ref({
-    show: false,
-    message: "Captured beautifully! Added to Jenny & Keann's vault.",
-})
-let toastTimeout = null
-
-const showToast = (msg) => {
-    toast.value = { show: true, message: msg }
-    if (toastTimeout) clearTimeout(toastTimeout)
-    toastTimeout = setTimeout(() => {
-        toast.value.show = false
-    }, 2800)
-}
-
 // Camera Live Feed & Viewfinder Modal State
 const isCameraOpen = ref(false)
 const activeMoment = ref(null)
@@ -235,11 +221,11 @@ const takePhoto = () => {
         isViewfinderScaled.value = false
     }, 120)
 
-    showToast(`Captured beautifully! Added to ${currentWedding.value.couple}'s vault.`)
-
-    setTimeout(() => {
-        closeCamera()
-    }, 500)
+    if (captureMode.value !== 'quick') {
+        setTimeout(() => {
+            closeCamera()
+        }, 500)
+    }
 }
 
 // Fallback native gallery picker
@@ -254,7 +240,6 @@ const handleFileChange = (e) => {
     const files = e.target.files
     if (files && files.length > 0) {
         const rawTitle = currentTargetTitle.value || currentWedding.value.couple
-        showToast(`Photo secured for: ${rawTitle}`)
 
         const reader = new FileReader()
         reader.onload = (event) => {
@@ -435,15 +420,6 @@ onBeforeUnmount(() => {
                     <!-- Interactive Hidden File Input for Native Camera Upload Feel -->
                     <input id="photo-upload-input" ref="fileInput" accept="image/*" capture="environment"
                         class="checklist-hidden-input" type="file" @change="handleFileChange">
-
-                    <!-- Toast Notification Container for Delight Moment -->
-                    <div id="toast-delight" class="checklist-toast" :class="{ 'is-visible': toast.show }">
-                        <div class="checklist-toast__inner">
-                            <span class="material-symbols-outlined checklist-toast__icon"
-                                style="font-variation-settings: 'FILL' 1;">sparkles</span>
-                            <span id="toast-message" class="checklist-toast__text">{{ toast.message }}</span>
-                        </div>
-                    </div>
 
                     <!-- Hero Header Progress Card: Experience Switcher -->
                     <div class="checklist-experience-switcher">

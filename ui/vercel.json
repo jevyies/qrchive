@@ -1,0 +1,9 @@
+{
+    "buildCommand": "vite build --mode development",
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/"
+        }
+    ]
+}

@@ -67,26 +67,30 @@ export const storeUsers = pgTable('store_users', {
 });
 
 // ==========================================
-// 4. WEDDINGS
+// 4. EVENTS
 // ==========================================
-export const weddings = pgTable('weddings', {
+export const events = pgTable('events', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
-  brideFirstname: varchar('bride_firstname', { length: 100 }).notNull(),
-  brideLastname: varchar('bride_lastname', { length: 100 }).notNull(),
-  groomFirstname: varchar('groom_firstname', { length: 100 }).notNull(),
-  groomLastname: varchar('groom_lastname', { length: 100 }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  brideFirstname: varchar('bride_firstname', { length: 100 }),
+  brideLastname: varchar('bride_lastname', { length: 100 }),
+  groomFirstname: varchar('groom_firstname', { length: 100 }),
+  groomLastname: varchar('groom_lastname', { length: 100 }),
   invitationDeadline: timestamp('invitation_deadline', { withTimezone: true, mode: 'string' }),
-  weddingDate: timestamp('wedding_date', { withTimezone: true, mode: 'string' }),
+  eventDate: timestamp('event_date', { withTimezone: true, mode: 'string' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // ==========================================
-// 5. WEDDING_USERS (Junction)
+// 5. EVENT_USERS (Junction)
 // ==========================================
-export const weddingUsers = pgTable('wedding_users', {
+export const eventUsers = pgTable('event_users', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
-  weddingId: bigint('wedding_id', { mode: 'number' })
+  eventId: bigint('event_id', { mode: 'number' })
     .notNull()
-    .references(() => weddings.id, { onDelete: 'cascade' }),
+    .references(() => events.id, { onDelete: 'cascade' }),
   userId: bigint('user_id', { mode: 'number' })
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -106,9 +110,9 @@ export const guestTables = pgTable('guest_tables', {
 // ==========================================
 export const invitations = pgTable('invitations', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
-  weddingId: bigint('wedding_id', { mode: 'number' })
+  eventId: bigint('event_id', { mode: 'number' })
     .notNull()
-    .references(() => weddings.id, { onDelete: 'cascade' }),
+    .references(() => events.id, { onDelete: 'cascade' }),
   templateDetails: jsonb('template_details'),
 });
 
@@ -117,9 +121,9 @@ export const invitations = pgTable('invitations', {
 // ==========================================
 export const guests = pgTable('guests', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
-  weddingId: bigint('wedding_id', { mode: 'number' })
+  eventId: bigint('event_id', { mode: 'number' })
     .notNull()
-    .references(() => weddings.id, { onDelete: 'cascade' }),
+    .references(() => events.id, { onDelete: 'cascade' }),
   firstname: varchar('firstname', { length: 100 }).notNull(),
   lastname: varchar('lastname', { length: 100 }).notNull(),
   linkId: varchar('link_id', { length: 100 }),
@@ -169,7 +173,7 @@ export const storesRelations = relations(stores, ({ many }) => ({
 
 export const usersRelations = relations(users, ({ many }) => ({
   storeUsers: many(storeUsers),
-  weddingUsers: many(weddingUsers),
+  eventUsers: many(eventUsers),
   refreshTokens: many(refreshTokens),
 }));
 
@@ -191,27 +195,27 @@ export const storeUsersRelations = relations(storeUsers, ({ one }) => ({
   }),
 }));
 
-export const weddingsRelations = relations(weddings, ({ many }) => ({
-  weddingUsers: many(weddingUsers),
+export const eventsRelations = relations(events, ({ many }) => ({
+  eventUsers: many(eventUsers),
   guests: many(guests),
   invitations: many(invitations),
 }));
 
-export const weddingUsersRelations = relations(weddingUsers, ({ one }) => ({
-  wedding: one(weddings, {
-    fields: [weddingUsers.weddingId],
-    references: [weddings.id],
+export const eventUsersRelations = relations(eventUsers, ({ one }) => ({
+  event: one(events, {
+    fields: [eventUsers.eventId],
+    references: [events.id],
   }),
   user: one(users, {
-    fields: [weddingUsers.userId],
+    fields: [eventUsers.userId],
     references: [users.id],
   }),
 }));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
-  wedding: one(weddings, {
-    fields: [invitations.weddingId],
-    references: [weddings.id],
+  event: one(events, {
+    fields: [invitations.eventId],
+    references: [events.id],
   }),
 }));
 
@@ -220,9 +224,9 @@ export const guestTablesRelations = relations(guestTables, ({ many }) => ({
 }));
 
 export const guestsRelations = relations(guests, ({ one }) => ({
-  wedding: one(weddings, {
-    fields: [guests.weddingId],
-    references: [weddings.id],
+  event: one(events, {
+    fields: [guests.eventId],
+    references: [events.id],
   }),
   table: one(guestTables, {
     fields: [guests.tableId],
@@ -242,11 +246,11 @@ export type NewUser = InferInsertModel<typeof users>;
 export type StoreUser = InferSelectModel<typeof storeUsers>;
 export type NewStoreUser = InferInsertModel<typeof storeUsers>;
 
-export type Wedding = InferSelectModel<typeof weddings>;
-export type NewWedding = InferInsertModel<typeof weddings>;
+export type Event = InferSelectModel<typeof events>;
+export type NewEvent = InferInsertModel<typeof events>;
 
-export type WeddingUser = InferSelectModel<typeof weddingUsers>;
-export type NewWeddingUser = InferInsertModel<typeof weddingUsers>;
+export type EventUser = InferSelectModel<typeof eventUsers>;
+export type NewEventUser = InferInsertModel<typeof eventUsers>;
 
 export type GuestTable = InferSelectModel<typeof guestTables>;
 export type NewGuestTable = InferInsertModel<typeof guestTables>;

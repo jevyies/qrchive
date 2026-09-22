@@ -377,9 +377,9 @@ onMounted(() => {
     </header>
 
     <!-- Main Content: Refined Luxury Card -->
-    <main class="vault-main">
-      <div class="vault-card-outer">
-        <div class="vault-card">
+    <main class="vault-main vault-auth-main">
+      <div class="vault-card-outer vault-auth-card-outer">
+        <div class="vault-auth-card">
           <!-- Header / Crest -->
           <div class="card-crest-section">
             <div class="brand-crest">

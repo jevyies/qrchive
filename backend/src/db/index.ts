@@ -7,7 +7,7 @@ dotenv.config();
 
 const connectionString =
   process.env.DATABASE_URL ||
-  'postgres://jevyies:weddingdrive123@localhost:5432/weddingdrivedb';
+  'postgres://jevyies:qrchive123@localhost:5432/qrchivedb';
 
 const isProduction = process.env.NODE_ENV === 'production';
 // Cloud databases (outside local or Railway internal service mesh) may need SSL

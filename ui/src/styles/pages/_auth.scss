@@ -253,7 +253,8 @@
 /* ==========================================================================
    MAIN CONTENT & LUXURY CARD
    ========================================================================== */
-.vault-main {
+.vault-main,
+.vault-auth-main {
   flex: 1 1 0%;
   display: flex;
   align-items: center;
@@ -262,24 +263,27 @@
 }
 
 @media (min-width: 640px) {
-  .vault-main {
+  .vault-main,
+  .vault-auth-main {
     padding: 3rem 1.5rem;
   }
 }
 
 @media (min-width: 768px) {
-  .vault-main {
+  .vault-main,
+  .vault-auth-main {
     padding: 4rem 1.5rem;
   }
 }
 
-.vault-card-outer {
+.vault-card-outer,
+.vault-auth-card-outer {
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
 }
 
-.vault-card {
+.vault-auth-card {
   background-color: var(--v-surface);
   border-radius: 1.25rem;
   padding: 1.75rem 1.25rem;
@@ -290,13 +294,13 @@
 }
 
 @media (min-width: 480px) {
-  .vault-card {
+  .vault-auth-card {
     padding: 2.25rem 2rem;
   }
 }
 
 @media (min-width: 640px) {
-  .vault-card {
+  .vault-auth-card {
     padding: 2.5rem;
     border-radius: 1.5rem;
   }

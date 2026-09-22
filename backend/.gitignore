@@ -13,6 +13,9 @@ build/
 out/
 *.tsbuildinfo
 
+# Drizzle
+drizzle/
+
 # Graphify
 graphify-out/
 .graphify*

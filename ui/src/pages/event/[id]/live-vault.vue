@@ -429,14 +429,6 @@ const navigateToWelcome = () => {
 
 <template>
     <div class="vault-page-root">
-        <!-- Toast Notification -->
-        <div class="vault-toast" :class="{ 'is-visible': toast.show }">
-            <div class="vault-toast__inner">
-                <span class="material-symbols-outlined vault-toast__icon"
-                    style="font-variation-settings: 'FILL' 1;">sparkles</span>
-                <span class="vault-toast__text">{{ toast.message }}</span>
-            </div>
-        </div>
 
         <!-- Hidden Native File Upload Input -->
         <input id="fileUploadInput" ref="fileInput" accept="image/*,video/*" multiple style="display: none;" type="file"

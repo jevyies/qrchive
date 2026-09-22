@@ -64,7 +64,7 @@
   }
 }
 
-.vault-main {
+.vault-page-root .vault-main {
   position: relative;
   width: 100%;
   flex: 1;
@@ -72,50 +72,6 @@
   margin: 0 !important;
   display: flex;
   flex-direction: column;
-}
-
-// ----------------------------------------------------------------------------
-// Toast Notification
-// ----------------------------------------------------------------------------
-.vault-toast {
-  position: fixed;
-  top: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%) translateY(-20px);
-  z-index: 100;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &.is-visible {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-    pointer-events: auto;
-  }
-}
-
-.vault-toast__inner {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: var(--vault-inverse-surface);
-  color: var(--vault-inverse-on-surface);
-  padding: 0.65rem 1.15rem;
-  border-radius: 9999px;
-  box-shadow: 0 8px 24px rgba(43, 38, 35, 0.2);
-  font-family: var(--vault-font-body);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.vault-toast__icon {
-  font-size: 18px;
-  color: var(--vault-tertiary-fixed);
-}
-
-.vault-toast__text {
-  white-space: nowrap;
 }
 
 // ----------------------------------------------------------------------------
@@ -456,7 +412,8 @@
   }
 }
 
-.vault-card {
+.vault-page-root .vault-card,
+.vault-grid .vault-card {
   position: relative;
   padding: 0 !important; // Removed all padding from card
   margin: 0 !important;

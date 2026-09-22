@@ -27,6 +27,17 @@ const router = createRouter({
   routes: [
     ...routes,
     {
+      path: '/quests',
+      name: 'quests-shortcut',
+      redirect: () => {
+        const eventId =
+          (typeof localStorage !== 'undefined' &&
+            (localStorage.getItem('qrchive_current_event_id') || localStorage.getItem('qrchive_event_id'))) ||
+          'keann-and-jenny'
+        return `/event/${eventId}/quests`
+      },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard',
     },
@@ -54,6 +65,7 @@ router.beforeEach((to) => {
     to.path === '/login' ||
     to.path === '/register' ||
     to.path.startsWith('/event') ||
+    to.path === '/quests' ||
     to.meta?.public
   ) {
     if (authenticated && (to.path === '/login' || to.path === '/register')) {

@@ -255,7 +255,6 @@ const toggleLike = (item, event) => {
 
 const toggleSort = () => {
     sortBy.value = sortBy.value === 'recent' ? 'loved' : 'recent'
-    showToast(sortBy.value === 'loved' ? 'Showing Most Loved Moments' : 'Showing Recent Moments')
 }
 
 const triggerFileUpload = () => {
@@ -483,83 +482,71 @@ const navigateToWelcome = () => {
             <div class="vault-content">
                 <!-- Filter & Sort Navigation with "All" as first tab -->
                 <section class="vault-filter-section">
-                <div class="vault-filter-header">
-                    <span class="vault-filter-count">
-                        {{ filteredMedia.length }} Moments Displayed
-                    </span>
-                    <button id="sortToggleBtn" class="vault-sort-toggle" type="button" @click="toggleSort">
-                        <span class="material-symbols-outlined">sort</span>
-                        <span>{{ sortBy === 'recent' ? 'Recent' : 'Most Loved' }}</span>
-                    </button>
-                </div>
-
-                <div class="vault-filter-scroll">
-                    <button v-for="cat in categories" :key="cat.id" class="vault-filter-chip"
-                        :class="selectedCategory === cat.id ? 'vault-filter-chip--active' : 'vault-filter-chip--inactive'"
-                        type="button" @click="selectedCategory = cat.id">
-                        {{ cat.id === 'all' ? `All (${totalMomentsCount})` : cat.label }}
-                    </button>
-                </div>
-            </section>
-
-            <!-- Guest Media Feed Grid -->
-            <section class="vault-feed-section">
-                <div v-if="filteredMedia.length > 0" class="vault-grid">
-                    <div v-for="item in filteredMedia" :key="item.id" class="vault-card" @click="openLightbox(item)">
-                        <!-- Media Image (100% full bleed, zero padding) -->
-                        <img :alt="item.title" class="vault-card__image" loading="lazy" :src="item.url">
-
-                        <!-- Gradient Scrim -->
-                        <div class="vault-card__scrim"></div>
-
-                        <!-- Video Duration / Play Badge -->
-                        <div v-if="item.type === 'video'" class="vault-card__video-badge">
-                            <span class="material-symbols-outlined">play_arrow</span>
-                            <span class="vault-card__video-duration">{{ item.duration }}</span>
-                        </div>
-
-                        <!-- Like Button -->
-                        <button aria-label="Like moment" class="vault-card__like-btn"
-                            :class="{ 'is-liked': item.isLiked }" type="button" @click.stop="toggleLike(item, $event)">
-                            <span class="material-symbols-outlined vault-card__like-icon">favorite</span>
-                            <span class="vault-card__like-count">{{ item.likes }}</span>
+                    <div class="vault-filter-header">
+                        <span class="vault-filter-count">
+                        </span>
+                        <button id="sortToggleBtn" class="vault-sort-toggle" type="button" @click="toggleSort">
+                            <span class="material-symbols-outlined">sort</span>
+                            <span>{{ sortBy === 'recent' ? 'Recent' : 'Most Loved' }}</span>
                         </button>
+                    </div>
 
-                        <!-- Guest Name Overlay Badge -->
-                        <div class="vault-card__guest-badge">
-                            <span class="vault-card__guest-dot"></span>
-                            <span class="vault-card__guest-name">{{ item.guest }}</span>
+                    <div class="vault-filter-scroll">
+                        <button v-for="cat in categories" :key="cat.id" class="vault-filter-chip"
+                            :class="selectedCategory === cat.id ? 'vault-filter-chip--active' : 'vault-filter-chip--inactive'"
+                            type="button" @click="selectedCategory = cat.id">
+                            {{ cat.id === 'all' ? `All (${totalMomentsCount})` : cat.label }}
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Guest Media Feed Grid -->
+                <section class="vault-feed-section">
+                    <div v-if="filteredMedia.length > 0" class="vault-grid">
+                        <div v-for="item in filteredMedia" :key="item.id" class="vault-card"
+                            @click="openLightbox(item)">
+                            <!-- Media Image (100% full bleed, zero padding) -->
+                            <img :alt="item.title" class="vault-card__image" loading="lazy" :src="item.url">
+
+                            <!-- Gradient Scrim -->
+                            <div class="vault-card__scrim"></div>
+
+                            <!-- Video Duration / Play Badge -->
+                            <div v-if="item.type === 'video'" class="vault-card__video-badge">
+                                <span class="material-symbols-outlined">play_arrow</span>
+                                <span class="vault-card__video-duration">{{ item.duration }}</span>
+                            </div>
+
+                            <!-- Like Button -->
+                            <button aria-label="Like moment" class="vault-card__like-btn"
+                                :class="{ 'is-liked': item.isLiked }" type="button"
+                                @click.stop="toggleLike(item, $event)">
+                                <span class="material-symbols-outlined vault-card__like-icon">favorite</span>
+                                <span class="vault-card__like-count">{{ item.likes }}</span>
+                            </button>
+
+                            <!-- Guest Name Overlay Badge -->
+                            <div class="vault-card__guest-badge">
+                                <span class="vault-card__guest-dot"></span>
+                                <span class="vault-card__guest-name">{{ item.guest }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Empty State if no moments match filter -->
-                <div v-else class="vault-empty">
-                    <span class="material-symbols-outlined vault-empty__icon">photo_library</span>
-                    <h2 class="vault-empty__title">No moments in this category yet</h2>
-                    <p class="vault-empty__desc">
-                        Be the first guest to drop a candid photo or video for this moment!
-                    </p>
-                    <button class="vault-empty__btn" type="button" @click="triggerFileUpload">
-                        <span class="material-symbols-outlined">add_a_photo</span>
-                        <span>Drop First Photo</span>
-                    </button>
-                </div>
-            </section>
-        </div>
-
-            <!-- Floating Add Moment FAB Button -->
-            <button id="floatingVaultFab" class="vault-fab" :class="{ 'is-uploading': isUploading }" type="button"
-                @click="triggerFileUpload">
-                <template v-if="isUploading">
-                    <span class="material-symbols-outlined animate-spin">sync</span>
-                    <span>Uploading...</span>
-                </template>
-                <template v-else>
-                    <span class="material-symbols-outlined">add_a_photo</span>
-                    <span>Drop Moments</span>
-                </template>
-            </button>
+                    <!-- Empty State if no moments match filter -->
+                    <div v-else class="vault-empty">
+                        <span class="material-symbols-outlined vault-empty__icon">photo_library</span>
+                        <h2 class="vault-empty__title">No moments in this category yet</h2>
+                        <p class="vault-empty__desc">
+                            Be the first guest to drop a candid photo or video for this moment!
+                        </p>
+                        <button class="vault-empty__btn" type="button" @click="triggerFileUpload">
+                            <span class="material-symbols-outlined">add_a_photo</span>
+                            <span>Drop First Photo</span>
+                        </button>
+                    </div>
+                </section>
+            </div>
         </main>
 
         <!-- Bottom Navigation Bar -->

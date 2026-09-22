@@ -229,16 +229,6 @@ const filteredMedia = computed(() => {
 // File Upload & Toast state
 const fileInput = ref(null)
 const isUploading = ref(false)
-const toast = ref({ show: false, message: '' })
-let toastTimeout = null
-
-const showToast = (msg) => {
-    toast.value = { show: true, message: msg }
-    if (toastTimeout) clearTimeout(toastTimeout)
-    toastTimeout = setTimeout(() => {
-        toast.value.show = false
-    }, 2600)
-}
 
 const toggleLike = (item, event) => {
     if (event) event.stopPropagation()
@@ -292,7 +282,6 @@ const handleFileUpload = (e) => {
             })
         }
         isUploading.value = false
-        showToast(`Added ${fileCount} new ${fileCount === 1 ? 'moment' : 'moments'} to the vault!`)
         e.target.value = ''
     }, 1300)
 }

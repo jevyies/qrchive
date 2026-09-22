@@ -54,7 +54,7 @@ watch(isMobileSidebarOpen, (isOpen) => {
     <!-- BLANK LAYOUT (Auth & Error pages: No Sidebar, No Top Navbar)             -->
     <!-- ======================================================================= -->
     <div v-if="isBlankLayout" class="min-h-screen w-full d-flex flex-column"
-      style="max-width: 100vw; overflow-x: hidden;">
+      style="max-width: 100vw; overflow-x: clip;">
       <RouterView />
     </div>
 
@@ -62,7 +62,7 @@ watch(isMobileSidebarOpen, (isOpen) => {
     <!-- STANDARD LAYOUT (With Sidebar or Top Navbar)                            -->
     <!-- ======================================================================= -->
     <div v-else :class="['min-h-screen w-full', layoutMode === 'sidebar' ? 'd-flex' : 'd-flex flex-column']"
-      style="max-width: 100vw; overflow-x: hidden;">
+      style="max-width: 100vw; overflow-x: clip;">
 
       <!-- ===================================================================== -->
       <!-- SIDEBAR NAVIGATION COMPONENT (Desktop Sticky / Mobile Drawer)          -->

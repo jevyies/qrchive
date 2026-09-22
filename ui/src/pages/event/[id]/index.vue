@@ -128,11 +128,6 @@ onMounted(() => {
                     {{ currentEvent.title }}
                 </h1>
 
-                <!-- Sentimental Subtitle -->
-                <p class="event-hero-quote">
-                    {{ currentEvent.quote }}
-                </p>
-
                 <!-- Date & Venue Subtitle -->
                 <div class="event-meta-info">
                     <span v-if="currentEvent.date" class="event-meta-text">{{ currentEvent.date }}</span>
@@ -142,8 +137,7 @@ onMounted(() => {
 
                 <!-- Narrative Copy -->
                 <p class="event-hero-narrative">
-                    Capture candid moments, share heartfelt wishes, and contribute directly to the couple’s
-                    heirloom live archive.
+                    Snap & Share. Capture every moment.
                 </p>
 
                 <!-- Primary Action CTA Button -->
@@ -157,28 +151,11 @@ onMounted(() => {
                         arrow_forward
                     </span>
                 </button>
-
-                <!-- Frictionless Assurance Micro-copy -->
-                <div class="event-trust-row">
-                    <div class="event-trust-item">
-                        <span class="material-symbols-outlined event-trust-icon">lock</span>
-                        <span class="event-trust-label">Live Archive</span>
-                    </div>
-                    <span class="event-trust-sep">•</span>
-                    <div class="event-trust-item">
-                        <span class="material-symbols-outlined event-trust-icon">photo_library</span>
-                        <span class="event-trust-label">Guest Vault</span>
-                    </div>
-                </div>
             </div>
         </main>
 
         <!-- Guest Entry Modal -->
-        <GuestModal
-            v-model="isGuestModalOpen"
-            :couple-name="currentEvent.couple"
-            :event-id="route.params.id"
-            destination="/quests"
-        />
+        <GuestModal v-model="isGuestModalOpen" :couple-name="currentEvent.couple" :event-id="route.params.id"
+            destination="/quests" />
     </div>
 </template>

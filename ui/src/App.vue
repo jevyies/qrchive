@@ -3,12 +3,22 @@ import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLayout } from './composables/useLayout'
 import { useDisplay } from './composables/useDisplay'
+import { useAuthStore } from './stores/auth'
 import AppSidebar from './navigations/sidebar.vue'
 import AppNavbar from './navigations/navbar.vue'
 import JToastContainer from './@core/components/JToastContainer.vue'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const { themes, layoutMode, setLayoutMode, currentTheme, selectTheme, navbarMenuMode, setNavbarMenuMode } = useLayout()
+
+// Automatically remove sidebar if authPosition === 'owner', falling back to top navbar layout
+const effectiveLayoutMode = computed(() => {
+  if (authStore.authPosition === 'owner') {
+    return 'navbar'
+  }
+  return layoutMode.value
+})
 
 // Sidebar internal state
 const isSidebarCollapsed = ref(false)
@@ -61,13 +71,13 @@ watch(isMobileSidebarOpen, (isOpen) => {
     <!-- ======================================================================= -->
     <!-- STANDARD LAYOUT (With Sidebar or Top Navbar)                            -->
     <!-- ======================================================================= -->
-    <div v-else :class="['min-h-screen w-full', layoutMode === 'sidebar' ? 'd-flex' : 'd-flex flex-column']"
+    <div v-else :class="['min-h-screen w-full', effectiveLayoutMode === 'sidebar' ? 'd-flex' : 'd-flex flex-column']"
       style="max-width: 100vw; overflow-x: clip;">
 
       <!-- ===================================================================== -->
       <!-- SIDEBAR NAVIGATION COMPONENT (Desktop Sticky / Mobile Drawer)          -->
       <!-- ===================================================================== -->
-      <AppSidebar v-if="layoutMode === 'sidebar'" v-model:collapsed="isSidebarCollapsed"
+      <AppSidebar v-if="effectiveLayoutMode === 'sidebar'" v-model:collapsed="isSidebarCollapsed"
         v-model:mobileOpen="isMobileSidebarOpen" />
 
       <!-- ===================================================================== -->
@@ -76,15 +86,15 @@ watch(isMobileSidebarOpen, (isOpen) => {
       <div :class="[
         'main-wrapper flex-1 d-flex flex-column min-w-0 w-full',
         {
-          'has-sidebar': layoutMode === 'sidebar',
-          'has-sidebar-collapsed': layoutMode === 'sidebar' && isSidebarCollapsed,
-          'has-menubar': layoutMode === 'navbar' && navbarMenuMode === 'menu-bar'
+          'has-sidebar': effectiveLayoutMode === 'sidebar',
+          'has-sidebar-collapsed': effectiveLayoutMode === 'sidebar' && isSidebarCollapsed,
+          'has-menubar': effectiveLayoutMode === 'navbar' && navbarMenuMode === 'menu-bar' && authStore.authPosition !== 'owner' && !authStore.isOwner
         }
       ]" style="max-width: 100%;">
         <!-- =================================================================== -->
         <!-- TOP NAVBAR COMPONENT                                                -->
         <!-- =================================================================== -->
-        <AppNavbar :layout-mode="layoutMode" :navbar-menu-mode="navbarMenuMode" :current-theme="currentTheme"
+        <AppNavbar :layout-mode="effectiveLayoutMode" :navbar-menu-mode="navbarMenuMode" :current-theme="currentTheme"
           :themes="themes" v-model:mobile-sidebar-open="isMobileSidebarOpen" @set-layout-mode="setLayoutMode"
           @set-navbar-menu-mode="setNavbarMenuMode" @select-theme="selectTheme" />
 

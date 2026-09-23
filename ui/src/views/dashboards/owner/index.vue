@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDisplay } from '@/composables/useDisplay'
 import AccountInfoModal from '@/views/modals/AccountInfoModal.vue'
+import EventDashboard from './event-dashboard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -23,7 +24,10 @@ const initialProfileData = computed(() => ({
   firstName: authStore.user?.firstname || '',
   middleName: authStore.user?.middlename || '',
   lastName: authStore.user?.lastname || '',
-  suffix: authStore.user?.suffix || '',
+  suffix: authStore.user?.extname || authStore.user?.suffix || '',
+  extName: authStore.user?.extname || authStore.user?.suffix || '',
+  username: authStore.user?.username || '',
+  email: authStore.user?.email || '',
 }))
 
 const openAccountInfoModal = () => {
@@ -34,10 +38,12 @@ const handleAccountInfoSubmit = async (payload) => {
   isSavingProfile.value = true
   try {
     if (authStore.user) {
-      authStore.user.firstname = payload.firstName
-      authStore.user.middlename = payload.middleName
-      authStore.user.lastname = payload.lastName
-      authStore.user.fullname = `${payload.firstName} ${payload.lastName}`.trim()
+      authStore.user.firstname = payload.firstname || payload.firstName
+      authStore.user.middlename = payload.middlename || payload.middleName
+      authStore.user.lastname = payload.lastname || payload.lastName
+      authStore.user.extname = payload.extname || payload.extName || payload.suffix || null
+      authStore.user.username = payload.username || authStore.user.username
+      authStore.user.fullname = `${authStore.user.firstname} ${authStore.user.lastname}`.trim()
       authStore.user.accountType = payload.accountType
       // Finalize pending status to active
       authStore.setStatusOverride('active')
@@ -149,107 +155,7 @@ const navigateTo = (path) => {
     <!-- Displayed when owner status !== 'pending'                    -->
     <!-- ============================================================ -->
     <div v-else class="d-flex flex-column gap-4">
-      <!-- Active Owner Welcome Hero -->
-      <JCard variant="bordered" class="owner-hero" body-class="p-4 p-md-5">
-        <div class="d-flex flex-column flex-lg-row align-start align-lg-center justify-between gap-4">
-          <div class="d-flex align-center gap-3">
-            <div class="stat-icon d-flex justify-center align-center rounded-2xl flex-shrink-0"
-              style="width: 3.5rem; height: 3.5rem; font-size: 1.75rem; background: var(--primary-tonal, rgba(99,102,241,0.15)); border: 1px solid var(--primary);">
-              🏬
-            </div>
-            <div>
-              <div class="d-flex align-center gap-2 mb-1 flex-wrap">
-                <h1 class="text-xl font-bold mb-0">Welcome back, {{ displayName }}!</h1>
-                <span class="badge badge-xs badge-tonal-primary font-mono text-uppercase">Owner Portal</span>
-                <span class="badge badge-xs badge-success font-mono">Store Active</span>
-              </div>
-              <p class="text-xs text-secondary mb-0">
-                Your wedding store workspace is live. Manage couples, ceremonies, staff assignments, and guest albums.
-              </p>
-            </div>
-          </div>
-
-          <!-- Quick Actions -->
-          <div class="d-flex align-center gap-2 flex-wrap">
-            <button class="btn btn-sm btn-primary d-flex align-center gap-1 font-semibold"
-              @click="navigateTo('/weddings')">
-              <span>💍</span>
-              <span>Weddings</span>
-            </button>
-            <button class="btn btn-sm btn-tonal-neutral d-flex align-center gap-1 font-medium"
-              @click="navigateTo('/users')">
-              <span>👥</span>
-              <span>Manage Team</span>
-            </button>
-            <button class="btn btn-sm btn-tonal-neutral d-flex align-center gap-1 font-medium"
-              @click="navigateTo('/settings')">
-              <span>⚙️</span>
-              <span>Store Settings</span>
-            </button>
-          </div>
-        </div>
-      </JCard>
-
-      <!-- KPI Statistics Grid -->
-      <div class="d-grid grid-cols-2 grid-cols-lg-4 gap-3">
-        <JCard v-for="(stat, idx) in activeStats" :key="idx" variant="bordered" body-class="p-3 p-md-4">
-          <div class="d-flex align-center justify-between mb-2">
-            <span class="text-xs text-muted font-medium">{{ stat.label }}</span>
-            <span class="stat-badge" :style="{ background: `var(--${stat.color}-tonal, rgba(99,102,241,0.12))` }">
-              {{ stat.icon }}
-            </span>
-          </div>
-          <div class="text-2xl font-black mb-1 text-body">{{ stat.value }}</div>
-          <div class="text-2xs text-secondary">{{ stat.desc }}</div>
-        </JCard>
-      </div>
-
-      <!-- Upcoming Weddings Table Card -->
-      <JCard variant="bordered" body-class="p-4">
-        <div class="d-flex align-center justify-between mb-3">
-          <div>
-            <h3 class="text-sm font-bold mb-0">Upcoming Wedding Events</h3>
-            <p class="text-xs text-muted mb-0">Scheduled ceremonies and guest tallies for this season</p>
-          </div>
-          <button class="btn btn-xs btn-tonal-primary" @click="navigateTo('/weddings')">
-            View All Weddings →
-          </button>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-hover w-full text-xs">
-            <thead>
-              <tr class="text-muted border-bottom border-subtle">
-                <th class="py-2 text-start">Couple</th>
-                <th class="py-2 text-start">Date</th>
-                <th class="py-2 text-start">Venue</th>
-                <th class="py-2 text-start">Guests</th>
-                <th class="py-2 text-start">Status</th>
-                <th class="py-2 text-end">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="w in upcomingWeddings" :key="w.id" class="border-bottom border-subtle">
-                <td class="py-3 font-semibold text-body">{{ w.couple }}</td>
-                <td class="py-3 font-mono text-muted">{{ w.date }}</td>
-                <td class="py-3 text-secondary">📍 {{ w.venue }}</td>
-                <td class="py-3 text-muted">👥 {{ w.guests }} guests</td>
-                <td class="py-3">
-                  <span
-                    :class="['badge badge-xs', w.status === 'Upcoming' ? 'badge-tonal-primary' : 'badge-tonal-warning']">
-                    {{ w.status }}
-                  </span>
-                </td>
-                <td class="py-3 text-end">
-                  <button class="btn btn-xs btn-tonal-neutral" @click="navigateTo('/weddings')">
-                    Manage
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </JCard>
+      <EventDashboard />
     </div>
 
     <!-- Complete Profile Account Info Modal -->

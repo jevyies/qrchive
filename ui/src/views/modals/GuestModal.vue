@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { axiosInstance } from '@/plugins/axios'
 
 const props = defineProps({
   modelValue: {
@@ -27,6 +28,38 @@ const router = useRouter()
 const route = useRoute()
 
 const guestName = ref('')
+const isSubmitting = ref(false)
+
+// Helper to get or generate persistent device serial
+const getDeviceSerial = () => {
+  if (typeof localStorage === 'undefined') return 'guest_dev_' + Math.random().toString(36).slice(2)
+  let serial = localStorage.getItem('qrchive_device_serial')
+  if (!serial) {
+    serial = 'dev_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
+    localStorage.setItem('qrchive_device_serial', serial)
+  }
+  return serial
+}
+
+// Helper to extract device platform and browser name
+const getDeviceName = () => {
+  if (typeof navigator === 'undefined') return 'Web Browser'
+  const ua = navigator.userAgent || ''
+  let os = 'Unknown Device'
+  if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS Device'
+  else if (/Android/i.test(ua)) os = 'Android Device'
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS'
+  else if (/Windows NT/i.test(ua)) os = 'Windows PC'
+  else if (/Linux/i.test(ua)) os = 'Linux PC'
+
+  let browser = 'Browser'
+  if (/Chrome|CriOS/i.test(ua) && !/Edg/i.test(ua)) browser = 'Chrome'
+  else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari'
+  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox'
+  else if (/Edg/i.test(ua)) browser = 'Edge'
+
+  return `${os} (${browser})`
+}
 
 // Initialize guest name from localStorage whenever modal opens & auto-focus input
 watch(
@@ -34,11 +67,22 @@ watch(
   (isOpen) => {
     if (isOpen) {
       if (typeof localStorage !== 'undefined') {
-        guestName.value =
-          localStorage.getItem('qrchive_guest_name') ||
-          localStorage.getItem('guest_name') ||
-          localStorage.getItem('guestName') ||
-          ''
+        const storedCurrentEvent = localStorage.getItem('currentEvent')
+        if (storedCurrentEvent) {
+          try {
+            const parsed = JSON.parse(storedCurrentEvent)
+            if (parsed.guestName) {
+              guestName.value = parsed.guestName
+            }
+          } catch (e) { }
+        }
+        if (!guestName.value) {
+          guestName.value =
+            localStorage.getItem('qrchive_guest_name') ||
+            localStorage.getItem('guest_name') ||
+            localStorage.getItem('guestName') ||
+            ''
+        }
       }
       nextTick(() => {
         const inputEl = document.getElementById('guestNameInput')
@@ -59,23 +103,113 @@ const handleClose = () => {
   emit('close')
 }
 
-const handleEnterCelebration = () => {
+const handleEnterCelebration = async () => {
   const enteredName = guestName.value.trim() || 'Honored Guest'
-  const activeEventId = props.eventId || route.params.id || 'keann-and-jenny'
+  const activeEventToken = props.eventId || route.params.id || 'demo-event'
 
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('qrchive_guest_name', enteredName)
-    localStorage.setItem('guest_name', enteredName)
-    localStorage.setItem('guestName', enteredName)
-    localStorage.setItem('qrchive_current_event_id', activeEventId)
+  isSubmitting.value = true
+
+  // If route.params.id or eventId is 'demo-event', put random data in localStorage currentEvent directly
+  if (activeEventToken === 'demo-event') {
+    const randomId = Math.floor(Math.random() * 90000) + 10000
+    const randomGuestCode = Math.random().toString(36).substring(2, 10)
+
+    const currentEventData = {
+      id: randomId,
+      guestCode: randomGuestCode,
+      eventCode: 'demo-event',
+      guestName: enteredName,
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('currentEvent', JSON.stringify(currentEventData))
+      localStorage.setItem('qrchive_guest_name', enteredName)
+      localStorage.setItem('guest_name', enteredName)
+      localStorage.setItem('guestName', enteredName)
+      localStorage.setItem('qrchive_current_event_id', 'demo-event')
+      localStorage.setItem('qrchive_guest_id', String(randomId))
+      localStorage.setItem('qrchive_guest_code', randomGuestCode)
+    }
+
+    emit('submit', { id: randomId, guestCode: randomGuestCode, name: enteredName })
+    emit('update:modelValue', false)
+    emit('close')
+
+    const targetPath = props.destination || '/quests'
+    router.push(targetPath)
+    isSubmitting.value = false
+    return
   }
 
-  emit('submit', enteredName)
-  emit('update:modelValue', false)
-  emit('close')
+  try {
+    const deviceSerial = getDeviceSerial()
+    const deviceName = getDeviceName()
 
-  const targetPath = props.destination || '/quests'
-  router.push(targetPath)
+    // Requirement 4: Call backend endpoint to create snap_guest with Redis queueing
+    const response = await axiosInstance.post('/api/guests/snap', {
+      name: enteredName,
+      eventToken: activeEventToken,
+      eventId: activeEventToken,
+      deviceSerial,
+      deviceName,
+    })
+
+    const guestData = response.data
+    const guestId = guestData?.id
+    const guestCode = guestData?.guest_code || guestData?.guestCode
+
+    // Requirement 4: Save to localStorage using 'currentEvent' key:
+    // { id: guest.id, guestCode: guestCode, eventCode: route.params.id, guestName: guestName }
+    if (typeof localStorage !== 'undefined') {
+      const currentEventData = {
+        id: guestId,
+        guestCode: guestCode,
+        eventCode: route.params.id || activeEventToken,
+        guestName: enteredName,
+      }
+      localStorage.setItem('currentEvent', JSON.stringify(currentEventData))
+
+      // Keep legacy keys for backward compatibility
+      localStorage.setItem('qrchive_guest_name', enteredName)
+      localStorage.setItem('guest_name', enteredName)
+      localStorage.setItem('guestName', enteredName)
+      localStorage.setItem('qrchive_current_event_id', route.params.id || activeEventToken)
+      if (guestId) localStorage.setItem('qrchive_guest_id', String(guestId))
+      if (guestCode) localStorage.setItem('qrchive_guest_code', String(guestCode))
+    }
+
+    emit('submit', { id: guestId, guestCode, name: enteredName })
+    emit('update:modelValue', false)
+    emit('close')
+
+    // Forward to route /quests
+    const targetPath = props.destination || '/quests'
+    router.push(targetPath)
+  } catch (err) {
+    console.error('[GuestModal] Failed to register snap guest:', err)
+
+    // Fallback save so user can proceed even if offline or transient server error
+    if (typeof localStorage !== 'undefined') {
+      const fallbackData = {
+        id: null,
+        guestCode: null,
+        eventCode: route.params.id || activeEventToken,
+        guestName: enteredName,
+      }
+      localStorage.setItem('currentEvent', JSON.stringify(fallbackData))
+      localStorage.setItem('qrchive_guest_name', enteredName)
+      localStorage.setItem('qrchive_current_event_id', route.params.id || activeEventToken)
+    }
+
+    emit('submit', enteredName)
+    emit('update:modelValue', false)
+    emit('close')
+
+    const targetPath = props.destination || '/quests'
+    router.push(targetPath)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -116,9 +250,10 @@ const handleEnterCelebration = () => {
       </div>
 
       <!-- Enter Celebration Action Button using JBtn -->
-      <JBtn id="enterCelebrationBtn" type="button" class="guest-modal-action-btn" @click="handleEnterCelebration">
-        <span class="btn-text">Enter Celebration</span>
-        <span class="material-symbols-outlined btn-arrow">arrow_forward</span>
+      <JBtn id="enterCelebrationBtn" type="button" class="guest-modal-action-btn" :loading="isSubmitting"
+        :disabled="isSubmitting" @click="handleEnterCelebration">
+        <span class="btn-text">{{ isSubmitting ? 'Entering Vault...' : 'Enter Celebration' }}</span>
+        <span v-if="!isSubmitting" class="material-symbols-outlined btn-arrow">arrow_forward</span>
       </JBtn>
     </div>
   </JModal>

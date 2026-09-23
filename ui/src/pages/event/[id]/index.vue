@@ -7,6 +7,7 @@ meta:
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { axiosInstance } from '@/plugins/axios'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 import AppLogo from '@core/components/AppLogo.vue'
 import GuestModal from '@/views/modals/GuestModal.vue'
@@ -14,44 +15,30 @@ import GuestModal from '@/views/modals/GuestModal.vue'
 const route = useRoute()
 const router = useRouter()
 
-// Known wedding data dictionary for dynamic loading by ID
-const knownWeddings = {
-    '1': {
-        couple: 'Sophia & Alexander',
-        title: 'Welcome to Sophia & Alexander’s Wedding',
-        quote: '“A celebration of enduring love & shared memories”',
-        date: 'Oct 24, 2026',
-        venue: 'Grand Plaza Hall',
-    },
-    '2': {
-        couple: 'Emily & James',
-        title: 'Welcome to Emily & James’s Wedding',
-        quote: '“Two lives, two hearts, joined together in friendship united forever in love”',
-        date: 'Nov 15, 2026',
-        venue: 'Rose Garden Estate',
-    },
-    '3': {
-        couple: 'Olivia & Liam',
-        title: 'Welcome to Olivia & Liam’s Wedding',
-        quote: '“Every love story is beautiful, but ours is our favorite”',
-        date: 'Aug 10, 2026',
-        venue: 'Seaside Pavilion',
-    },
+// Current event data based on route param id or defaults
+const currentEvent = ref({
+    couple: 'Keann & Jenny',
+    title: (route.query && route.query.title) || 'Welcome to Keann & Jenny’s Wedding',
+    date: (route.query && route.query.date) || '',
+    storeName: (route.query && route.query.storeName) || null,
+})
+
+const isLoading = ref(true)
+
+// Helper to format date nicely while preserving raw eventDate on currentEvent.date
+const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    try {
+        const d = new Date(dateStr)
+        if (isNaN(d.getTime())) return dateStr
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    } catch {
+        return dateStr
+    }
 }
 
-// Current event data based on route param id or defaults
-const currentEvent = computed(() => {
-    const id = route.params.id
-    if (id && knownWeddings[id]) {
-        return knownWeddings[id]
-    }
-    return {
-        couple: 'Keann & Jenny',
-        title: (route.query && route.query.title) || 'Welcome to Keann & Jenny’s Wedding',
-        quote: (route.query && route.query.quote) || '“A celebration of enduring love & shared memories”',
-        date: (route.query && route.query.date) || '',
-        venue: (route.query && route.query.venue) || '',
-    }
+const displayDate = computed(() => {
+    return formatDate(currentEvent.value.date) || currentEvent.value.date
 })
 
 // Guest entry modal state
@@ -72,7 +59,88 @@ const handleGetStarted = () => {
     }, 150)
 }
 
+const fetchEventData = async () => {
+    const token = route.params.id
+    if (!token) {
+        router.replace('/404')
+        return
+    }
+
+    // If demo-event, do not fetchEventData
+    if (token === 'demo-event') {
+        currentEvent.value = {
+            couple: 'Keann & Jenny',
+            title: "Welcome to Keann & Jenny's Wedding",
+            quote: '“A celebration of enduring love & shared memories”',
+            date: 'Dec 28, 2026',
+            storeName: 'QRchive Demo Experience',
+        }
+        isLoading.value = false
+        return
+    }
+
+    try {
+        isLoading.value = true
+        const response = await axiosInstance.get(`/api/events/token/${token}`)
+        const event = response.data
+
+        if (event) {
+            // Requirement 3: replace currentEvent.title = event.name, currentEvent.date = event.eventDate
+            currentEvent.value.title = event.name
+            currentEvent.value.date = event.eventDate
+
+            // Store storeName from stores table
+            if (event.storeName) {
+                currentEvent.value.storeName = event.storeName
+            }
+
+            if (event.name) {
+                currentEvent.value.couple = event.name
+                    .replace(/'s Wedding.*/i, '')
+                    .replace(/ Wedding.*/i, '')
+                    .trim()
+            }
+        }
+    } catch (err) {
+        // Requirement 2: when the endpoint returns 404, it will route to 404
+        if (err.response?.status === 404 || err.status === 404) {
+            router.replace('/404')
+            return
+        }
+        console.error('[EventPage] Failed to fetch event by token:', err)
+    } finally {
+        isLoading.value = false
+    }
+}
+
 onMounted(() => {
+    // Check if user already entered this celebration
+    if (route.params.id === 'demo-event') {
+        currentEvent.value = {
+            couple: 'Keann & Jenny',
+            title: "Welcome to Keann & Jenny's Wedding",
+            quote: '“A celebration of enduring love & shared memories”',
+            date: 'Dec 28, 2026',
+            storeName: 'QRchive Demo Experience',
+        }
+        isLoading.value = false
+        return;
+    }
+    if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('currentEvent')
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored)
+                if (parsed && String(parsed.eventCode) === String(route.params.id)) {
+                    router.replace('/quests')
+                    return
+                }
+            } catch (err) {
+                console.error('[EventPage] Error reading currentEvent from localStorage:', err)
+            }
+        }
+    }
+    fetchEventData()
     // Direct DOM listeners fallback for template compatibility
     const btn = document.getElementById('enterVaultBtn')
     const arrow = document.getElementById('btnArrow')
@@ -113,12 +181,6 @@ onMounted(() => {
                         <span class="event-brand-subtitle">Celebration Vault</span>
                     </div>
                 </div>
-
-                <!-- Right: Destination Crest Pill -->
-                <div v-if="currentEvent.date" class="event-date-badge">
-                    <span class="material-symbols-outlined event-date-icon">event</span>
-                    <span class="event-date-text">{{ currentEvent.date }}</span>
-                </div>
             </header>
 
             <!-- Lower Section: Romantic Editorial Hero Card & Guest Actions -->
@@ -128,11 +190,9 @@ onMounted(() => {
                     {{ currentEvent.title }}
                 </h1>
 
-                <!-- Date & Venue Subtitle -->
+                <!-- Date Subtitle -->
                 <div class="event-meta-info">
-                    <span v-if="currentEvent.date" class="event-meta-text">{{ currentEvent.date }}</span>
-                    <span v-if="currentEvent.date && currentEvent.venue" class="event-meta-dot">•</span>
-                    <span v-if="currentEvent.venue" class="event-meta-text">{{ currentEvent.venue }}</span>
+                    <span v-if="currentEvent.date" class="event-meta-text">{{ displayDate || currentEvent.date }}</span>
                 </div>
 
                 <!-- Narrative Copy -->
@@ -151,11 +211,20 @@ onMounted(() => {
                         arrow_forward
                     </span>
                 </button>
+                <template v-if="currentEvent.storeName">
+                    <p class="event-hero-narrative mt-3">
+                        Created by {{ currentEvent.storeName }}
+                    </p>
+                </template>
             </div>
         </main>
 
         <!-- Guest Entry Modal -->
-        <GuestModal v-model="isGuestModalOpen" :couple-name="currentEvent.couple" :event-id="route.params.id"
-            destination="/quests" />
+        <GuestModal v-model="isGuestModalOpen" :couple-name="currentEvent.couple || currentEvent.title"
+            :event-id="route.params.id" destination="/quests" />
     </div>
 </template>
+
+<style scoped>
+/* Preserve existing styles */
+</style>

@@ -27,14 +27,53 @@ const router = createRouter({
   routes: [
     ...routes,
     {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('@/pages/dasboard/index.vue'),
+    },
+    {
+      path: '/dashboard/event/:id',
+      name: 'dashboard-event-detail',
+      component: () => import('@/pages/dasboard/event/[id].vue'),
+    },
+    {
+      path: '/dasboard',
+      redirect: '/dashboard',
+    },
+    {
+      path: '/dasboard/event/:id',
+      redirect: (to) => `/dashboard/event/${to.params.id}`,
+    },
+    {
       path: '/quests',
       name: 'quests-shortcut',
       redirect: () => {
-        const eventId =
-          (typeof localStorage !== 'undefined' &&
-            (localStorage.getItem('qrchive_current_event_id') || localStorage.getItem('qrchive_event_id'))) ||
-          'keann-and-jenny'
+        let eventId = 'demo-event'
+        if (typeof localStorage !== 'undefined') {
+          const currentEventStr = localStorage.getItem('currentEvent')
+          if (currentEventStr) {
+            try {
+              const parsed = JSON.parse(currentEventStr)
+              if (parsed.eventCode) eventId = parsed.eventCode
+            } catch (e) { }
+          }
+          if (eventId === 'demo-event') {
+            eventId =
+              localStorage.getItem('qrchive_current_event_id') ||
+              localStorage.getItem('qrchive_event_id') ||
+              'demo-event'
+          }
+        }
         return `/event/${eventId}/quests`
+      },
+    },
+    {
+      path: '/404',
+      name: 'not-found',
+      component: () => import('@/views/404.vue'),
+      meta: {
+        layout: 'blank',
+        public: true,
       },
     },
     {
@@ -66,6 +105,7 @@ router.beforeEach((to) => {
     to.path === '/register' ||
     to.path.startsWith('/event') ||
     to.path === '/quests' ||
+    to.path === '/404' ||
     to.meta?.public
   ) {
     if (authenticated && (to.path === '/login' || to.path === '/register')) {

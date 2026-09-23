@@ -219,21 +219,10 @@ const handleGoogleCredentialResponse = async (response) => {
   try {
     const res = await authStore.loginWithGoogle({ credential: response.credential, rememberMe: rememberMe.value })
 
-    if (res.registered === false) {
-      notification.value = {
-        type: 'info',
-        message: 'No account found for this Google identity. Redirecting to registration...',
-      }
-      setTimeout(() => {
-        router.push('/register')
-      }, 800)
-      return
-    }
-
     isSuccess.value = true
     notification.value = {
       type: 'success',
-      message: `Welcome, ${res.user?.fullname || 'Google User'}! Redirecting to vault...`,
+      message: `Welcome, ${res.user?.fullname || 'Google User'}! Redirecting to dashboard...`,
     }
 
     setTimeout(() => {
@@ -257,21 +246,10 @@ const handleGoogleTokenResponse = async (accessToken) => {
   try {
     const res = await authStore.loginWithGoogle({ accessToken, rememberMe: rememberMe.value })
 
-    if (res.registered === false) {
-      notification.value = {
-        type: 'info',
-        message: 'No account found for this Google identity. Redirecting to registration...',
-      }
-      setTimeout(() => {
-        router.push('/register')
-      }, 800)
-      return
-    }
-
     isSuccess.value = true
     notification.value = {
       type: 'success',
-      message: `Welcome, ${res.user?.fullname || 'Google User'}! Redirecting to vault...`,
+      message: `Welcome, ${res.user?.fullname || 'Google User'}! Redirecting to dashboard...`,
     }
 
     setTimeout(() => {

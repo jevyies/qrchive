@@ -1,8 +1,9 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { eq, ilike, or, and, sql } from 'drizzle-orm';
 import crypto from 'crypto';
-import { db, guests, guestTables, weddings, Guest, NewGuest, GuestTable, NewGuestTable } from '../db';
+import { db, guests, guestTables, events, snapGuests, Guest, NewGuest, GuestTable, NewGuestTable } from '../db';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
+import { enqueueCreateSnapGuest } from '../queues/guestCreation.queue';
 
 export const guestRoutes: FastifyPluginAsync = async (app) => {
   // =========================================================================
@@ -481,13 +482,14 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { weddingId, tableId, status, search, page = 1, limit = 50 } = (request.query as any) || {};
+      const { weddingId, eventId, tableId, status, search, page = 1, limit = 50 } = (request.query as any) || {};
+      const targetEventId = eventId || weddingId;
       const pageNum = Number(page) || 1;
       const limitNum = Number(limit) || 50;
       const offset = (pageNum - 1) * limitNum;
 
       const conditions = [];
-      if (weddingId) conditions.push(eq(guests.weddingId, Number(weddingId)));
+      if (targetEventId) conditions.push(eq(guests.eventId, Number(targetEventId)));
       if (tableId) conditions.push(eq(guests.tableId, Number(tableId)));
       if (status) conditions.push(eq(guests.status, status));
       if (search) {
@@ -513,13 +515,14 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         offset,
         with: {
           table: true,
-          wedding: true,
+          event: true,
         },
       });
 
       const formatted = guestList.map((g) => ({
         id: g.id,
-        weddingId: g.weddingId,
+        eventId: g.eventId,
+        weddingId: g.eventId,
         firstname: g.firstname,
         lastname: g.lastname,
         fullname: `${g.lastname}, ${g.firstname}`,
@@ -533,14 +536,15 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
               description: g.table.description,
             }
           : null,
-        wedding: g.wedding
+        event: g.event,
+        wedding: g.event
           ? {
-              id: g.wedding.id,
-              brideFirstname: g.wedding.brideFirstname,
-              brideLastname: g.wedding.brideLastname,
-              groomFirstname: g.wedding.groomFirstname,
-              groomLastname: g.wedding.groomLastname,
-              weddingDate: g.wedding.weddingDate,
+              id: g.event.id,
+              brideFirstname: g.event.brideFirstname,
+              brideLastname: g.event.brideLastname,
+              groomFirstname: g.event.groomFirstname,
+              groomLastname: g.event.groomLastname,
+              weddingDate: g.event.eventDate,
             }
           : null,
       }));
@@ -614,7 +618,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         where: eq(guests.linkId, linkId),
         with: {
           table: true,
-          wedding: true,
+          event: true,
         },
       });
 
@@ -625,14 +629,15 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      const coupleNames = guest.wedding
-        ? `${guest.wedding.brideFirstname} & ${guest.wedding.groomFirstname} ${guest.wedding.groomLastname}`
+      const coupleNames = guest.event
+        ? `${guest.event.brideFirstname || ''} & ${guest.event.groomFirstname || ''} ${guest.event.groomLastname || ''}`.trim()
         : '';
 
       return reply.send({
         guest: {
           id: guest.id,
-          weddingId: guest.weddingId,
+          eventId: guest.eventId,
+          weddingId: guest.eventId,
           firstname: guest.firstname,
           lastname: guest.lastname,
           fullname: `${guest.lastname}, ${guest.firstname}`,
@@ -641,8 +646,8 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
           tableId: guest.tableId,
           tableName: guest.table?.name ?? null,
           coupleNames,
-          weddingDate: guest.wedding?.weddingDate ?? null,
-          invitationDeadline: guest.wedding?.invitationDeadline ?? null,
+          weddingDate: guest.event?.eventDate ?? null,
+          invitationDeadline: guest.event?.invitationDeadline ?? null,
         },
       });
     }
@@ -819,7 +824,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         where: eq(guests.id, guestId),
         with: {
           table: true,
-          wedding: true,
+          event: true,
         },
       });
 
@@ -833,7 +838,8 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({
         guest: {
           id: guest.id,
-          weddingId: guest.weddingId,
+          eventId: guest.eventId,
+          weddingId: guest.eventId,
           firstname: guest.firstname,
           lastname: guest.lastname,
           fullname: `${guest.lastname}, ${guest.firstname}`,
@@ -841,7 +847,8 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
           status: guest.status,
           tableId: guest.tableId,
           table: guest.table,
-          wedding: guest.wedding,
+          event: guest.event,
+          wedding: guest.event,
         },
       });
     }
@@ -905,12 +912,21 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const {
         weddingId,
+        eventId,
         firstname,
         lastname,
         linkId,
         status = 'pending',
         tableId,
       } = (request.body as any) || {};
+
+      const targetEventId = Number(eventId || weddingId);
+      if (!targetEventId) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'eventId or weddingId is required.',
+        });
+      }
 
       if (!firstname?.trim() || !lastname?.trim()) {
         return reply.status(400).send({
@@ -919,14 +935,14 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      // Verify wedding exists
-      const wedding = await db.query.weddings.findFirst({
-        where: eq(weddings.id, Number(weddingId)),
+      // Verify event exists
+      const event = await db.query.events.findFirst({
+        where: eq(events.id, targetEventId),
       });
-      if (!wedding) {
+      if (!event) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: `Wedding with ID ${weddingId} does not exist.`,
+          message: `Event with ID ${targetEventId} does not exist.`,
         });
       }
 
@@ -948,7 +964,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       const [newGuest] = await db
         .insert(guests)
         .values({
-          weddingId: Number(weddingId),
+          eventId: targetEventId,
           firstname: firstname.trim(),
           lastname: lastname.trim(),
           linkId: effectiveLinkId,
@@ -959,7 +975,10 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
 
       return reply.status(201).send({
         message: 'Guest created successfully',
-        guest: newGuest,
+        guest: {
+          ...newGuest,
+          weddingId: newGuest.eventId,
+        },
       });
     }
   );
@@ -1031,15 +1050,23 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { weddingId, guests: guestList } = (request.body as any) || {};
+      const { weddingId, eventId, guests: guestList } = (request.body as any) || {};
+      const targetEventId = Number(eventId || weddingId);
 
-      const wedding = await db.query.weddings.findFirst({
-        where: eq(weddings.id, Number(weddingId)),
-      });
-      if (!wedding) {
+      if (!targetEventId) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: `Wedding with ID ${weddingId} does not exist.`,
+          message: 'eventId or weddingId is required.',
+        });
+      }
+
+      const event = await db.query.events.findFirst({
+        where: eq(events.id, targetEventId),
+      });
+      if (!event) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: `Event with ID ${targetEventId} does not exist.`,
         });
       }
 
@@ -1051,7 +1078,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const valuesToInsert = guestList.map((g: any) => ({
-        weddingId: Number(weddingId),
+        eventId: targetEventId,
         firstname: g.firstname.trim(),
         lastname: g.lastname.trim(),
         linkId: g.linkId?.trim() || crypto.randomBytes(4).toString('hex'),
@@ -1064,7 +1091,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(201).send({
         message: `Successfully imported ${created.length} guests`,
         count: created.length,
-        guests: created,
+        guests: created.map((g) => ({ ...g, weddingId: g.eventId })),
       });
     }
   );
@@ -1152,7 +1179,8 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       if (body.linkId !== undefined) updateData.linkId = body.linkId;
       if (body.status !== undefined) updateData.status = body.status;
       if (body.tableId !== undefined) updateData.tableId = body.tableId;
-      if (body.weddingId !== undefined) updateData.weddingId = body.weddingId;
+      if (body.eventId !== undefined) updateData.eventId = Number(body.eventId);
+      if (body.weddingId !== undefined && body.eventId === undefined) updateData.eventId = Number(body.weddingId);
 
       const [updated] = await db
         .update(guests)
@@ -1311,4 +1339,84 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       });
     }
   );
+
+  // ==========================================
+  // 12. CREATE SNAP GUEST (POST /snap)
+  // Redis BullMQ queue backed with concurrency serialization
+  // ==========================================
+  app.post(
+    '/snap',
+    {
+      schema: {
+        tags: ['Guests'],
+        summary: 'Create Snap Guest',
+        description: 'Creates a new snap guest for an event using Redis queue for concurrency. Returns guest id and generated guest_code.',
+        body: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            guestName: { type: 'string' },
+            eventToken: { type: 'string' },
+            eventId: { type: ['integer', 'string'] },
+            deviceSerial: { type: 'string' },
+            deviceName: { type: 'string' },
+          },
+        },
+        response: {
+          201: {
+            description: 'Snap guest created successfully',
+            type: 'object',
+            properties: {
+              id: { type: 'integer' },
+              guest_code: { type: 'string' },
+              guestCode: { type: 'string' },
+              name: { type: 'string' },
+              eventId: { type: 'integer' },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body as any) || {};
+      const guestName = (body.name || body.guestName || 'Guest').trim() || 'Guest';
+      const rawTokenOrId = body.eventToken || body.eventId;
+
+      let resolvedEventId: number | null = null;
+      if (rawTokenOrId) {
+        const isNumeric = /^\d+$/.test(String(rawTokenOrId));
+        const event = await db.query.events.findFirst({
+          where: isNumeric
+            ? or(eq(events.token, String(rawTokenOrId)), eq(events.id, Number(rawTokenOrId)))
+            : eq(events.token, String(rawTokenOrId)),
+        });
+        if (event) {
+          resolvedEventId = event.id;
+        }
+      }
+
+      if (!resolvedEventId) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Event not found for provided token or ID.',
+        });
+      }
+
+      const result = await enqueueCreateSnapGuest({
+        eventId: resolvedEventId,
+        name: guestName,
+        deviceSerial: body.deviceSerial || null,
+        deviceName: body.deviceName || null,
+      });
+
+      return reply.status(201).send({
+        id: result.id,
+        guest_code: result.guest_code,
+        guestCode: result.guest_code,
+        name: result.name,
+        eventId: result.eventId,
+      });
+    }
+  );
 };
+

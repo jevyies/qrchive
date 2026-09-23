@@ -68,6 +68,11 @@ export const useAuthStore = defineStore('auth', () => {
     return authPosition.value?.toLowerCase() === 'owner' && status.value?.toLowerCase() === 'pending'
   })
 
+  // True if user's authPosition is owner
+  const isOwner = computed(() => {
+    return authPosition.value?.toLowerCase() === 'owner'
+  })
+
   const setAuthPositionOverride = (pos) => {
     overrideAuthPosition.value = pos
     if (typeof window !== 'undefined') {
@@ -259,6 +264,33 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 4.5 Complete Profile & Store Setup (/api/auth/complete-profile)
+  const completeProfile = async (profileData) => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const res = await axiosInstance.post('/api/auth/complete-profile', profileData)
+      if (res.data?.user) {
+        user.value = { ...user.value, ...res.data.user }
+        if (res.data?.accessToken) {
+          token.value = res.data.accessToken
+          setAuthCookies(res.data.accessToken)
+        }
+        setStatusOverride('active')
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('qrchive_user', JSON.stringify(user.value))
+        }
+      }
+      return res.data
+    } catch (err) {
+      error.value = err.message || err.data?.message || 'Failed to complete profile'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // 5. Fetch Current User Profile (/api/auth/me)
   const fetchCurrentUser = async () => {
     try {
@@ -328,6 +360,7 @@ export const useAuthStore = defineStore('auth', () => {
     overrideStatus,
     setStatusOverride,
     isPendingOwner,
+    isOwner,
     isCreateStoreModalOpen,
     openCreateStoreModal,
     closeCreateStoreModal,
@@ -339,6 +372,7 @@ export const useAuthStore = defineStore('auth', () => {
     loginWithGitHub,
     sendVerificationCode,
     register,
+    completeProfile,
     fetchCurrentUser,
     refreshToken,
     logout,

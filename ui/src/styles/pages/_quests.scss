@@ -478,6 +478,391 @@
 }
 
 // ----------------------------------------------------------------------------
+// Horizontally Scrollable Stream of Uploaded Photos (Line 482)
+// ----------------------------------------------------------------------------
+.quick-uploaded-stream-container {
+  width: 100%;
+  background: var(--checklist-surface-container-lowest, #ffffff);
+  border: 1px solid var(--checklist-outline-variant-border, #e2e8f0);
+  border-radius: 1rem;
+  padding: 1rem 1.125rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.quick-uploaded-stream-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.quick-uploaded-stream-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quick-uploaded-stream-icon {
+  font-size: 20px;
+  color: #2563eb;
+  font-variation-settings: "FILL" 1;
+}
+
+.quick-uploaded-stream-title {
+  font-family: var(--checklist-font-display, inherit);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--checklist-on-surface, #1e293b);
+  letter-spacing: -0.01em;
+}
+
+.quick-uploaded-stream-badge {
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #bfdbfe;
+}
+
+.quick-uploaded-stream-sub {
+  font-family: var(--checklist-font-body, inherit);
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quick-uploaded-stream {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 6px;
+  padding-top: 2px;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    height: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
+
+.quick-uploaded-item {
+  flex: 0 0 115px;
+  width: 115px;
+  height: 145px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  scroll-snap-align: start;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+  border: 1.5px solid #e2e8f0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: #0f172a;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  }
+
+  &.is-newly-added {
+    animation: popInNew 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+}
+
+@keyframes popInNew {
+  0% {
+    transform: scale(0.6) translateY(24px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.quick-uploaded-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.quick-uploaded-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 8px 6px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+}
+
+.quick-uploaded-check {
+  font-size: 16px;
+  color: #10b981;
+  font-variation-settings: "FILL" 1;
+}
+
+.quick-uploaded-time {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+// ----------------------------------------------------------------------------
+// Stack of Images & Upload Progress (Lines 484-491 replacement)
+// ----------------------------------------------------------------------------
+.quick-stack-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding-top: 0.5rem;
+}
+
+.quick-stack-deck {
+  position: relative;
+  width: 190px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 800px;
+}
+
+.quick-stack-card {
+  position: absolute;
+  width: 175px;
+  height: 210px;
+  border-radius: 18px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center bottom;
+
+  &--0 {
+    z-index: 10;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+
+  &--1 {
+    z-index: 9;
+    transform: translateY(12px) scale(0.93) rotate(-3.5deg);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+
+  &--2 {
+    z-index: 8;
+    transform: translateY(22px) scale(0.86) rotate(4deg);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  // Float animation when upload succeeds: from lines 484-491 up towards line 482
+  &.is-floating {
+    animation: floatToStream 0.55s cubic-bezier(0.2, 0.85, 0.2, 1) forwards;
+    z-index: 50;
+    pointer-events: none;
+  }
+}
+
+@keyframes floatToStream {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-70px) scale(0.88);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-160px) scale(0.55);
+    opacity: 0;
+  }
+}
+
+// The Blue Progress Border Frame: sets the signal of upload percentage
+.quick-stack-border-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  padding: 3.5px;
+  background: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+// When uploading: electric blue conic gradient border filling according to --upload-pct
+.quick-stack-card.is-uploading .quick-stack-border-frame {
+  background: conic-gradient(
+    from 0deg,
+    #2563eb 0%,
+    #3b82f6 calc(var(--upload-pct, 0%) * 1%),
+    #93c5fd calc(var(--upload-pct, 0%) * 1%),
+    rgba(37, 99, 235, 0.15) calc(var(--upload-pct, 0%) * 1%),
+    rgba(37, 99, 235, 0.15) 100%
+  );
+  box-shadow: 0 0 22px rgba(37, 99, 235, 0.5), 0 8px 24px rgba(0, 0, 0, 0.18);
+  animation: pulseBlueAura 2s infinite ease-in-out;
+}
+
+@keyframes pulseBlueAura {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(37, 99, 235, 0.45), 0 8px 24px rgba(0, 0, 0, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(37, 99, 235, 0.7), 0 10px 28px rgba(37, 99, 235, 0.25);
+  }
+}
+
+.quick-stack-img-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 14.5px;
+  overflow: hidden;
+  background-color: #0f172a;
+}
+
+.quick-stack-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.quick-stack-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 1rem;
+}
+
+.quick-stack-pulse-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(37, 99, 235, 0.95);
+  color: #ffffff;
+  font-family: var(--checklist-font-body, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  .quick-spin-icon {
+    font-size: 16px;
+    animation: spinQuick 1.2s linear infinite;
+  }
+}
+
+@keyframes spinQuick {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.quick-stack-progress-track {
+  width: 80%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.quick-stack-progress-bar {
+  height: 100%;
+  background: #60a5fa;
+  border-radius: 9999px;
+  transition: width 0.15s ease-out;
+}
+
+.quick-stack-staged-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #f8fafc;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  .material-symbols-outlined {
+    font-size: 14px;
+    color: #fbbf24;
+  }
+}
+
+.quick-stack-count-pill {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 15;
+}
+
+.quick-stack-status-info {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.quick-stack-status-title {
+  font-family: var(--checklist-font-display, inherit);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--checklist-on-surface, #0f172a);
+  margin: 0;
+}
+
+.quick-stack-status-hint {
+  font-family: var(--checklist-font-body, inherit);
+  font-size: 12px;
+  color: #64748b;
+  margin: 0.25rem 0 0;
+}
+
+// ----------------------------------------------------------------------------
 // Photo Checklist Section & Progress Card
 // ----------------------------------------------------------------------------
 .checklist-section {

@@ -7,6 +7,7 @@ meta:
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { UploadQueue } from '@/utils/uploadQueue.js'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 
 const route = useRoute()
@@ -226,9 +227,18 @@ const filteredMedia = computed(() => {
     return list
 })
 
-// File Upload & Toast state
+// File Upload & Redis Batch Queue State
 const fileInput = ref(null)
 const isUploading = ref(false)
+const uploadBatchState = ref({
+    isActive: false,
+    total: 0,
+    completed: 0,
+    failed: 0,
+    percent: 0,
+    activeWorkers: 0,
+    currentFileName: '',
+})
 
 const toggleLike = (item, event) => {
     if (event) event.stopPropagation()
@@ -253,37 +263,71 @@ const triggerFileUpload = () => {
     }
 }
 
-const handleFileUpload = (e) => {
+const handleFileUpload = async (e) => {
     const files = e.target.files
     if (!files || files.length === 0) return
+    const fileList = Array.from(files)
+    e.target.value = ''
+
+    uploadBatchState.value = {
+        isActive: true,
+        total: fileList.length,
+        completed: 0,
+        failed: 0,
+        percent: 0,
+        activeWorkers: 0,
+        currentFileName: fileList[0]?.name || '',
+    }
     isUploading.value = true
-    const fileCount = files.length
 
-    setTimeout(() => {
-        for (let i = 0; i < fileCount; i++) {
-            const file = files[i]
+    // Initialize 3-worker concurrency queue with adaptive chunking & Redis tracking
+    const queue = new UploadQueue({
+        concurrency: 3,
+        onProgress: (progress) => {
+            uploadBatchState.value.completed = progress.completed
+            uploadBatchState.value.failed = progress.failed
+            uploadBatchState.value.total = progress.total
+            uploadBatchState.value.percent = progress.percent
+            uploadBatchState.value.activeWorkers = progress.activeWorkers
+            if (progress.currentFile) {
+                uploadBatchState.value.currentFileName = progress.currentFile.name
+            }
+        },
+        onFileComplete: (file, photo) => {
             const isVideo = file.type.startsWith('video')
-            const fakeUrl = URL.createObjectURL(file)
-
+            const displayUrl = photo?.url || URL.createObjectURL(file)
             mediaItems.value.unshift({
-                id: Date.now() + i,
+                id: photo?.id || Date.now(),
                 type: isVideo ? 'video' : 'photo',
                 duration: isVideo ? '0:20' : null,
-                url: fakeUrl,
-                guest: 'You',
+                url: displayUrl,
+                guest: photo?.uploadedBy || 'You',
                 category: selectedCategory.value !== 'all' ? selectedCategory.value : 'guests-laughing',
                 categoryLabel: selectedCategory.value !== 'all'
                     ? (categories.find((c) => c.id === selectedCategory.value)?.label || 'Candid')
                     : 'Live Candid',
-                title: 'Fresh Moment from Reception',
+                title: file.name.replace(/\.[^/.]+$/, ''),
                 likes: 1,
                 isLiked: true,
                 time: 'Just now',
             })
-        }
-        isUploading.value = false
-        e.target.value = ''
-    }, 1300)
+        },
+        onFinish: () => {
+            isUploading.value = false
+            setTimeout(() => {
+                uploadBatchState.value.isActive = false
+            }, 3500)
+        },
+    })
+
+    const rawId = route.params.id
+    const numericEventId = Number(rawId) || 1
+
+    await queue.startBatch({
+        files: fileList,
+        eventId: numericEventId,
+        uploadedBy: 'Celebration Guest',
+    })
 }
 
 // Fullscreen Lightbox & Swipe Carousel State
@@ -408,6 +452,29 @@ const handleKeyDown = (e) => {
 }
 
 onMounted(() => {
+    // If not demo-event, verify currentEvent matches route.params.id
+    const eventId = route.params.id
+    if (eventId !== 'demo-event') {
+        let isAuthorized = false
+        if (typeof localStorage !== 'undefined') {
+            const stored = localStorage.getItem('currentEvent')
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored)
+                    if (parsed && String(parsed.eventCode) === String(eventId)) {
+                        isAuthorized = true
+                    }
+                } catch (err) {
+                    console.error('[LiveVault] Error reading currentEvent from localStorage:', err)
+                }
+            }
+        }
+        if (!isAuthorized) {
+            router.replace(`/event/${eventId}`)
+            return
+        }
+    }
+
     window.addEventListener('keydown', handleKeyDown)
 })
 
@@ -417,12 +484,12 @@ onBeforeUnmount(() => {
 
 // Navigation helpers
 const navigateToCapture = () => {
-    const eventId = route.params.id || 'keann-and-jenny'
+    const eventId = route.params.id || 'demo-event'
     router.push(`/event/${eventId}/quests`)
 }
 
 const navigateToWelcome = () => {
-    const eventId = route.params.id || 'keann-and-jenny'
+    const eventId = route.params.id || 'demo-event'
     router.push(`/event/${eventId}`)
 }
 </script>
@@ -433,6 +500,35 @@ const navigateToWelcome = () => {
         <!-- Hidden Native File Upload Input -->
         <input id="fileUploadInput" ref="fileInput" accept="image/*,video/*" multiple style="display: none;" type="file"
             @change="handleFileUpload">
+
+        <!-- Floating Redis Batch Upload Progress Banner -->
+        <transition name="fade-slide">
+            <div v-if="uploadBatchState.isActive" class="floating-upload-banner">
+                <div class="floating-upload-banner__inner">
+                    <div class="floating-upload-banner__header">
+                        <div class="floating-upload-banner__title">
+                            <span class="upload-pulse-dot"></span>
+                            <span>Uploading {{ uploadBatchState.completed }} of {{ uploadBatchState.total }} Moments</span>
+                        </div>
+                        <span class="floating-upload-banner__pct">{{ uploadBatchState.percent }}%</span>
+                    </div>
+
+                    <!-- Animated Progress Bar -->
+                    <div class="floating-upload-banner__track">
+                        <div class="floating-upload-banner__bar" :style="{ width: `${uploadBatchState.percent}%` }"></div>
+                    </div>
+
+                    <div class="floating-upload-banner__footer">
+                        <span class="floating-upload-banner__sub">
+                            {{ uploadBatchState.activeWorkers }} active • Redis batch queue active
+                        </span>
+                        <span v-if="uploadBatchState.failed > 0" class="floating-upload-banner__failed">
+                            {{ uploadBatchState.failed }} failed
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </transition>
 
         <!-- Main Content Area: Zero top padding, hero flush to top -->
         <main class="vault-main">

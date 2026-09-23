@@ -7,7 +7,7 @@ import AppLogo from '../@core/components/AppLogo.vue'
 import SidebarNavItem from './SidebarNavItem.vue'
 import NavbarNavList from './NavbarNavList.vue'
 
-const { navSections, currentRole, isPendingOwner } = useNavSections()
+const { navSections, currentRole, isPendingOwner, isOwner } = useNavSections()
 
 defineProps({
   layoutMode: {
@@ -114,7 +114,8 @@ const currentRouteTitle = computed(() => {
       </RouterLink>
 
       <!-- Breadcrumbs (Desktop & Tablet: Sidebar mode OR Navbar Menu-Bar mode) -->
-      <div v-if="layoutMode === 'sidebar' || (layoutMode === 'navbar' && navbarMenuMode === 'menu-bar')"
+      <div
+        v-if="(layoutMode === 'sidebar' || (layoutMode === 'navbar' && navbarMenuMode === 'menu-bar')) && authStore.authPosition !== 'owner' && !isOwner"
         class="d-none d-md-flex align-center gap-2 text-truncate">
         <span class="text-muted text-sm">Design System</span>
         <span class="text-muted">/</span>
@@ -124,7 +125,8 @@ const currentRouteTitle = computed(() => {
       <!-- =============================================================== -->
       <!-- NAVBAR HORIZONTAL MENUS (When Navbar Mode is active & INLINE)   -->
       <!-- =============================================================== -->
-      <nav v-if="layoutMode === 'navbar' && navbarMenuMode === 'inline' && !isPendingOwner"
+      <nav
+        v-if="layoutMode === 'navbar' && navbarMenuMode === 'inline' && authStore.authPosition !== 'owner' && !isOwner && !isPendingOwner"
         class="d-none d-lg-flex align-center gap-1 navbar-nav">
         <NavbarNavList />
       </nav>
@@ -143,7 +145,8 @@ const currentRouteTitle = computed(() => {
     <div class="d-flex align-center gap-1 gap-sm-2 flex-shrink-0">
 
       <!-- 1. Layout Mode Switcher (Pill for >= 640px) -->
-      <div class="d-none d-sm-flex align-center p-1 rounded-full border border-subtle gap-1"
+      <div v-if="authStore.authPosition !== 'owner'"
+        class="d-none d-sm-flex align-center p-1 rounded-full border border-subtle gap-1"
         style="background: var(--bg-surface-tonal);" title="Menu Layout Mode">
         <button :class="['btn btn-xs rounded-full', layoutMode === 'sidebar' ? 'btn-primary' : 'btn-text']"
           @click="emit('setLayoutMode', 'sidebar')" title="Sidebar Navigation Mode">
@@ -164,20 +167,6 @@ const currentRouteTitle = computed(() => {
             </svg>
             <span class="d-none d-xl-inline text-xs font-semibold">Top Nav</span>
           </span>
-        </button>
-      </div>
-
-      <!-- 1b. Navbar Style Switcher (Inline vs Menu-Bar when in Navbar Mode) -->
-      <div v-if="layoutMode === 'navbar'"
-        class="d-none d-md-flex align-center p-1 rounded-full border border-subtle gap-1"
-        style="background: var(--bg-surface-tonal);" title="Top Navbar Menu Style">
-        <button :class="['btn btn-xs rounded-full', navbarMenuMode === 'inline' ? 'btn-primary' : 'btn-text']"
-          @click="emit('setNavbarMenuMode', 'inline')" title="Inline Navbar: Menu inside Top Header">
-          <span class="text-xs font-semibold">Inline</span>
-        </button>
-        <button :class="['btn btn-xs rounded-full', navbarMenuMode === 'menu-bar' ? 'btn-primary' : 'btn-text']"
-          @click="emit('setNavbarMenuMode', 'menu-bar')" title="Menu-Bar: Dedicated Sub-Navbar under Top Header">
-          <span class="text-xs font-semibold">Menu-Bar</span>
         </button>
       </div>
 
@@ -241,34 +230,26 @@ const currentRouteTitle = computed(() => {
 
       <!-- 4. User Profile Avatar & Dropdown -->
       <div class="dropdown">
-        <button
-          class="btn btn-icon p-0 rounded-full border border-subtle overflow-hidden"
-          style="width: 2rem; height: 2rem;"
-          @click.stop="userDropdownOpen = !userDropdownOpen"
-          title="Account Menu"
-        >
+        <button class="btn btn-icon p-0 rounded-full border border-subtle overflow-hidden"
+          style="width: 2rem; height: 2rem;" @click.stop="userDropdownOpen = !userDropdownOpen" title="Account Menu">
           <img
-            :src="authStore.user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=faces'"
-            alt="Avatar"
-            style="width: 100%; height: 100%; object-fit: cover;"
-          />
+            :src="authStore.user?.avatar_url || authStore.user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=faces'"
+            alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" />
         </button>
 
         <div :class="['dropdown-menu dropdown-menu-end', { show: userDropdownOpen }]" style="min-width: 13rem;">
           <div class="p-3 border-bottom border-subtle">
             <div class="font-bold text-sm text-truncate">{{ authStore.userFullname }}</div>
-            <div class="text-xs text-muted text-truncate">{{ authStore.user?.email || 'Authenticated User' }}</div>
+            <div class="text-xs text-muted text-truncate">{{ authStore.user?.email }}</div>
             <div class="mt-1 d-flex align-center gap-1">
               <span class="badge badge-xs badge-tonal-primary font-mono text-uppercase">
                 {{ authStore.authPosition || currentRole }}
               </span>
-              <span class="badge badge-xs badge-tonal-neutral font-mono text-uppercase">
-                {{ authStore.user?.authProvider || 'User' }}
-              </span>
             </div>
           </div>
           <div class="p-1">
-            <RouterLink to="/dashboard" class="dropdown-item d-flex align-center gap-2" @click="userDropdownOpen = false">
+            <RouterLink to="/dashboard" class="dropdown-item d-flex align-center gap-2"
+              @click="userDropdownOpen = false">
               <span>❖</span>
               <span>Dashboard</span>
             </RouterLink>
@@ -281,7 +262,8 @@ const currentRouteTitle = computed(() => {
       </div>
 
       <!-- 5. Mobile Menu Button (Only for Top Navbar mode on small screens) -->
-      <button v-if="layoutMode === 'navbar'" class="btn btn-icon btn-sm btn-tonal-neutral d-lg-none flex-shrink-0"
+      <button v-if="layoutMode === 'navbar' && authStore.authPosition !== 'owner' && !isOwner"
+        class="btn btn-icon btn-sm btn-tonal-neutral d-lg-none flex-shrink-0"
         @click="isMobileNavOpen = !isMobileNavOpen" title="Toggle Menu">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -295,7 +277,8 @@ const currentRouteTitle = computed(() => {
   <!-- =============================================================== -->
   <!-- DEDICATED MENU-BAR (When Navbar Mode is active & MENU-BAR)      -->
   <!-- =============================================================== -->
-  <div v-if="layoutMode === 'navbar' && navbarMenuMode === 'menu-bar' && !isPendingOwner"
+  <div
+    v-if="layoutMode === 'navbar' && navbarMenuMode === 'menu-bar' && authStore.authPosition !== 'owner' && !isOwner && !isPendingOwner"
     class="navbar-menubar navbar-glass d-none d-lg-flex align-center">
     <div class="menubar-container container-fluid px-4 py-2 w-full">
       <nav class="d-flex align-center gap-1 navbar-nav">
@@ -305,7 +288,9 @@ const currentRouteTitle = computed(() => {
   </div>
 
   <!-- MOBILE DRAWER MENU (For Navbar mode on mobile/tablet) -->
-  <div v-if="layoutMode === 'navbar' && isMobileNavOpen && !isPendingOwner" class="p-4 border-bottom border-subtle d-lg-none"
+  <div
+    v-if="layoutMode === 'navbar' && isMobileNavOpen && authStore.authPosition !== 'owner' && !isOwner && !isPendingOwner"
+    class="p-4 border-bottom border-subtle d-lg-none"
     style="background: var(--bg-surface-elevated); position: fixed; top: 4rem; left: 0; right: 0; z-index: 1020; max-height: calc(100vh - 4rem); overflow-y: auto;">
     <template v-for="section in navSections" :key="section.id">
       <div class="sidebar-nav-header text-xs text-muted font-bold uppercase mb-2 mt-3">{{ section.title }}</div>

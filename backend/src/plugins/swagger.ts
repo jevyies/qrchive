@@ -10,7 +10,7 @@ const swaggerPluginCallback: FastifyPluginAsync = async (app) => {
       info: {
         title: 'QRchive API',
         description:
-          'Comprehensive REST API for QRchive — managing wedding events, guest tables, RSVPs, stores, and platform analytics.',
+          'Comprehensive REST API for QRchive — managing events, photo uploads via Cloudflare R2, guests, RSVPs, stores, and analytics.',
         version: '1.0.0',
         contact: {
           name: 'QRchive Support',
@@ -28,7 +28,8 @@ const swaggerPluginCallback: FastifyPluginAsync = async (app) => {
           description:
             'User registration, credential login, Google OAuth, GitHub OAuth, token refresh, and session management',
         },
-        { name: 'Weddings', description: 'Wedding events, event scheduling, and wedding-user coordination' },
+        { name: 'Events', description: 'Celebration and wedding events management and token access' },
+        { name: 'Photos', description: 'Chunked and direct photo uploads to Cloudflare R2 and event photo gallery' },
         { name: 'Stores', description: 'Store profiles, configurations, and store-user assignments' },
         { name: 'Guests', description: 'Guest lists, RSVP tracking, link lookup, and seating table arrangements' },
         { name: 'Testing', description: 'Testing, service status, and operational health probes' },
@@ -39,7 +40,7 @@ const swaggerPluginCallback: FastifyPluginAsync = async (app) => {
             type: 'http',
             scheme: 'bearer',
             bearerFormat: 'JWT',
-            description: 'Provide 5-minute JWT access token: Bearer <token>',
+            description: 'Provide JWT access token: Bearer <token>',
           },
         },
       },

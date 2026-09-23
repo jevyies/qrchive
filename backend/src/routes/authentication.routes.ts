@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { eq, or, and, isNull, gt } from 'drizzle-orm';
-import { db, users, refreshTokens, emailVerifications, User, NewUser } from '../db';
+import { db, users, stores, storeUsers, refreshTokens, emailVerifications, User, NewUser } from '../db';
 import { sendVerificationEmail, sendCustomEmail } from '../services/email.service';
+import { optionalAuthenticate } from '../middlewares/auth.middleware';
 
 // JWT & Cookie Configuration
 const JWT_SECRET =
@@ -20,26 +21,34 @@ const REFRESH_TOKEN_EXPIRY_NORMAL_DAYS = 1; // 1 day
  * and fullname formatted as (lastname + ', ' + firstname).
  */
 export const formatUserResponse = (user: {
-  firstname: string;
+  firstname?: string | null;
   middlename?: string | null;
-  lastname: string;
+  lastname?: string | null;
   extname?: string | null;
   email?: string | null;
-  username: string;
+  username?: string | null;
   id?: number;
   status?: string | null;
   authPosition?: string | null;
   [key: string]: any;
 }) => {
-  const fullname = user.lastname + ', ' + user.firstname;
+  const fullname =
+    user.lastname && user.firstname
+      ? `${user.lastname}, ${user.firstname}`
+      : user.firstname || user.lastname || user.username || user.email || 'Curator';
   return {
-    firstname: user.firstname,
+    id: user.id,
+    firstname: user.firstname ?? null,
     middlename: user.middlename ?? null,
-    lastname: user.lastname,
+    lastname: user.lastname ?? null,
     extname: user.extname ?? null,
     email: user.email ?? null,
-    username: user.username,
+    username: user.username ?? null,
     fullname,
+    status: user.status ?? 'pending',
+    authPosition: user.authPosition ?? 'owner',
+    avatarUrl: user.avatarUrl ?? user.avatar_url ?? null,
+    avatar_url: user.avatar_url ?? user.avatarUrl ?? null,
   };
 };
 
@@ -48,7 +57,7 @@ export const formatUserResponse = (user: {
  */
 const generateAccessToken = (user: {
   id: number;
-  username: string;
+  username?: string | null;
   email?: string | null;
   status?: string | null;
   authPosition?: string | null;
@@ -58,7 +67,7 @@ const generateAccessToken = (user: {
     {
       sub: user.id,
       id: user.id,
-      username: user.username,
+      username: user.username || user.email || `user_${user.id}`,
       email: user.email,
       status: user.status ?? 'pending',
       authPosition: user.authPosition ?? 'owner',
@@ -248,13 +257,13 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
           'Registers a new user into table users, hashes password if provided, creates a 5-minute access token and session cookie (3-month expiry if rememberMe is true, 1-day if false), and returns user details with computed fullname (lastname + ", " + firstname), status (default "pending"), and authPosition (default "owner").',
         body: {
           type: 'object',
-          required: ['firstname', 'lastname'],
+          required: ['email'],
           properties: {
-            firstname: { type: 'string', minLength: 1, example: 'John' },
+            firstname: { type: 'string', minLength: 1, nullable: true, example: 'John' },
             middlename: { type: 'string', nullable: true, example: 'Fitzgerald' },
-            lastname: { type: 'string', minLength: 1, example: 'Kennedy' },
+            lastname: { type: 'string', minLength: 1, nullable: true, example: 'Kennedy' },
             extname: { type: 'string', nullable: true, example: 'Jr' },
-            email: { type: 'string', format: 'email', nullable: true, example: 'john.kennedy@example.com' },
+            email: { type: 'string', format: 'email', example: 'john.kennedy@example.com' },
             username: { type: 'string', minLength: 3, nullable: true, example: 'jfkennedy' },
             password: { type: 'string', minLength: 6, nullable: true, example: 'SuperSecureP@ss123' },
             code: { type: 'string', minLength: 6, maxLength: 6, nullable: true, description: '6-digit verification code sent to email', example: '123456' },
@@ -275,13 +284,15 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
               user: {
                 type: 'object',
                 properties: {
-                  firstname: { type: 'string', example: 'John' },
+                  firstname: { type: 'string', nullable: true, example: 'John' },
                   middlename: { type: 'string', nullable: true, example: 'Fitzgerald' },
-                  lastname: { type: 'string', example: 'Kennedy' },
+                  lastname: { type: 'string', nullable: true, example: 'Kennedy' },
                   extname: { type: 'string', nullable: true, example: 'Jr' },
                   email: { type: 'string', nullable: true, example: 'john.kennedy@example.com' },
-                  username: { type: 'string', example: 'jfkennedy' },
+                  username: { type: 'string', nullable: true, example: 'jfkennedy' },
                   fullname: { type: 'string', example: 'Kennedy, John' },
+                  avatarUrl: { type: 'string', nullable: true },
+                  avatar_url: { type: 'string', nullable: true },
                 },
               },
             },
@@ -299,11 +310,11 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request: FastifyRequest<{
       Body: {
-        firstname: string;
+        firstname?: string | null;
         middlename?: string | null;
-        lastname: string;
+        lastname?: string | null;
         extname?: string | null;
-        email?: string | null;
+        email: string;
         username?: string | null;
         password?: string | null;
         code?: string | null;
@@ -332,30 +343,17 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
 
       const isOAuth = authProvider === 'google' || authProvider === 'github';
 
-      // For standard local registration, username, password, email, and verification code are required
+      if (!email || !email.trim()) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Email address is required for registration.',
+        });
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+
+      // For standard local registration, verify 6-digit email verification code
       if (!isOAuth) {
-        if (!email || !email.trim()) {
-          return reply.status(400).send({
-            error: 'Bad Request',
-            message: 'Email address is required for registration.',
-          });
-        }
-        if (!username || !username.trim()) {
-          return reply.status(400).send({
-            error: 'Bad Request',
-            message: 'Username is required for standard registration.',
-          });
-        }
-        if (!password || password.length < 6) {
-          return reply.status(400).send({
-            error: 'Bad Request',
-            message: 'Password must be at least 6 characters.',
-          });
-        }
-
-        const cleanEmail = email.trim().toLowerCase();
-
-        // Verify 6-digit email verification code
         const isTestBypass = (process.env.NODE_ENV === 'test' && (!code || code === 'TEST99'));
         if (!isTestBypass) {
           if (!code || !code.trim()) {
@@ -386,23 +384,19 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
-      // Check existing email if provided
-      if (email && email.trim()) {
-        const cleanEmail = email.trim().toLowerCase();
-        const existingEmail = await db.query.users.findFirst({
-          where: eq(users.email, cleanEmail),
+      // Check existing email
+      const existingEmail = await db.query.users.findFirst({
+        where: eq(users.email, cleanEmail),
+      });
+      if (existingEmail) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Email address is already registered.',
         });
-        if (existingEmail) {
-          return reply.status(400).send({
-            error: 'Bad Request',
-            message: 'Email address is already registered.',
-          });
-        }
       }
 
-
-      // Determine unique username
-      let finalUsername: string;
+      // Determine username (optional/nullable)
+      let finalUsername: string | null = null;
       if (username && username.trim()) {
         finalUsername = username.trim();
         const existingUser = await db.query.users.findFirst({
@@ -414,15 +408,6 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
             message: 'Username is already taken.',
           });
         }
-      } else if (isOAuth) {
-        // Auto-generate username from email or name
-        const baseName = email ? email.split('@')[0] : `${firstname}_${lastname}`;
-        finalUsername = await generateUniqueUsername(baseName);
-      } else {
-        return reply.status(400).send({
-          error: 'Bad Request',
-          message: 'Username is required.',
-        });
       }
 
       // Hash password if provided
@@ -436,11 +421,11 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
       const [newUser] = await db
         .insert(users)
         .values({
-          firstname: firstname.trim(),
-          middlename: middlename ? middlename.trim() : null,
-          lastname: lastname.trim(),
-          extname: extname ? extname.trim() : null,
-          email: email ? email.trim().toLowerCase() : null,
+          firstname: firstname?.trim() || null,
+          middlename: middlename?.trim() || null,
+          lastname: lastname?.trim() || null,
+          extname: extname?.trim() || null,
+          email: cleanEmail,
           username: finalUsername,
           password: hashedPassword,
           authProvider,
@@ -503,6 +488,8 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
                   email: { type: 'string', nullable: true, example: 'john.kennedy@example.com' },
                   username: { type: 'string', example: 'jfkennedy' },
                   fullname: { type: 'string', example: 'Kennedy, John' },
+                  avatarUrl: { type: 'string', nullable: true },
+                  avatar_url: { type: 'string', nullable: true },
                 },
               },
             },
@@ -629,6 +616,8 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
                   email: { type: 'string', nullable: true, example: 'jane.doe@gmail.com' },
                   username: { type: 'string', example: 'janedoe' },
                   fullname: { type: 'string', example: 'Doe, Jane' },
+                  avatarUrl: { type: 'string', nullable: true },
+                  avatar_url: { type: 'string', nullable: true },
                 },
               },
               profile: {
@@ -731,12 +720,26 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
 
       const googleId = googleProfile.sub;
       const email = googleProfile.email ? googleProfile.email.toLowerCase() : null;
-      const firstname = googleProfile.given_name || (googleProfile.name ? googleProfile.name.split(' ')[0] : 'GoogleUser');
-      const lastname =
-        googleProfile.family_name ||
-        (googleProfile.name && googleProfile.name.split(' ').length > 1
-          ? googleProfile.name.split(' ').slice(1).join(' ')
-          : 'User');
+
+      // Extract firstname & lastname from Google profile if available
+      let firstname: string | null = null;
+      let lastname: string | null = null;
+
+      if (googleProfile.given_name && googleProfile.given_name.trim()) {
+        firstname = googleProfile.given_name.trim();
+      } else if (googleProfile.name && googleProfile.name.trim()) {
+        firstname = googleProfile.name.trim().split(/\s+/)[0] || null;
+      }
+
+      if (googleProfile.family_name && googleProfile.family_name.trim()) {
+        lastname = googleProfile.family_name.trim();
+      } else if (googleProfile.name && googleProfile.name.trim()) {
+        const parts = googleProfile.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+          lastname = parts.slice(1).join(' ');
+        }
+      }
+
       const avatarUrl = googleProfile.picture || null;
 
       // Check if user exists by googleId
@@ -756,6 +759,22 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
             .set({
               googleId,
               avatarUrl: user.avatarUrl || avatarUrl,
+              firstname: user.firstname || firstname || null,
+              lastname: user.lastname || lastname || null,
+            })
+            .where(eq(users.id, user.id))
+            .returning();
+          user = updated;
+        }
+      } else if (user) {
+        // If existing user lacks firstname, lastname, or avatarUrl, populate from Google profile
+        if ((!user.firstname && firstname) || (!user.lastname && lastname) || (!user.avatarUrl && avatarUrl)) {
+          const [updated] = await db
+            .update(users)
+            .set({
+              firstname: user.firstname || firstname || null,
+              lastname: user.lastname || lastname || null,
+              avatarUrl: user.avatarUrl || avatarUrl,
             })
             .where(eq(users.id, user.id))
             .returning();
@@ -763,20 +782,22 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
-      // If user not found in database, do NOT auto-create; instruct frontend to register
+      // If user not found in database, auto-create user record and log in directly
       if (!user) {
-        return reply.status(200).send({
-          registered: false,
-          message: 'No account found with this Google account. Please complete your registration.',
-          profile: {
-            email,
+        const [newUser] = await db
+          .insert(users)
+          .values({
             firstname,
             lastname,
+            email,
+            authProvider: 'google',
             googleId,
             avatarUrl,
-            authProvider: 'google',
-          },
-        });
+            status: 'pending',
+            authPosition: 'owner',
+          })
+          .returning();
+        user = newUser;
       }
 
       // Check account status
@@ -845,6 +866,8 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
                   email: { type: 'string', nullable: true, example: 'linus@example.com' },
                   username: { type: 'string', example: 'torvalds' },
                   fullname: { type: 'string', example: 'Torvalds, Linus' },
+                  avatarUrl: { type: 'string', nullable: true },
+                  avatar_url: { type: 'string', nullable: true },
                 },
               },
               profile: {
@@ -971,15 +994,18 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
           }
         }
 
-        // Determine names
-        let firstname = ghUser.login || 'GitHubUser';
-        let lastname = 'User';
-        if (ghUser.name) {
+        // Extract firstname & lastname from GitHub profile if available
+        let firstname: string | null = null;
+        let lastname: string | null = null;
+
+        if (ghUser.name && ghUser.name.trim()) {
           const parts = ghUser.name.trim().split(/\s+/);
-          firstname = parts[0];
+          firstname = parts[0] || null;
           if (parts.length > 1) {
             lastname = parts.slice(1).join(' ');
           }
+        } else if (ghUser.login && ghUser.login.trim()) {
+          firstname = ghUser.login.trim();
         }
 
         const avatarUrl = ghUser.avatar_url || null;
@@ -1001,6 +1027,22 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
               .set({
                 githubId,
                 avatarUrl: user.avatarUrl || avatarUrl,
+                firstname: user.firstname || firstname || null,
+                lastname: user.lastname || lastname || null,
+              })
+              .where(eq(users.id, user.id))
+              .returning();
+            user = updated;
+          }
+        } else if (user) {
+          // If existing user lacks firstname, lastname, or avatarUrl, populate from GitHub profile
+          if ((!user.firstname && firstname) || (!user.lastname && lastname) || (!user.avatarUrl && avatarUrl)) {
+            const [updated] = await db
+              .update(users)
+              .set({
+                firstname: user.firstname || firstname || null,
+                lastname: user.lastname || lastname || null,
+                avatarUrl: user.avatarUrl || avatarUrl,
               })
               .where(eq(users.id, user.id))
               .returning();
@@ -1008,20 +1050,23 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
           }
         }
 
-        // If user not found in database, do NOT auto-create; instruct frontend to register
+        // If user not found in database, auto-create user record and log in directly
         if (!user) {
-          return reply.status(200).send({
-            registered: false,
-            message: 'No account found with this GitHub account. Please complete your registration.',
-            profile: {
-              email,
+          const [newUser] = await db
+            .insert(users)
+            .values({
               firstname,
               lastname,
+              email,
+              username: ghUser.login ? ghUser.login.trim() : null,
+              authProvider: 'github',
               githubId,
               avatarUrl,
-              authProvider: 'github',
-            },
-          });
+              status: 'pending',
+              authPosition: 'owner',
+            })
+            .returning();
+          user = newUser;
         }
 
         // Check account status
@@ -1090,6 +1135,8 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
                   email: { type: 'string', nullable: true, example: 'john.kennedy@example.com' },
                   username: { type: 'string', example: 'jfkennedy' },
                   fullname: { type: 'string', example: 'Kennedy, John' },
+                  avatarUrl: { type: 'string', nullable: true },
+                  avatar_url: { type: 'string', nullable: true },
                 },
               },
             },
@@ -1236,6 +1283,8 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
                   email: { type: 'string', nullable: true, example: 'john.kennedy@example.com' },
                   username: { type: 'string', example: 'jfkennedy' },
                   fullname: { type: 'string', example: 'Kennedy, John' },
+                  avatarUrl: { type: 'string', nullable: true },
+                  avatar_url: { type: 'string', nullable: true },
                 },
               },
             },
@@ -1358,6 +1407,158 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
 
       return reply.send({
         message: 'Email sent successfully',
+      });
+    }
+  );
+
+  // ==========================================
+  // 9. COMPLETE PROFILE & STORE SETUP (Onboarding Wizard)
+  // ==========================================
+  app.post(
+    '/complete-profile',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Authentication'],
+        summary: 'Complete User Profile and Store Onboarding',
+        description:
+          'Updates user details in the users table where email = email logged in, creates store record in stores table, and links user and store in store_users table.',
+        body: {
+          type: 'object',
+          required: ['firstname', 'lastname'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            accountType: { type: 'string', enum: ['personal', 'business'] },
+            firstname: { type: 'string' },
+            middlename: { type: 'string', nullable: true },
+            lastname: { type: 'string' },
+            extname: { type: 'string', nullable: true },
+            username: { type: 'string', nullable: true },
+            password: { type: 'string', nullable: true },
+            businessname: { type: 'string' },
+            description: { type: 'string', nullable: true },
+            businessEmail: { type: 'string', format: 'email', nullable: true },
+            dateStarted: { type: 'string', nullable: true },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const {
+        email,
+        accountType = 'personal',
+        firstname,
+        middlename,
+        lastname,
+        extname,
+        username,
+        password,
+        businessname,
+        description,
+        businessEmail,
+        dateStarted,
+      } = (request.body as any) || {};
+
+      // 1. Identify user: priority from request.user, else by email provided
+      const targetEmail = (request.user?.email || email || '').trim().toLowerCase();
+      if (!targetEmail) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'User email is required to identify account.',
+        });
+      }
+
+      const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, targetEmail),
+      });
+
+      if (!existingUser) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: `User with email "${targetEmail}" was not found.`,
+        });
+      }
+
+      // Check username uniqueness if provided and changed
+      let finalUsername = existingUser.username;
+      if (username && username.trim() && username.trim().toLowerCase() !== existingUser.username?.toLowerCase()) {
+        const cleanUsername = username.trim();
+        const usernameTaken = await db.query.users.findFirst({
+          where: eq(users.username, cleanUsername),
+        });
+        if (usernameTaken && usernameTaken.id !== existingUser.id) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: `Username "${cleanUsername}" is already taken. Please choose another.`,
+          });
+        }
+        finalUsername = cleanUsername;
+      }
+
+      // 2. Prepare user update fields
+      const userUpdateData: Partial<NewUser> = {
+        firstname: firstname.trim(),
+        middlename: middlename?.trim() || null,
+        lastname: lastname.trim(),
+        extname: extname?.trim() || null,
+        username: finalUsername,
+        status: 'active',
+      };
+
+      if (password && password.trim()) {
+        const salt = await bcrypt.genSalt(10);
+        userUpdateData.password = await bcrypt.hash(password.trim(), salt);
+      }
+
+      const [updatedUser] = await db
+        .update(users)
+        .set(userUpdateData)
+        .where(eq(users.id, existingUser.id))
+        .returning();
+
+      // 3. Prepare store fields
+      // Default fallback if personal: `${firstname} ${lastname} Personal`
+      const resolvedStoreName = (businessname && businessname.trim())
+        ? businessname.trim()
+        : `${firstname.trim()} ${lastname.trim()} Personal`;
+
+      const resolvedStoreEmail = (businessEmail && businessEmail.trim())
+        ? businessEmail.trim().toLowerCase()
+        : targetEmail;
+
+      const resolvedDescription = description && description.trim() ? description.trim() : null;
+
+      let resolvedDateStarted: string | null = null;
+      if (dateStarted && dateStarted.trim()) {
+        resolvedDateStarted = dateStarted.trim();
+      } else {
+        resolvedDateStarted = new Date().toISOString().split('T')[0];
+      }
+
+      const [newStore] = await db
+        .insert(stores)
+        .values({
+          name: resolvedStoreName,
+          description: resolvedDescription,
+          email: resolvedStoreEmail,
+          dateStarted: resolvedDateStarted,
+        })
+        .returning();
+
+      // 4. Link user and store in store_users table
+      await db.insert(storeUsers).values({
+        storeId: newStore.id,
+        userId: updatedUser.id,
+      });
+
+      // 5. Issue new access token with updated active status
+      const accessToken = generateAccessToken(updatedUser);
+
+      return reply.send({
+        message: 'Profile and store setup completed successfully',
+        user: formatUserResponse(updatedUser),
+        store: newStore,
+        accessToken,
       });
     }
   );

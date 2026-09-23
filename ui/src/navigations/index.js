@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth.js'
 // ============================================================================
 // ROLE MENUS CONFIGURATION (Based on authPosition from decodedToken)
 // 1. admin:    Dashboard, Stores, Users, Settings
-// 2. owner:    Dashboard, Weddings, Users, Settings
+// 2. owner:    None (All menus removed when authPosition is owner)
 // 3. ordinary: Dashboard, Guests, Tables, Pictures
 // ============================================================================
 
@@ -16,12 +16,7 @@ export const ROLE_MENUS = {
     { id: 'users', path: '/users', name: 'Users', icon: '👥' },
     { id: 'settings', path: '/settings', name: 'Settings', icon: '⚙️' },
   ],
-  owner: [
-    { id: 'dashboard', path: '/dashboard', name: 'Dashboard', icon: '❖' },
-    { id: 'weddings', path: '/weddings', name: 'Weddings', icon: '💍' },
-    { id: 'users', path: '/users', name: 'Users', icon: '👥' },
-    { id: 'settings', path: '/settings', name: 'Settings', icon: '⚙️' },
-  ],
+  owner: [],
   ordinary: [
     { id: 'dashboard', path: '/dashboard', name: 'Dashboard', icon: '❖' },
     { id: 'guests', path: '/guests', name: 'Guests', icon: '📋' },
@@ -38,7 +33,7 @@ export function getCurrentAuthPosition() {
   // 1. Check simulation/test override in sessionStorage
   if (typeof window !== 'undefined') {
     const override = sessionStorage.getItem('qrchive_auth_position_override')
-    if (override && ROLE_MENUS[override.toLowerCase()]) {
+    if (override && ROLE_MENUS[override.toLowerCase()] !== undefined) {
       return override.toLowerCase()
     }
   }
@@ -48,7 +43,7 @@ export function getCurrentAuthPosition() {
     const rawToken = getRawToken()
     if (rawToken) {
       const decoded = decodeToken(rawToken)
-      if (decoded?.authPosition && ROLE_MENUS[decoded.authPosition.toLowerCase()]) {
+      if (decoded?.authPosition && ROLE_MENUS[decoded.authPosition.toLowerCase()] !== undefined) {
         return decoded.authPosition.toLowerCase()
       }
     }
@@ -62,7 +57,7 @@ export function getCurrentAuthPosition() {
       const stored = localStorage.getItem('qrchive_user')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u?.authPosition && ROLE_MENUS[u.authPosition.toLowerCase()]) {
+        if (u?.authPosition && ROLE_MENUS[u.authPosition.toLowerCase()] !== undefined) {
           return u.authPosition.toLowerCase()
         }
       }
@@ -114,31 +109,29 @@ export function getCurrentAuthStatus() {
 /**
  * Returns the raw list of menu items for a specific role and status
  */
-export function getMenusForRole(role, status) {
+export function getMenusForRole(role, _status) {
   const normalizedRole = (role || getCurrentAuthPosition() || 'owner').toLowerCase()
-  const normalizedStatus = (status || getCurrentAuthStatus() || 'pending').toLowerCase()
 
-  // When owner has pending status, remove all menus
-  if (normalizedRole === 'owner' && normalizedStatus === 'pending') {
+  // When authPosition is owner, remove all menus
+  if (normalizedRole === 'owner') {
     return []
   }
 
-  return ROLE_MENUS[normalizedRole] || ROLE_MENUS.owner
+  return ROLE_MENUS[normalizedRole] || []
 }
 
 /**
  * Builds the hierarchical navigation sections for the given role and status
  */
-export function getNavSections(role, status) {
+export function getNavSections(role, _status) {
   const normalizedRole = (role || getCurrentAuthPosition() || 'owner').toLowerCase()
-  const normalizedStatus = (status || getCurrentAuthStatus() || 'pending').toLowerCase()
 
-  // When owner and status is pending, remove all menus
-  if (normalizedRole === 'owner' && normalizedStatus === 'pending') {
+  // When authPosition is owner, remove all menus
+  if (normalizedRole === 'owner') {
     return []
   }
 
-  const items = ROLE_MENUS[normalizedRole] || ROLE_MENUS.owner
+  const items = ROLE_MENUS[normalizedRole] || []
   const roleTitle = normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1)
 
   return [
@@ -153,7 +146,7 @@ export function getNavSections(role, status) {
 }
 
 /**
- * Composable providing reactive navSections, currentStatus, and isPendingOwner
+ * Composable providing reactive navSections, currentStatus, isPendingOwner, and isOwner
  */
 export function useNavSections() {
   let authStore = null
@@ -173,12 +166,17 @@ export function useNavSections() {
     return currentRole.value?.toLowerCase() === 'owner' && currentStatus.value?.toLowerCase() === 'pending'
   })
 
+  const isOwner = computed(() => {
+    return currentRole.value?.toLowerCase() === 'owner'
+  })
+
   const navSections = computed(() => getNavSections(currentRole.value, currentStatus.value))
 
   return {
     currentRole,
     currentStatus,
     isPendingOwner,
+    isOwner,
     navSections,
     getNavSections,
     getMenusForRole,

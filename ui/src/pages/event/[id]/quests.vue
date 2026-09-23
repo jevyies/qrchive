@@ -7,6 +7,7 @@ meta:
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { axiosInstance } from '@/plugins/axios'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 
 const route = useRoute()
@@ -61,6 +62,154 @@ const captureMode = ref('quick')
 
 const switchExperience = (mode) => {
     captureMode.value = mode
+}
+
+// Quick Capture photo stacking & real upload queue state
+const pendingQuickPhotos = ref([])
+const uploadedQuickPhotos = ref([])
+const isUploadingQuick = ref(false)
+const uploadedStreamRef = ref(null)
+const uploadEventId = computed(() => {
+    const raw = Number(route.params.id)
+    return isNaN(raw) || raw <= 0 ? 5 : raw
+})
+
+// Helper to convert dataUrl to Blob, or create a realistic sample JPEG
+const getBlobFromCapturedPhoto = async (capturedUrl) => {
+    if (capturedUrl && capturedUrl.startsWith('data:')) {
+        try {
+            const res = await fetch(capturedUrl)
+            return await res.blob()
+        } catch {
+            // fallback below
+        }
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = 1080
+    canvas.height = 1440
+    const ctx = canvas.getContext('2d')
+    const gradient = ctx.createLinearGradient(0, 0, 1080, 1440)
+    gradient.addColorStop(0, '#0f172a')
+    gradient.addColorStop(0.5, '#1e40af')
+    gradient.addColorStop(1, '#1e3a8a')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 1080, 1440)
+
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 54px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('QRCHIVE EVENT #5', 540, 680)
+    ctx.font = '36px sans-serif'
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
+    ctx.fillText('Instant Photo Drop • ' + new Date().toLocaleTimeString(), 540, 750)
+    ctx.font = '28px sans-serif'
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)'
+    ctx.fillText('Cloudflare R2 Synced', 540, 810)
+
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9)
+    })
+}
+
+// Sequential upload processor with live percentage blue border signal and float animation
+const startQuickUploads = async () => {
+    if (isUploadingQuick.value || pendingQuickPhotos.value.length === 0) return
+    isUploadingQuick.value = true
+
+    while (pendingQuickPhotos.value.length > 0) {
+        const currentItem = pendingQuickPhotos.value[0]
+        currentItem.status = 'uploading'
+        currentItem.uploadPercent = 5
+
+        try {
+            if (!currentItem.blob) {
+                currentItem.blob = await getBlobFromCapturedPhoto(currentItem.dataUrl)
+            }
+
+            const formData = new FormData()
+            formData.append('eventId', '5')
+            formData.append('uploadedBy', 'Guest')
+            formData.append(
+                'deviceName',
+                typeof navigator !== 'undefined' && navigator.userAgent.includes('Mobile')
+                    ? 'Mobile Device'
+                    : 'Desktop Browser',
+            )
+            const fileName = `quick_drop_event5_${Date.now()}.jpg`
+            formData.append('file', currentItem.blob, fileName)
+
+            const response = await axiosInstance.post('/api/photos/upload/direct', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'x-event-id': '5',
+                },
+                onUploadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const pct = Math.min(98, Math.round((progressEvent.loaded * 100) / progressEvent.total))
+                        currentItem.uploadPercent = pct
+                    } else {
+                        currentItem.uploadPercent = Math.min(95, (currentItem.uploadPercent || 5) + 20)
+                    }
+                },
+            })
+
+            currentItem.uploadPercent = 100
+            await new Promise((r) => setTimeout(r, 200))
+
+            // Trigger floating animation
+            currentItem.isFloating = true
+            await new Promise((r) => setTimeout(r, 550))
+
+            // Prepend newly uploaded photo to the beginning of the stream at line 482
+            const uploadedPhoto = response.data?.photo
+            uploadedQuickPhotos.value.unshift({
+                id: uploadedPhoto?.id || currentItem.id,
+                url: uploadedPhoto?.url || currentItem.dataUrl,
+                fileName: uploadedPhoto?.fileName || fileName,
+                uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isNew: true,
+            })
+
+            // Remove uploaded photo from pending deck
+            pendingQuickPhotos.value.shift()
+
+            // Smoothly scroll horizontal stream to beginning
+            await nextTick()
+            if (uploadedStreamRef.value) {
+                uploadedStreamRef.value.scrollTo({ left: 0, behavior: 'smooth' })
+            }
+
+            await new Promise((r) => setTimeout(r, 200))
+        } catch (err) {
+            console.error('Failed to upload quick drop photo:', err)
+            currentItem.status = 'error'
+            currentItem.uploadPercent = 0
+            await new Promise((r) => setTimeout(r, 800))
+            pendingQuickPhotos.value.shift()
+        }
+    }
+
+    isUploadingQuick.value = false
+}
+
+// Fetch existing uploaded photos for event 5
+const fetchExistingPhotos = async () => {
+    try {
+        const { data } = await axiosInstance.get('/api/photos/events/5?limit=20')
+        if (data && data.photos && data.photos.length > 0) {
+            uploadedQuickPhotos.value = data.photos.map((p) => ({
+                id: p.id,
+                url: p.url,
+                fileName: p.fileName || 'Snapshot',
+                uploadedAt: p.uploadedAt
+                    ? new Date(p.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Earlier',
+                isNew: false,
+            }))
+        }
+    } catch {
+        // graceful offline fallback
+    }
 }
 
 // File upload & Toast notification state
@@ -156,6 +305,11 @@ const closeCamera = () => {
         clearInterval(timerCountdown.value)
         timerCountdown.value = null
     }
+
+    // Trigger uploading when user closes camera in quick mode
+    if (captureMode.value === 'quick' && pendingQuickPhotos.value.length > 0 && !isUploadingQuick.value) {
+        startQuickUploads()
+    }
 }
 
 const flipCamera = async () => {
@@ -203,6 +357,22 @@ const takePhoto = () => {
 
     galleryPhotos.value.push(capturedUrl)
     galleryCount.value += 1
+
+    // If quick capture mode, push into pending stack
+    if (captureMode.value === 'quick') {
+        const pendingItem = {
+            id: 'quick_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+            dataUrl: capturedUrl,
+            blob: null,
+            status: 'pending',
+            uploadPercent: 0,
+            isFloating: false,
+        }
+        getBlobFromCapturedPhoto(capturedUrl).then((blob) => {
+            pendingItem.blob = blob
+        })
+        pendingQuickPhotos.value.push(pendingItem)
+    }
 
     // Update active moment status
     if (activeMoment.value) {
@@ -367,20 +537,38 @@ const progressPercent = computed(() =>
     totalCount.value > 0 ? Math.round((capturedCount.value / totalCount.value) * 100) : 0,
 )
 
-// Navigation helper
-const navigateToWelcome = () => {
-    const eventId = route.params.id || 'keann-and-jenny'
-    router.push(`/event/${eventId}`)
-}
-
 const navigateToLiveVault = () => {
-    const eventId = route.params.id || 'keann-and-jenny'
+    const eventId = route.params.id || 'demo-event'
     router.push(`/event/${eventId}/live-vault`)
 }
 
 onMounted(() => {
+    // If not demo-event, verify currentEvent matches route.params.id
+    const eventId = route.params.id
+    if (eventId !== 'demo-event') {
+        let isAuthorized = false
+        if (typeof localStorage !== 'undefined') {
+            const stored = localStorage.getItem('currentEvent')
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored)
+                    if (parsed && String(parsed.eventCode) === String(eventId)) {
+                        isAuthorized = true
+                    }
+                } catch (err) {
+                    console.error('[Quests] Error reading currentEvent from localStorage:', err)
+                }
+            }
+        }
+        if (!isAuthorized) {
+            router.replace(`/event/${eventId}`)
+            return
+        }
+    }
+
     window.triggerUpload = openCamera
     window.switchExperience = switchExperience
+    fetchExistingPhotos()
 })
 
 onBeforeUnmount(() => {
@@ -479,15 +667,102 @@ onBeforeUnmount(() => {
 
                     <!-- Quick Capture Prominent CTA Section -->
                     <div v-show="captureMode === 'quick'" id="quick-capture-section" class="checklist-quick-section">
-                        <div class="checklist-quick-card">
-                            <div class="checklist-quick-card__icon-wrap">
-                                <span class="material-symbols-outlined"
-                                    style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+                        <!-- Horizontally Scrollable Stream of Uploaded Photos -->
+                        <div v-if="uploadedQuickPhotos.length > 0" id="quick-uploaded-stream-container"
+                            class="quick-uploaded-stream-container">
+                            <div class="quick-uploaded-stream-header">
+                                <div class="quick-uploaded-stream-title-group">
+                                    <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
+                                    <span class="quick-uploaded-stream-title">Uploaded Moments</span>
+                                    <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}</span>
+                                </div>
+                                <span class="quick-uploaded-stream-sub">Event #5 Vault</span>
                             </div>
-                            <h2 class="checklist-quick-card__title">Instant Photo Drop</h2>
-                            <p class="checklist-quick-card__desc">
-                                Capture spontaneous laughter, candid toasts, and celebration moments as they happen.
-                            </p>
+                            <div ref="uploadedStreamRef" class="quick-uploaded-stream">
+                                <div v-for="(photo, index) in uploadedQuickPhotos" :key="photo.id || index"
+                                    class="quick-uploaded-item" :class="{ 'is-newly-added': photo.isNew }">
+                                    <img :src="photo.url" alt="Uploaded moment" class="quick-uploaded-img" />
+                                    <div class="quick-uploaded-overlay">
+                                        <span class="material-symbols-outlined quick-uploaded-check">check_circle</span>
+                                        <span class="quick-uploaded-time">{{ photo.uploadedAt || 'Just now' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="checklist-quick-card">
+                            <!-- When no photos are stacked, show original icon/title/desc -->
+                            <template v-if="pendingQuickPhotos.length === 0">
+                                <div class="checklist-quick-card__icon-wrap">
+                                    <span class="material-symbols-outlined"
+                                        style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+                                </div>
+                                <h2 class="checklist-quick-card__title">Instant Photo Drop</h2>
+                                <p class="checklist-quick-card__desc">
+                                    Capture spontaneous laughter, candid toasts, and celebration moments as they happen.
+                                </p>
+                            </template>
+
+                            <!-- When quick photos are snapped, hide original content and show stacked photos deck -->
+                            <div v-else class="quick-stack-preview">
+                                <div class="quick-stack-deck">
+                                    <div v-for="(photo, index) in pendingQuickPhotos.slice(0, 3)" :key="photo.id"
+                                        class="quick-stack-card" :class="[
+                                            `quick-stack-card--${index}`,
+                                            {
+                                                'is-uploading': isUploadingQuick && index === 0,
+                                                'is-floating': photo.isFloating && index === 0,
+                                            },
+                                        ]" :style="{
+                                            '--upload-pct': `${photo.uploadPercent || 0}%`,
+                                            '--card-index': index,
+                                        }">
+                                        <!-- Blue Progress Border Frame -->
+                                        <div class="quick-stack-border-frame">
+                                            <div class="quick-stack-img-wrap">
+                                                <img :src="photo.dataUrl" alt="Stacked capture"
+                                                    class="quick-stack-img" />
+                                                <!-- Uploading Progress Overlay & Signal -->
+                                                <div v-if="isUploadingQuick && index === 0"
+                                                    class="quick-stack-upload-overlay">
+                                                    <div class="quick-stack-pulse-badge">
+                                                        <span
+                                                            class="material-symbols-outlined quick-spin-icon">sync</span>
+                                                        <span>{{ photo.uploadPercent }}%</span>
+                                                    </div>
+                                                    <div class="quick-stack-progress-track">
+                                                        <div class="quick-stack-progress-bar"
+                                                            :style="{ width: `${photo.uploadPercent}%` }"></div>
+                                                    </div>
+                                                </div>
+                                                <!-- Staged badge when pending (before closeCamera) -->
+                                                <div v-else-if="index === 0" class="quick-stack-staged-badge">
+                                                    <span class="material-symbols-outlined">schedule</span>
+                                                    <span>Ready • Close camera to upload</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Count Pill if more than 1 in stack -->
+                                        <span v-if="index === 0 && pendingQuickPhotos.length > 1"
+                                            class="quick-stack-count-pill">
+                                            +{{ pendingQuickPhotos.length - 1 }} more queued
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="quick-stack-status-info">
+                                    <p class="quick-stack-status-title">
+                                        {{ isUploadingQuick ? `Uploading photo to Event #5...
+                                        (${pendingQuickPhotos[0]?.uploadPercent || 0}%)` :
+                                            `${pendingQuickPhotos.length} photo${pendingQuickPhotos.length > 1 ? 's' : ''}
+                                        captured` }}
+                                    </p>
+                                    <p class="quick-stack-status-hint">
+                                        {{ isUploadingQuick ? 'Streaming directly to Cloudflare R2 bucket' :
+                                            'Tap Close in camera to automatically sync' }}
+                                    </p>
+                                </div>
+                            </div>
+
                             <div class="checklist-quick-card__actions">
                                 <button class="checklist-quick-card__submit-btn" type="button"
                                     @click="openCamera({ id: 'quick', number: '⚡', title: 'Quick Snapshot', description: 'Instant candid capture saved to vault' })">
@@ -613,7 +888,8 @@ onBeforeUnmount(() => {
 
                     <!-- Live Golden Flash Ripple Overlay -->
                     <div id="shutterFlash" class="camera-shutter-flash"
-                        :class="isFlashActive ? 'is-active' : 'is-inactive'"></div>
+                        :class="isFlashActive ? 'is-active' : 'is-inactive'">
+                    </div>
 
                     <!-- TOP HUD BAR -->
                     <header class="camera-top-hud">

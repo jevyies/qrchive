@@ -5,7 +5,7 @@ import AppLogo from '../@core/components/AppLogo.vue'
 import SidebarNavItem from './SidebarNavItem.vue'
 
 const authStore = useAuthStore()
-const { navSections, currentRole, isPendingOwner } = useNavSections()
+const { navSections, currentRole, isPendingOwner, isOwner } = useNavSections()
 
 const props = defineProps({
   collapsed: {
@@ -36,7 +36,7 @@ const handleCreateStoreClick = () => {
 
 <template>
   <!-- Sidebar Container (Desktop Fixed / Mobile Drawer) -->
-  <aside :class="[
+  <aside v-if="authStore.authPosition !== 'owner' && !isOwner" :class="[
     'sidebar',
     {
       'sidebar-collapsed': collapsed,
@@ -72,7 +72,7 @@ const handleCreateStoreClick = () => {
     <!-- Navigation Menu (Scrollable inside Sidebar) -->
     <nav class="sidebar-nav">
       <!-- 1. Normal Active Mode: Render Menu Sections -->
-      <template v-if="!isPendingOwner">
+      <template v-if="!isPendingOwner && !isOwner && authStore.authPosition !== 'owner'">
         <template v-for="section in navSections" :key="section.id">
           <div class="sidebar-nav-header">{{ section.title }}</div>
           <SidebarNavItem
@@ -150,5 +150,5 @@ const handleCreateStoreClick = () => {
   </aside>
 
   <!-- Floating Sidebar Drawer Backdrop on Mobile Screen -->
-  <div :class="['sidebar-backdrop', { show: mobileOpen }]" @click="closeMobile"></div>
+  <div v-if="authStore.authPosition !== 'owner' && !isOwner" :class="['sidebar-backdrop', { show: mobileOpen }]" @click="closeMobile"></div>
 </template>

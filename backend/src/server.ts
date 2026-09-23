@@ -1,6 +1,7 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
+import fastifyMultipart from '@fastify/multipart';
 import dotenv from 'dotenv';
 import { client } from './db';
 import { swaggerPlugin } from './plugins/swagger';
@@ -39,10 +40,17 @@ export const buildApp = async () => {
     parseOptions: {},
   });
 
-  // 3. Register OpenAPI Swagger & Scalar API Reference
+  // 3. Register Multipart Form Support (Photo Chunks & Direct Uploads)
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB chunk or file limit
+    },
+  });
+
+  // 4. Register OpenAPI Swagger & Scalar API Reference
   await app.register(swaggerPlugin);
 
-  // 4. Register Modular Route Groups
+  // 5. Register Modular Route Groups
   await app.register(appRoutes);
 
   // 5. Register Global Error Handler

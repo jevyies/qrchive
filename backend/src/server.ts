@@ -2,14 +2,18 @@ import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
+import fastifyWebsocket from '@fastify/websocket';
 import dotenv from 'dotenv';
-import { client } from './db';
+import { client, initDbTables } from './db';
 import { swaggerPlugin } from './plugins/swagger';
 import { appRoutes } from './routes';
 
 dotenv.config();
 
 export const buildApp = async () => {
+  // Ensure runtime database tables and indexes exist
+  await initDbTables();
+
   const app = Fastify({
     logger: {
       level:
@@ -44,13 +48,17 @@ export const buildApp = async () => {
   await app.register(fastifyMultipart, {
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB chunk or file limit
+      fieldSize: 10 * 1024 * 1024, // 10MB limit for text fields (including thumbnailBase64)
     },
   });
 
   // 4. Register OpenAPI Swagger & Scalar API Reference
   await app.register(swaggerPlugin);
 
-  // 5. Register Modular Route Groups
+  // 5. Register WebSocket Plugin
+  await app.register(fastifyWebsocket);
+
+  // 6. Register Modular Route Groups
   await app.register(appRoutes);
 
   // 5. Register Global Error Handler

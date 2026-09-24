@@ -8,6 +8,7 @@ meta:
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { axiosInstance } from '@/plugins/axios'
+import { getDeviceSerial, getStoredEventSession, saveStoredEventSession } from '@/utils/device'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 import AppLogo from '@core/components/AppLogo.vue'
 import GuestModal from '@/views/modals/GuestModal.vue'
@@ -113,8 +114,48 @@ const fetchEventData = async () => {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
+    const eventIdParam = String(route.params.id)
+
     // Check if user already entered this celebration
+    if (typeof localStorage !== 'undefined') {
+        // 1. Check local session (matches currentEvent or qrchive_event_sessions)
+        const localSession = getStoredEventSession(eventIdParam)
+        if (localSession) {
+            saveStoredEventSession(eventIdParam, localSession)
+            router.replace('/quests')
+            return
+        }
+
+        // 2. Fallback: Search snap_guests in backend using eventToken + deviceSerial
+        const deviceSerial = getDeviceSerial()
+        if (deviceSerial && eventIdParam !== 'demo-event') {
+            try {
+                const res = await axiosInstance.get('/api/guests/snap/lookup', {
+                    params: {
+                        eventToken: eventIdParam,
+                        deviceSerial,
+                    },
+                })
+
+                if (res.data?.guest) {
+                    const guestData = res.data.guest
+                    saveStoredEventSession(eventIdParam, {
+                        id: guestData.id,
+                        guestCode: guestData.guestCode || guestData.guest_code,
+                        eventCode: eventIdParam,
+                        guestName: guestData.guestName || guestData.name,
+                    })
+
+                    router.replace('/quests')
+                    return
+                }
+            } catch (lookupErr) {
+                // If 404 or lookup error, guest has not joined this celebration yet
+            }
+        }
+    }
+
     if (route.params.id === 'demo-event') {
         currentEvent.value = {
             couple: 'Keann & Jenny',
@@ -124,23 +165,9 @@ onMounted(() => {
             storeName: 'QRchive Demo Experience',
         }
         isLoading.value = false
-        return;
+    } else {
+        fetchEventData()
     }
-    if (typeof localStorage !== 'undefined') {
-        const stored = localStorage.getItem('currentEvent')
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored)
-                if (parsed && String(parsed.eventCode) === String(route.params.id)) {
-                    router.replace('/quests')
-                    return
-                }
-            } catch (err) {
-                console.error('[EventPage] Error reading currentEvent from localStorage:', err)
-            }
-        }
-    }
-    fetchEventData()
     // Direct DOM listeners fallback for template compatibility
     const btn = document.getElementById('enterVaultBtn')
     const arrow = document.getElementById('btnArrow')
@@ -224,7 +251,3 @@ onMounted(() => {
             :event-id="route.params.id" destination="/quests" />
     </div>
 </template>
-
-<style scoped>
-/* Preserve existing styles */
-</style>

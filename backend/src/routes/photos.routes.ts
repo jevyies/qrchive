@@ -1,13 +1,99 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, or, sql } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { db, snapPhotos, snapGuests, photos, events, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
+import { db, snapPhotos, snapGuests, photos, events, snapPhotoLikes, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
 import { R2Service } from '../services/r2.service';
 import { BatchUploadService } from '../services/batchUpload.service';
 import { photoUploadQueue } from '../queues/photoUpload.queue';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
+import { wsManager } from '../services/websocket.service';
+
+/**
+ * Formats a photo URL with Cloudflare Image Resizing parameters
+ */
+export function formatThumbnailUrl(fullUrl: string, options: string = 'width=500,quality=80,format=auto'): string {
+  if (!fullUrl) return '';
+  if (fullUrl.includes('image/width=')) return fullUrl;
+
+  try {
+    const parsed = new URL(fullUrl);
+    return `${parsed.origin}/cdn-cgi/image/${options}${parsed.pathname}${parsed.search}`;
+  } catch {
+    const clean = fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`;
+    return `/cdn-cgi/image/${options}${clean}`;
+  }
+}
+
+/**
+ * Formats a photo record into the simplified response structure:
+ * { id, thumbnailUrl, fullUrl, uploadedBy, createdAt, likesCount, isLiked }
+ */
+export function formatSimplifiedPhoto(photo: {
+  id: number;
+  url: string;
+  storageKey?: string | null;
+  uploadedBy?: string | null;
+  createdAt: string | Date;
+  likesCount?: number;
+  isLiked?: boolean;
+  checklistId?: number | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  thumbnailUrl?: string | null;
+}) {
+  let fullUrl = photo.url;
+  if (!fullUrl || fullUrl.includes('r2.cloudflarestorage.com')) {
+    fullUrl = R2Service.getPublicUrl(photo.storageKey || '', photo.id);
+  }
+
+  const isVideo = Boolean(
+    photo.mimeType?.startsWith('video/') ||
+    photo.fileName?.endsWith('.mp4') ||
+    photo.fileName?.endsWith('.webm') ||
+    fullUrl.endsWith('.mp4') ||
+    fullUrl.endsWith('.webm')
+  );
+
+  let thumbnailUrl = photo.thumbnailUrl || '';
+  if (!thumbnailUrl) {
+    if (isVideo && photo.storageKey) {
+      const thumbKey = photo.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+      thumbnailUrl = R2Service.getPublicUrl(thumbKey);
+    } else if (isVideo) {
+      thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
+    } else {
+      thumbnailUrl = formatThumbnailUrl(fullUrl);
+    }
+  }
+
+  const uploadedByName = photo.uploadedBy || 'Guest';
+  const createdAtStr =
+    typeof photo.createdAt === 'string'
+      ? photo.createdAt
+      : photo.createdAt instanceof Date
+        ? photo.createdAt.toISOString()
+        : String(photo.createdAt);
+
+  return {
+    id: photo.id,
+    thumbnailUrl,
+    fullUrl,
+    uploadedBy: uploadedByName,
+    createdAt: createdAtStr,
+    likesCount: Number(photo.likesCount || 0),
+    likes: Number(photo.likesCount || 0),
+    isLiked: Boolean(photo.isLiked || false),
+    // Retained for backward-compatibility with quests.vue & live-vault.vue
+    url: fullUrl,
+    checklistId: photo.checklistId || null,
+    fileName: photo.fileName || null,
+    mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+    isVideo,
+    type: isVideo ? 'video' : 'photo',
+  };
+}
 
 const TEMP_CHUNKS_DIR = path.join(__dirname, '../../uploads/temp_chunks');
 
@@ -67,6 +153,61 @@ async function resolveSnapGuest(
     .returning();
 
   return newGuest.id;
+}
+
+/**
+ * Toggles a like for a photo by a specific user/guest identifier
+ */
+async function togglePhotoLike(photoId: number, userIdentifier: string) {
+  const photo = await db.query.snapPhotos.findFirst({
+    where: eq(snapPhotos.id, photoId),
+    with: {
+      guest: {
+        with: {
+          event: true,
+        },
+      },
+    },
+  });
+
+  if (!photo) return null;
+
+  const existing = await db.query.snapPhotoLikes.findFirst({
+    where: and(
+      eq(snapPhotoLikes.photoId, photoId),
+      eq(snapPhotoLikes.userIdentifier, userIdentifier)
+    ),
+  });
+
+  let isLiked = false;
+  if (existing) {
+    await db.delete(snapPhotoLikes).where(eq(snapPhotoLikes.id, existing.id));
+    isLiked = false;
+  } else {
+    await db.insert(snapPhotoLikes).values({
+      photoId,
+      userIdentifier,
+    });
+    isLiked = true;
+  }
+
+  const [countRes] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(snapPhotoLikes)
+    .where(eq(snapPhotoLikes.photoId, photoId));
+
+  const likesCount = countRes?.count || 0;
+  const guestInfo = (photo as any).guest;
+  const eventId = guestInfo?.eventId || 0;
+  const eventToken = guestInfo?.event?.token || String(eventId);
+
+  return {
+    photoId,
+    isLiked,
+    likesCount,
+    eventId,
+    eventToken,
+  };
 }
 
 export const photoRoutes: FastifyPluginAsync = async (app) => {
@@ -237,23 +378,46 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = request.body as any;
-      const eventId = Number(body.eventId);
+      const rawEvent = body.eventCode || body.eventId || request.headers['x-event-id'] || request.headers['x-event-code'];
+      if (!rawEvent) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'eventId or eventCode is required.',
+        });
+      }
 
-      // Verify that event exists in events table
-      const event = await db.query.events.findFirst({
-        where: eq(events.id, eventId),
+      const isNumeric = /^\d+$/.test(String(rawEvent));
+      let event = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(rawEvent)), eq(events.id, Number(rawEvent)))
+          : eq(events.token, String(rawEvent)),
       });
+
+      if (!event && String(rawEvent) === 'demo-event') {
+        event = await db.query.events.findFirst();
+      }
 
       if (!event) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: `Event with ID ${eventId} does not exist.`,
+          message: `Event with token or ID '${rawEvent}' does not exist.`,
         });
       }
 
+      const eventId = event.id;
+      const eventCode = body.eventCode || (request.headers['x-event-code'] as string) || event.token || String(event.id);
+      const guestCode = body.guestCode || (request.headers['x-guest-code'] as string) || null;
+      const captureMode = body.captureMode || (request.headers['x-capture-mode'] as string) || null;
+      const checkListId = body.checkListId || body.checklistId || (request.headers['x-checklist-id'] as string) || null;
+
       const originalFileName = body.fileName || 'photo.jpg';
       const mimeType = body.mimeType || 'image/jpeg';
-      const storageKey = R2Service.generateStorageKey(eventId, originalFileName);
+      const storageKey = R2Service.generateStorageKey(eventId, originalFileName, {
+        eventCode,
+        guestCode,
+        captureMode,
+        checkListId,
+      });
 
       // Initialize R2 Multipart Upload session
       let uploadId = '';
@@ -289,6 +453,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         .insert(snapPhotos)
         .values({
           uploadedBy: guestId,
+          checklistId: checkListId ? Number(checkListId) : null,
           url: '',
           fileName: originalFileName,
           fileSize: body.fileSize ? Number(body.fileSize) : null,
@@ -546,16 +711,51 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       // If part of a Redis batch, update batch progress
       const batchId = (request.body as any)?.batchId || (request.headers['x-batch-id'] as string);
       let batchProgress = null;
+      let guestEventId = 0;
+      let uploaderName = 'Guest';
+      let eventToken = '';
+
+      if (photo.uploadedBy) {
+        const g = await db.query.snapGuests.findFirst({
+          where: eq(snapGuests.id, photo.uploadedBy),
+          with: { event: true },
+        });
+        if (g) {
+          guestEventId = g.eventId;
+          uploaderName = g.name;
+          eventToken = (g as any).event?.token || String(guestEventId);
+        }
+      }
+
+      // Format simplified photo and broadcast via WebSocket to live vault
+      const simplifiedPhoto = formatSimplifiedPhoto({
+        id: updatedPhoto.id,
+        url: photoUrl,
+        storageKey: updatedPhoto.storageKey,
+        uploadedBy: uploaderName,
+        createdAt: updatedPhoto.createdAt,
+        likesCount: 0,
+        isLiked: false,
+        checklistId: updatedPhoto.checklistId,
+        fileName: updatedPhoto.fileName,
+        mimeType: updatedPhoto.mimeType,
+      });
+
+      if (guestEventId) {
+        wsManager.broadcastToEvent(guestEventId, {
+          type: 'new_photo',
+          photo: simplifiedPhoto,
+        });
+        if (eventToken && eventToken !== String(guestEventId)) {
+          wsManager.broadcastToEvent(eventToken, {
+            type: 'new_photo',
+            photo: simplifiedPhoto,
+          });
+        }
+      }
+
       if (batchId) {
         batchProgress = await BatchUploadService.recordFileCompleted(batchId, updatedPhoto.id);
-        
-        let guestEventId = 0;
-        if (photo.uploadedBy) {
-          const g = await db.query.snapGuests.findFirst({
-            where: eq(snapGuests.id, photo.uploadedBy),
-          });
-          guestEventId = g?.eventId || 0;
-        }
 
         // Enqueue background processing job
         await photoUploadQueue.add('process-photo', {
@@ -570,7 +770,10 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
 
       return reply.send({
         message: 'Photo upload completed successfully',
-        photo: updatedPhoto,
+        photo: {
+          ...updatedPhoto,
+          ...simplifiedPhoto,
+        },
         batch: batchProgress,
       });
     }
@@ -661,28 +864,52 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const fields = data.fields as any;
-      const eventId = Number(fields.eventId?.value || request.headers['x-event-id']);
-      if (!eventId) {
+      const rawEvent = fields.eventCode?.value || fields.eventId?.value || request.headers['x-event-id'] || request.headers['x-event-code'];
+      if (!rawEvent) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: 'eventId is required.',
+          message: 'eventId or eventCode is required.',
         });
       }
 
-      const event = await db.query.events.findFirst({
-        where: eq(events.id, eventId),
+      const isNumeric = /^\d+$/.test(String(rawEvent));
+      let event = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(rawEvent)), eq(events.id, Number(rawEvent)))
+          : eq(events.token, String(rawEvent)),
       });
+
+      if (!event && String(rawEvent) === 'demo-event') {
+        event = await db.query.events.findFirst();
+      }
+
       if (!event) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: `Event with ID ${eventId} does not exist.`,
+          message: `Event with token or ID '${rawEvent}' does not exist.`,
         });
       }
+
+      const eventId = event.id;
+      const eventCode = fields.eventCode?.value || (request.headers['x-event-code'] as string) || event.token || String(event.id);
+      const guestCode = fields.guestCode?.value || (request.headers['x-guest-code'] as string) || null;
+      const captureMode = fields.captureMode?.value || (request.headers['x-capture-mode'] as string) || null;
+      const checkListId = fields.checkListId?.value || fields.checklistId?.value || (request.headers['x-checklist-id'] as string) || null;
 
       const fileBuffer = await data.toBuffer();
       const fileName = data.filename || 'photo.jpg';
       const mimeType = data.mimetype || 'image/jpeg';
-      const storageKey = R2Service.generateStorageKey(eventId, fileName);
+      const isVideo = Boolean(
+        mimeType.startsWith('video/') ||
+        fileName.endsWith('.mp4') ||
+        fileName.endsWith('.webm')
+      );
+      const storageKey = R2Service.generateStorageKey(eventId, fileName, {
+        eventCode,
+        guestCode,
+        captureMode,
+        checkListId,
+      });
 
       let photoUrl = '';
       try {
@@ -693,6 +920,20 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           error: 'R2UploadError',
           message: `Failed to upload photo to R2: ${err.message}`,
         });
+      }
+
+      // If video, process and upload video thumbnail to R2
+      let thumbUrl = '';
+      const rawThumbnail = fields.thumbnailBase64?.value || (request.headers['x-thumbnail-base64'] as string);
+      if (isVideo && rawThumbnail && typeof rawThumbnail === 'string') {
+        try {
+          const base64Data = rawThumbnail.replace(/^data:[^;]+;base64,/, '');
+          const thumbBuffer = Buffer.from(base64Data, 'base64');
+          const thumbStorageKey = storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+          thumbUrl = await R2Service.putObject(thumbStorageKey, thumbBuffer, 'image/jpeg');
+        } catch (err: any) {
+          request.log.warn(err, 'Failed to upload video thumbnail to R2');
+        }
       }
 
       let uploader = fields.uploadedBy?.value;
@@ -715,6 +956,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         .insert(snapPhotos)
         .values({
           uploadedBy: guestId,
+          checklistId: checkListId ? Number(checkListId) : null,
           url: photoUrl,
           fileName,
           fileSize: fileBuffer.length,
@@ -723,6 +965,33 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           status: 'completed',
         })
         .returning();
+
+      // Format simplified photo and broadcast via WebSocket to live vault
+      const simplifiedPhoto = formatSimplifiedPhoto({
+        id: newPhoto.id,
+        url: photoUrl,
+        storageKey: newPhoto.storageKey,
+        uploadedBy: uploader,
+        createdAt: newPhoto.createdAt,
+        likesCount: 0,
+        isLiked: false,
+        checklistId: newPhoto.checklistId,
+        fileName: newPhoto.fileName,
+        mimeType: newPhoto.mimeType,
+        thumbnailUrl: thumbUrl || undefined,
+      });
+
+      const eventToken = event?.token || String(eventId);
+      wsManager.broadcastToEvent(eventId, {
+        type: 'new_photo',
+        photo: simplifiedPhoto,
+      });
+      if (eventToken && eventToken !== String(eventId)) {
+        wsManager.broadcastToEvent(eventToken, {
+          type: 'new_photo',
+          photo: simplifiedPhoto,
+        });
+      }
 
       // If part of a Redis batch, update batch progress
       const batchId = fields.batchId?.value || (request.headers['x-batch-id'] as string);
@@ -744,6 +1013,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         message: 'Photo uploaded successfully',
         photo: {
           ...newPhoto,
+          ...simplifiedPhoto,
           eventId,
           uploadedBy: uploader,
           guestId,
@@ -768,27 +1038,47 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           type: 'object',
           required: ['eventId'],
           properties: {
-            eventId: { type: 'integer' },
+            eventId: { type: ['integer', 'string'] },
           },
         },
         querystring: {
           type: 'object',
           properties: {
             page: { type: 'integer', minimum: 1, default: 1 },
-            limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
             status: { type: 'string', default: 'completed' },
+            userIdentifier: { type: 'string' },
           },
         },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { eventId } = request.params as any;
-      const { page = 1, limit = 50, status = 'completed' } = (request.query as any) || {};
+      const { page = 1, limit = 10, status = 'completed', userIdentifier: qUserIdentifier } =
+        (request.query as any) || {};
 
-      const numEventId = Number(eventId);
+      let resolvedEventId = Number(eventId);
+      if (isNaN(resolvedEventId) || resolvedEventId <= 0) {
+        let ev = await db.query.events.findFirst({
+          where: eq(events.token, String(eventId)),
+        });
+        if (!ev && String(eventId) === 'demo-event') {
+          ev = await db.query.events.findFirst();
+        }
+        resolvedEventId = ev ? ev.id : 0;
+      }
+
+      const numEventId = resolvedEventId;
       const pageNum = Number(page) || 1;
-      const limitNum = Number(limit) || 50;
+      const limitNum = Number(limit) || 10;
       const offset = (pageNum - 1) * limitNum;
+
+      const userIdentifier =
+        qUserIdentifier ||
+        (request.headers['x-guest-code'] as string) ||
+        (request.headers['x-device-serial'] as string) ||
+        (request.user ? String(request.user.id) : null) ||
+        '';
 
       const whereClause = and(
         eq(snapGuests.eventId, numEventId),
@@ -804,6 +1094,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       const rows = await db
         .select({
           id: snapPhotos.id,
+          checklistId: snapPhotos.checklistId,
           url: snapPhotos.url,
           uploadedBy: snapGuests.name,
           guestId: snapGuests.id,
@@ -816,6 +1107,10 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           storageKey: snapPhotos.storageKey,
           status: snapPhotos.status,
           createdAt: snapPhotos.createdAt,
+          likesCount: sql<number>`(SELECT count(*)::int FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id})`.as('likes_count'),
+          isLiked: userIdentifier
+            ? sql<boolean>`EXISTS (SELECT 1 FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id} AND snap_photo_likes.user_identifier = ${userIdentifier})`.as('is_liked')
+            : sql<boolean>`false`.as('is_liked'),
         })
         .from(snapPhotos)
         .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
@@ -824,22 +1119,28 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         .limit(limitNum)
         .offset(offset);
 
-      const formattedPhotos = rows.map((p: any) => {
-        let url = p.url;
-        if (!url || url.includes('r2.cloudflarestorage.com')) {
-          url = R2Service.getPublicUrl(p.storageKey || '', p.id);
-        }
-        return {
-          ...p,
-          eventId: numEventId,
-          url,
-        };
-      });
+      const formattedPhotos = rows.map((p: any) =>
+        formatSimplifiedPhoto({
+          id: p.id,
+          url: p.url,
+          storageKey: p.storageKey,
+          uploadedBy: p.uploadedBy,
+          createdAt: p.createdAt,
+          likesCount: p.likesCount,
+          isLiked: p.isLiked,
+          checklistId: p.checklistId,
+          fileName: p.fileName,
+          mimeType: p.mimeType,
+        })
+      );
 
+      const total = totalResult?.count || 0;
       return reply.send({
-        total: totalResult?.count || 0,
+        total,
         page: pageNum,
         limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasMore: offset + rows.length < total,
         photos: formattedPhotos,
       });
     }
@@ -1056,6 +1357,128 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
 
       return reply.send({
         message: 'Photo deleted successfully',
+      });
+    }
+  );
+
+  // =========================================================================
+  // 10. TOGGLE PHOTO LIKE (POST /:id/like)
+  // =========================================================================
+  app.post(
+    '/:id/like',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'Toggle Like on Photo',
+        description: 'Toggles a like for a photo by a guest/user and broadcasts update via WebSocket.',
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'integer' },
+          },
+        },
+        body: {
+          type: 'object',
+          properties: {
+            userIdentifier: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as any;
+      const photoId = Number(id);
+      const body = (request.body as any) || {};
+
+      let userIdentifier =
+        body.userIdentifier ||
+        (request.headers['x-guest-code'] as string) ||
+        (request.headers['x-device-serial'] as string) ||
+        (request.user ? String(request.user.id) : null) ||
+        request.ip ||
+        'anonymous';
+
+      const result = await togglePhotoLike(photoId, userIdentifier);
+      if (!result) {
+        return reply.status(404).send({
+          error: 'NotFound',
+          message: `Photo with ID ${photoId} not found.`,
+        });
+      }
+
+      // Broadcast like event to event WebSocket subscribers
+      if (result.eventId) {
+        const likeMsg = {
+          type: 'photo_liked' as const,
+          data: {
+            photoId,
+            likesCount: result.likesCount,
+            userIdentifier,
+          },
+        };
+        wsManager.broadcastToEvent(result.eventId, likeMsg);
+        if (result.eventToken && result.eventToken !== String(result.eventId)) {
+          wsManager.broadcastToEvent(result.eventToken, likeMsg);
+        }
+      }
+
+      return reply.send({
+        photoId,
+        isLiked: result.isLiked,
+        likesCount: result.likesCount,
+      });
+    }
+  );
+
+  // =========================================================================
+  // 11. WEBSOCKET REAL-TIME SYNC (GET /ws/:eventId)
+  // =========================================================================
+  app.get(
+    '/ws/:eventId',
+    { websocket: true },
+    (socket, request) => {
+      const { eventId } = request.params as any;
+      const resolvedEventId = String(eventId);
+
+      wsManager.addSubscriber(resolvedEventId, socket);
+      request.log.info(`[WebSocket] Connected to event room: ${resolvedEventId}`);
+
+      socket.on('message', async (rawMsg: any) => {
+        try {
+          const parsed = JSON.parse(rawMsg.toString());
+          if (parsed.action === 'like' && parsed.photoId) {
+            const userIdentifier =
+              parsed.userIdentifier ||
+              (request.headers['x-guest-code'] as string) ||
+              request.ip ||
+              'anonymous';
+
+            const res = await togglePhotoLike(Number(parsed.photoId), userIdentifier);
+            if (res && res.eventId) {
+              const likeMsg = {
+                type: 'photo_liked' as const,
+                data: {
+                  photoId: Number(parsed.photoId),
+                  likesCount: res.likesCount,
+                  userIdentifier,
+                },
+              };
+              wsManager.broadcastToEvent(res.eventId, likeMsg);
+              if (res.eventToken && res.eventToken !== String(res.eventId)) {
+                wsManager.broadcastToEvent(res.eventToken, likeMsg);
+              }
+            }
+          }
+        } catch (err: any) {
+          request.log.warn({ err: err.message }, '[WebSocket] Error processing incoming message');
+        }
+      });
+
+      socket.on('close', () => {
+        wsManager.removeSubscriber(resolvedEventId, socket);
+        request.log.info(`[WebSocket] Disconnected from event room: ${resolvedEventId}`);
       });
     }
   );

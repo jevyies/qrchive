@@ -27,39 +27,10 @@ const emit = defineEmits(['update:modelValue', 'close', 'submit'])
 const router = useRouter()
 const route = useRoute()
 
+import { getDeviceSerial, getDeviceName, saveStoredEventSession } from '@/utils/device'
+
 const guestName = ref('')
 const isSubmitting = ref(false)
-
-// Helper to get or generate persistent device serial
-const getDeviceSerial = () => {
-  if (typeof localStorage === 'undefined') return 'guest_dev_' + Math.random().toString(36).slice(2)
-  let serial = localStorage.getItem('qrchive_device_serial')
-  if (!serial) {
-    serial = 'dev_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
-    localStorage.setItem('qrchive_device_serial', serial)
-  }
-  return serial
-}
-
-// Helper to extract device platform and browser name
-const getDeviceName = () => {
-  if (typeof navigator === 'undefined') return 'Web Browser'
-  const ua = navigator.userAgent || ''
-  let os = 'Unknown Device'
-  if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS Device'
-  else if (/Android/i.test(ua)) os = 'Android Device'
-  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS'
-  else if (/Windows NT/i.test(ua)) os = 'Windows PC'
-  else if (/Linux/i.test(ua)) os = 'Linux PC'
-
-  let browser = 'Browser'
-  if (/Chrome|CriOS/i.test(ua) && !/Edg/i.test(ua)) browser = 'Chrome'
-  else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari'
-  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox'
-  else if (/Edg/i.test(ua)) browser = 'Edge'
-
-  return `${os} (${browser})`
-}
 
 // Initialize guest name from localStorage whenever modal opens & auto-focus input
 watch(
@@ -79,7 +50,6 @@ watch(
         if (!guestName.value) {
           guestName.value =
             localStorage.getItem('qrchive_guest_name') ||
-            localStorage.getItem('guest_name') ||
             localStorage.getItem('guestName') ||
             ''
         }
@@ -122,9 +92,8 @@ const handleEnterCelebration = async () => {
     }
 
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('currentEvent', JSON.stringify(currentEventData))
+      saveStoredEventSession('demo-event', currentEventData)
       localStorage.setItem('qrchive_guest_name', enteredName)
-      localStorage.setItem('guest_name', enteredName)
       localStorage.setItem('guestName', enteredName)
       localStorage.setItem('qrchive_current_event_id', 'demo-event')
       localStorage.setItem('qrchive_guest_id', String(randomId))
@@ -158,7 +127,7 @@ const handleEnterCelebration = async () => {
     const guestId = guestData?.id
     const guestCode = guestData?.guest_code || guestData?.guestCode
 
-    // Requirement 4: Save to localStorage using 'currentEvent' key:
+    // Requirement 4: Save to localStorage using 'currentEvent' key and multi-event session storage:
     // { id: guest.id, guestCode: guestCode, eventCode: route.params.id, guestName: guestName }
     if (typeof localStorage !== 'undefined') {
       const currentEventData = {
@@ -167,11 +136,10 @@ const handleEnterCelebration = async () => {
         eventCode: route.params.id || activeEventToken,
         guestName: enteredName,
       }
-      localStorage.setItem('currentEvent', JSON.stringify(currentEventData))
+      saveStoredEventSession(route.params.id || activeEventToken, currentEventData)
 
       // Keep legacy keys for backward compatibility
       localStorage.setItem('qrchive_guest_name', enteredName)
-      localStorage.setItem('guest_name', enteredName)
       localStorage.setItem('guestName', enteredName)
       localStorage.setItem('qrchive_current_event_id', route.params.id || activeEventToken)
       if (guestId) localStorage.setItem('qrchive_guest_id', String(guestId))
@@ -196,7 +164,7 @@ const handleEnterCelebration = async () => {
         eventCode: route.params.id || activeEventToken,
         guestName: enteredName,
       }
-      localStorage.setItem('currentEvent', JSON.stringify(fallbackData))
+      saveStoredEventSession(route.params.id || activeEventToken, fallbackData)
       localStorage.setItem('qrchive_guest_name', enteredName)
       localStorage.setItem('qrchive_current_event_id', route.params.id || activeEventToken)
     }

@@ -65,7 +65,12 @@ watch(isMobileSidebarOpen, (isOpen) => {
     <!-- ======================================================================= -->
     <div v-if="isBlankLayout" class="min-h-screen w-full d-flex flex-column"
       style="max-width: 100vw; overflow-x: clip;">
-      <RouterView />
+      <RouterView v-slot="{ Component, route }">
+        <keep-alive>
+          <component :is="Component" v-if="route.meta?.keepAlive" :key="route.fullPath" />
+        </keep-alive>
+        <component :is="Component" v-if="!route.meta?.keepAlive" :key="route.fullPath" />
+      </RouterView>
     </div>
 
     <!-- ======================================================================= -->

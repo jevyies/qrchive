@@ -234,6 +234,23 @@ export const eventPhotos = pgTable('event_photos', {
 });
 
 // ==========================================
+// 14. SNAP_PHOTO_LIKES (Photo Likes)
+// ==========================================
+export const snapPhotoLikes = pgTable('snap_photo_likes', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  photoId: bigint('photo_id', { mode: 'number' })
+    .notNull()
+    .references(() => snapPhotos.id, { onDelete: 'cascade' }),
+  userIdentifier: varchar('user_identifier', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+// Backward-compatibility alias
+export const photoLikes = snapPhotoLikes;
+
+// ==========================================
 // DRIZZLE RELATIONS (For query API)
 // ==========================================
 
@@ -296,7 +313,7 @@ export const snapChecklistRelations = relations(snapChecklist, ({ one, many }) =
 // Backward-compatibility alias
 export const snapChecklistsRelations = snapChecklistRelations;
 
-export const snapPhotosRelations = relations(snapPhotos, ({ one }) => ({
+export const snapPhotosRelations = relations(snapPhotos, ({ one, many }) => ({
   guest: one(snapGuests, {
     fields: [snapPhotos.uploadedBy],
     references: [snapGuests.id],
@@ -305,7 +322,17 @@ export const snapPhotosRelations = relations(snapPhotos, ({ one }) => ({
     fields: [snapPhotos.checklistId],
     references: [snapChecklist.id],
   }),
+  likes: many(snapPhotoLikes),
 }));
+
+export const snapPhotoLikesRelations = relations(snapPhotoLikes, ({ one }) => ({
+  photo: one(snapPhotos, {
+    fields: [snapPhotoLikes.photoId],
+    references: [snapPhotos.id],
+  }),
+}));
+
+export const photoLikesRelations = snapPhotoLikesRelations;
 
 export const eventPhotosRelations = relations(eventPhotos, ({ one }) => ({
   event: one(events, {
@@ -383,4 +410,11 @@ export type NewEventPhoto = InferInsertModel<typeof eventPhotos>;
 
 export type Photo = SnapPhoto;
 export type NewPhoto = NewSnapPhoto;
+
+export type SnapPhotoLike = InferSelectModel<typeof snapPhotoLikes>;
+export type NewSnapPhotoLike = InferInsertModel<typeof snapPhotoLikes>;
+
+export type PhotoLike = SnapPhotoLike;
+export type NewPhotoLike = NewSnapPhotoLike;
+
 

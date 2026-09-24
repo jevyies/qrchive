@@ -20,6 +20,7 @@ import {
     saveDemoChecklistMoment,
     getDemoChecklistMoments,
     getDemoPhotosCount,
+    clearDemoData,
 } from '@/utils/demoDb'
 import { getStoredEventSession, saveStoredEventSession } from '@/utils/device'
 
@@ -80,12 +81,8 @@ const getBlobFromCapturedPhoto = async (capturedUrl) => {
     })
 }
 
-// Sequential upload processor with live percentage blue border signal and float animation
-const startQuickUploads = async () => {
-    if (isUploadingQuick.value || pendingQuickPhotos.value.length === 0) return
-    isUploadingQuick.value = true
-
-    // Retrieve guestCode, eventCode, and guestName from localStorage currentEvent
+// Guest session credentials helper
+const getGuestCredentials = () => {
     let storedCurrentEvent = null
     if (typeof localStorage !== 'undefined') {
         const raw = localStorage.getItem('currentEvent')
@@ -93,7 +90,7 @@ const startQuickUploads = async () => {
             try {
                 storedCurrentEvent = JSON.parse(raw)
             } catch (e) {
-                console.error('Failed to parse currentEvent:', e)
+                console.error('[Quests] Failed to parse currentEvent:', e)
             }
         }
     }
@@ -108,6 +105,16 @@ const startQuickUploads = async () => {
         (typeof localStorage !== 'undefined' &&
             (localStorage.getItem('qrchive_guest_name') || localStorage.getItem('guestName'))) ||
         'Guest'
+
+    return { eventCode, guestCode, guestName }
+}
+
+// Sequential upload processor with live percentage blue border signal and float animation
+const startQuickUploads = async () => {
+    if (isUploadingQuick.value || pendingQuickPhotos.value.length === 0) return
+    isUploadingQuick.value = true
+
+    const { eventCode, guestCode, guestName } = getGuestCredentials()
 
     while (pendingQuickPhotos.value.length > 0) {
         const currentItem = pendingQuickPhotos.value[0]
@@ -136,7 +143,7 @@ const startQuickUploads = async () => {
                 currentItem.isFloating = true
                 await new Promise((r) => setTimeout(r, 550))
 
-                // Save to local IndexedDB
+                // Save to local IndexedDB including the raw video blob
                 const savedPhoto = await saveDemoQuickPhoto({
                     id: currentItem.id,
                     url: currentItem.videoUrl || currentItem.dataUrl,
@@ -144,6 +151,8 @@ const startQuickUploads = async () => {
                     thumbnailUrl: currentItem.dataUrl,
                     isVideo: isVideo,
                     videoUrl: currentItem.videoUrl || null,
+                    blob: currentItem.blob || null,
+                    videoBlob: isVideo ? (currentItem.videoBlob || currentItem.blob) : null,
                     duration: currentItem.duration || null,
                     fileName: fileName,
                     uploadedBy: guestName || 'You',
@@ -301,6 +310,7 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
         found.image = localPreviewUrl
         found.isVideo = isVideo
         found.videoUrl = extra.videoUrl || null
+        found.videoBlob = isVideo ? fileOrBlob : null
         found.isUploading = true
         found.uploadPercent = currentPct
         found.showSuccessCheck = false
@@ -315,29 +325,7 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
         }, 50)
     }
 
-    // Retrieve guestCode, eventCode, and guestName from localStorage currentEvent
-    let storedCurrentEvent = null
-    if (typeof localStorage !== 'undefined') {
-        const raw = localStorage.getItem('currentEvent')
-        if (raw) {
-            try {
-                storedCurrentEvent = JSON.parse(raw)
-            } catch (e) {
-                console.error('Failed to parse currentEvent:', e)
-            }
-        }
-    }
-
-    const eventCode = storedCurrentEvent?.eventCode || route.params.id || 'demo-event'
-    const guestCode =
-        storedCurrentEvent?.guestCode ||
-        (typeof localStorage !== 'undefined' && localStorage.getItem('qrchive_guest_code')) ||
-        'guest'
-    const guestName =
-        storedCurrentEvent?.guestName ||
-        (typeof localStorage !== 'undefined' &&
-            (localStorage.getItem('qrchive_guest_name') || localStorage.getItem('guestName'))) ||
-        'Guest'
+    const { eventCode, guestCode, guestName } = getGuestCredentials()
 
     let blob = fileOrBlob
     if (!blob && !isVideo) {
@@ -363,10 +351,11 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
             found.fullImage = localPreviewUrl
             found.isVideo = isVideo
             found.videoUrl = extra.videoUrl || localPreviewUrl
+            found.videoBlob = isVideo ? blob : null
             found.guest = guestName || 'You'
             found.showSuccessCheck = true
 
-            // Save to IndexedDB demo database with its specific category
+            // Save to IndexedDB demo database with its specific category and actual video blob
             const demoItem = {
                 checklistId: checkListId,
                 id: `demo_moment_${checkListId}`,
@@ -381,6 +370,8 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
                 fullUrl: localPreviewUrl,
                 isVideo: isVideo,
                 videoUrl: extra.videoUrl || localPreviewUrl,
+                blob: blob,
+                videoBlob: isVideo ? blob : null,
                 uploadedBy: guestName || 'You',
                 createdAt: new Date().toISOString(),
                 likes: 0,
@@ -499,6 +490,7 @@ const openQuickPhotoLightbox = (index) => {
         fullUrl: p.fullUrl || p.url,
         isVideo: Boolean(p.isVideo),
         videoUrl: p.videoUrl || p.fullUrl || p.url,
+        videoBlob: p.videoBlob || p.blob || null,
         title: p.fileName ? `${p.isVideo ? 'Video' : 'Photo'}: ${p.fileName}` : (p.isVideo ? 'Quick Video' : 'Quick Drop'),
         guest: p.guest || 'You',
         time: p.uploadedAt || 'Just now',
@@ -520,6 +512,7 @@ const openMomentLightbox = (moment) => {
             fullUrl: m.fullImage || m.image,
             isVideo: Boolean(m.isVideo),
             videoUrl: m.videoUrl || m.fullImage || m.image,
+            videoBlob: m.videoBlob || m.blob || null,
             title: m.title,
             guest: m.guest || 'You',
             time: m.time || 'Completed',
@@ -627,6 +620,7 @@ const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, video
     }
 
     const currentMoment = moment || activeMoment.value
+    const { guestCode } = getGuestCredentials()
 
     // If quick capture mode, push into pending stack (upload only when user clicks close button)
     if (captureMode.value === 'quick' || !currentMoment || currentMoment.id === 'quick') {
@@ -638,6 +632,7 @@ const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, video
             dataUrl: dataUrl,
             videoUrl: videoUrl || null,
             blob: finalBlob,
+            videoBlob: isVid ? finalBlob : null,
             fileName: fileName || `${guestCode}_${Date.now()}.${defaultExt}`,
             mimeType: mimeType || (isVid ? 'video/mp4' : 'image/jpeg'),
             duration: duration || null,
@@ -661,6 +656,7 @@ const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, video
             found.fullImage = dataUrl
             found.isVideo = isVid
             found.videoUrl = videoUrl || null
+            found.videoBlob = isVid ? finalBlob : null
             uploadChecklistPhoto(found, finalBlob, dataUrl, {
                 isVideo: isVid,
                 videoUrl: videoUrl,
@@ -780,6 +776,65 @@ const navigateToLiveVault = () => {
 const fetchDemoExistingPhotos = async () => {
     await eventVaultStore.fetchDemoPhotos()
     await updateDemoGalleryCount()
+}
+
+// Reset Demo State (only for demo-event)
+const isResettingDemo = ref(false)
+const resetSuccess = ref(false)
+
+const handleResetDemo = async () => {
+    if (isResettingDemo.value) return
+    const confirmed = window.confirm('Reset all demo uploaded photos, videos, and guest profile data?')
+    if (!confirmed) return
+
+    isResettingDemo.value = true
+    try {
+        await clearDemoData()
+        await eventVaultStore.resetDemoStore()
+
+        // Clear local component queue and gallery counts
+        pendingQuickPhotos.value = []
+        galleryPhotos.value = []
+        demoDbCount.value = 0
+
+        // Clear guest credentials and demo session from localStorage
+        if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('qrchive_guest_name')
+            localStorage.removeItem('guestName')
+            localStorage.removeItem('qrchive_guest_code')
+            localStorage.removeItem('qrchive_guest_id')
+            localStorage.removeItem('guestName')
+
+            try {
+                const rawCurrent = localStorage.getItem('currentEvent')
+                if (rawCurrent) {
+                    const parsed = JSON.parse(rawCurrent)
+                    if (String(parsed?.eventCode) === 'demo-event') {
+                        localStorage.removeItem('currentEvent')
+                    }
+                }
+            } catch { }
+
+            try {
+                const rawSessions = localStorage.getItem('qrchive_event_sessions')
+                if (rawSessions) {
+                    const sessions = JSON.parse(rawSessions)
+                    delete sessions['demo-event']
+                    localStorage.setItem('qrchive_event_sessions', JSON.stringify(sessions))
+                }
+            } catch { }
+        }
+
+        resetSuccess.value = true
+        setTimeout(() => {
+            resetSuccess.value = false
+        }, 2200)
+    } catch (err) {
+        console.error('[Quests] Failed to reset demo data:', err)
+    } finally {
+        isResettingDemo.value = false
+        router.push('/event/demo-event')
+    }
 }
 
 onMounted(async () => {
@@ -1033,6 +1088,18 @@ onMounted(async () => {
                                 </button>
                             </div>
                         </div>
+
+                        <!-- Reset Demo Button (Only if route.params.id === 'demo-event') -->
+                        <div v-if="String(route.params.id) === 'demo-event'" class="demo-reset-wrapper">
+                            <button class="demo-reset-btn" :class="{ 'is-success': resetSuccess }" type="button"
+                                :disabled="isResettingDemo" @click="handleResetDemo">
+                                <span class="material-symbols-outlined" :class="{ 'demo-spin': isResettingDemo }">
+                                    {{ resetSuccess ? 'check_circle' : (isResettingDemo ? 'sync' : 'restart_alt') }}
+                                </span>
+                                <span>{{ resetSuccess ? 'Demo Reset Complete' : (isResettingDemo ? 'Resetting...' :
+                                    'Reset Demo') }}</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Photo Checklist Complete Experience Section -->
@@ -1158,17 +1225,9 @@ onMounted(async () => {
         </nav>
 
         <!-- Fullscreen Camera Viewfinder Modal Component -->
-        <Camera
-            :is-open="isCameraOpen"
-            :active-moment="activeMoment"
-            :wedding="currentWedding"
-            :gallery-image="latestGalleryImage"
-            :gallery-count="galleryCount"
-            :capture-experience="captureMode"
-            @close="handleCameraClose"
-            @capture="handleCameraCapture"
-            @open-gallery="openGalleryPicker"
-        />
+        <Camera :is-open="isCameraOpen" :active-moment="activeMoment" :wedding="currentWedding"
+            :gallery-image="latestGalleryImage" :gallery-count="galleryCount" :capture-experience="captureMode"
+            @close="handleCameraClose" @capture="handleCameraCapture" @open-gallery="openGalleryPicker" />
 
         <!-- Fullscreen LightBox Modal Component -->
         <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"

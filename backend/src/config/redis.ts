@@ -1,4 +1,5 @@
 import Redis, { RedisOptions } from 'ioredis';
+import { ConnectionOptions } from 'bullmq';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -8,11 +9,30 @@ const host = process.env.REDIS_HOST || 'localhost';
 const port = Number(process.env.REDIS_PORT) || 6379;
 const password = process.env.REDIS_PASSWORD || undefined;
 
-export const bullMqConnectionOptions = {
-  host,
-  port,
-  password,
-};
+function getBullMqConnectionOptions(): ConnectionOptions {
+  if (redisUrl && (redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://'))) {
+    try {
+      const parsed = new URL(redisUrl);
+      return {
+        host: parsed.hostname || 'localhost',
+        port: parsed.port ? Number(parsed.port) : 6379,
+        username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+        password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+        tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
+      };
+    } catch {
+      // Fallback if URL parsing fails
+    }
+  }
+
+  return {
+    host,
+    port,
+    password,
+  };
+}
+
+export const bullMqConnectionOptions: ConnectionOptions = getBullMqConnectionOptions();
 
 export const redisConnectionOptions: RedisOptions = {
   host,

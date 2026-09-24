@@ -8,6 +8,7 @@ import {
     getDemoPhotosCount,
     getDemoQuickPhotos,
     getDemoChecklistMoments,
+    clearDemoData,
 } from '@/utils/demoDb'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 
@@ -373,6 +374,7 @@ export function mapPhotoToMediaItem(photo, checklistList = []) {
         fullUrl: rawFull,
         url: rawThumb || rawFull,
         videoUrl: isVideo ? (photo.videoUrl || rawFull) : null,
+        videoBlob: photo.videoBlob || photo.blob || null,
         duration: photo.duration || (isVideo ? '0:30' : undefined),
         guest: photo.uploadedBy || 'Guest',
         checklistId: photo.checklistId ?? null,
@@ -607,33 +609,47 @@ export const useEventVaultStore = defineStore('eventVault', () => {
             ])
 
             if (savedQuick && savedQuick.length > 0) {
-                uploadedQuickPhotos.value = savedQuick.map((p) => ({
-                    id: p.id,
-                    url: p.thumbnailUrl || p.url,
-                    fullUrl: p.fullUrl || p.url,
-                    thumbnailUrl: p.thumbnailUrl,
-                    isVideo: Boolean(p.isVideo),
-                    videoUrl: p.videoUrl || null,
-                    fileName: p.fileName || (p.isVideo ? 'Video Clip' : 'Snapshot'),
-                    uploadedAt: p.createdAt
-                        ? new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : 'Earlier',
-                    guest: p.uploadedBy || 'You',
-                    likes: p.likes || 0,
-                    isLiked: Boolean(p.isLiked),
-                    isNew: false,
-                }))
+                uploadedQuickPhotos.value = savedQuick.map((p) => {
+                    let vUrl = p.videoUrl
+                    const blob = p.videoBlob || p.blob
+                    if (p.isVideo && blob instanceof Blob) {
+                        vUrl = URL.createObjectURL(blob)
+                    }
+                    return {
+                        id: p.id,
+                        url: p.thumbnailUrl || p.url,
+                        fullUrl: p.fullUrl || p.url,
+                        thumbnailUrl: p.thumbnailUrl,
+                        isVideo: Boolean(p.isVideo),
+                        videoUrl: vUrl || null,
+                        videoBlob: blob || null,
+                        fileName: p.fileName || (p.isVideo ? 'Video Clip' : 'Snapshot'),
+                        uploadedAt: p.createdAt
+                            ? new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : 'Earlier',
+                        guest: p.uploadedBy || 'You',
+                        likes: p.likes || 0,
+                        isLiked: Boolean(p.isLiked),
+                        isNew: false,
+                    }
+                })
             }
 
             if (savedMoments && savedMoments.length > 0) {
                 savedMoments.forEach((m) => {
                     const matched = moments.value.find((item) => Number(item.id) === Number(m.checklistId ?? m.id))
                     if (matched) {
+                        let vUrl = m.videoUrl
+                        const blob = m.videoBlob || m.blob
+                        if (m.isVideo && blob instanceof Blob) {
+                            vUrl = URL.createObjectURL(blob)
+                        }
                         matched.captured = true
                         matched.image = m.thumbnailUrl || m.image || m.url
                         matched.fullImage = m.fullUrl || m.fullImage || m.image || m.url
                         matched.isVideo = Boolean(m.isVideo)
-                        matched.videoUrl = m.videoUrl || null
+                        matched.videoUrl = vUrl || null
+                        matched.videoBlob = blob || null
                         matched.guest = m.uploadedBy || 'You'
                         matched.category = m.category || matched.category
                         matched.categoryLabel = m.categoryLabel || matched.categoryLabel
@@ -645,6 +661,11 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 const mappedDemo = localAll.map((photo) => {
                     const rawThumb = photo.thumbnailUrl || photo.image || photo.url || ''
                     const rawFull = photo.fullUrl || photo.fullImage || photo.url || ''
+                    let vUrl = photo.videoUrl
+                    const blob = photo.videoBlob || photo.blob
+                    if (photo.isVideo && blob instanceof Blob) {
+                        vUrl = URL.createObjectURL(blob)
+                    }
                     return {
                         id: photo.id,
                         type: photo.isVideo ? 'video' : 'photo',
@@ -652,7 +673,8 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                         thumbnailUrl: rawThumb,
                         fullUrl: rawFull,
                         url: rawThumb || rawFull,
-                        videoUrl: photo.videoUrl || null,
+                        videoUrl: vUrl || null,
+                        videoBlob: blob || null,
                         guest: photo.uploadedBy || 'You',
                         checklistId: photo.checklistId ?? null,
                         category: photo.category || (photo.checklistId ? `moment-${photo.checklistId}` : 'quick-capture'),
@@ -875,6 +897,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                     thumbnailUrl: photo.thumbnailUrl,
                     isVideo: isVid,
                     videoUrl: isVid ? (photo.videoUrl || photo.fullUrl || photo.url) : null,
+                    videoBlob: photo.videoBlob || photo.blob || null,
                     fileName: photo.fileName || (isVid ? 'Video Clip' : 'Snapshot'),
                     uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     guest: photo.uploadedBy || 'You',
@@ -895,6 +918,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 foundMoment.fullImage = photo.fullUrl || photo.url
                 foundMoment.isVideo = isVid
                 foundMoment.videoUrl = photo.videoUrl || (isVid ? (photo.fullUrl || photo.url) : null)
+                foundMoment.videoBlob = photo.videoBlob || photo.blob || null
                 foundMoment.guest = photo.uploadedBy || 'You'
             }
         }
@@ -1056,6 +1080,37 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         }
     }
 
+    // Reset demo state completely
+    const resetDemoStore = async () => {
+        try {
+            await clearDemoData()
+        } catch (err) {
+            console.warn('[EventVaultStore] Error clearing demo db:', err)
+        }
+        uploadedQuickPhotos.value = []
+        mediaItems.value = [...demoMediaItems]
+        totalPhotos.value = demoMediaItems.length
+        demoDbCount.value = 0
+
+        // Reset all moments back to initial uncaptured state
+        if (Array.isArray(moments.value)) {
+            moments.value.forEach((m) => {
+                m.captured = false
+                m.image = null
+                m.fullImage = null
+                m.isVideo = false
+                m.videoUrl = null
+                m.videoBlob = null
+                m.guest = null
+                m.isUploading = false
+                m.uploadPercent = 0
+                m.showSuccessCheck = false
+                m.likes = 0
+                m.isLiked = false
+            })
+        }
+    }
+
     return {
         // State
         currentEventId,
@@ -1098,5 +1153,6 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         handleWebSocketMessage,
         connectWebSocket,
         closeWebSocket,
+        resetDemoStore,
     }
 })

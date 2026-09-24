@@ -210,7 +210,7 @@ const handleEnterCelebration = async () => {
       <div class="guest-modal-field">
         <JInput id="guestNameInput" v-model="guestName" label="Guest NAME" placeholder="Enter Your Name" pattern="boxed"
           container-class="guest-input-container" label-class="guest-input-label" input-class="guest-input-control"
-          @keydown.enter.prevent="handleEnterCelebration">
+          @keydown.enter.prevent="handleEnterCelebration" autocomplete="off">
           <template #append-inner>
             <span class="material-symbols-outlined guest-input-icon">edit</span>
           </template>

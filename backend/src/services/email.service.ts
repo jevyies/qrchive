@@ -105,10 +105,34 @@ export interface SendVerificationEmailParams {
   name?: string;
 }
 
+export interface SendCustomEmailParams {
+  to: string;
+  subject: string;
+  message: string;
+  replyTo?: string;
+  html?: string;
+}
+
+export interface EmailSendResult {
+  success: boolean;
+  delivered: boolean;
+  messageId?: string;
+  error?: string;
+  code?: string;
+  message?: string;
+  simulated?: boolean;
+  queued?: boolean;
+  jobId?: string;
+}
+
 /**
- * Sends a 6-digit verification code email with QRchive branding
+ * Direct verification email sender via Google SMTP (bypasses Redis queue)
  */
-export const sendVerificationEmail = async ({ to, code, name }: SendVerificationEmailParams) => {
+export const sendVerificationEmailDirect = async ({
+  to,
+  code,
+  name,
+}: SendVerificationEmailParams): Promise<EmailSendResult> => {
   const htmlContent = renderVerificationEmailHtml(code, name);
   const logoAttachment = getLogoAttachment();
 
@@ -122,7 +146,7 @@ export const sendVerificationEmail = async ({ to, code, name }: SendVerification
     attachments: logoAttachment ? [logoAttachment] : [],
   };
 
-  console.log(`[EMAIL SERVICE] Preparing verification email for: ${to} (Code: ${code})`);
+  console.log(`[EMAIL SERVICE] Preparing direct verification email for: ${to} (Code: ${code})`);
 
   // If App Password is not yet provided, log clearly to console so development is seamless
   if (!GMAIL_APP_PASSWORD) {
@@ -135,6 +159,7 @@ export const sendVerificationEmail = async ({ to, code, name }: SendVerification
       delivered: false,
       message: 'Verification code generated (simulated in development mode)',
       code,
+      simulated: true,
     };
   }
 
@@ -152,7 +177,7 @@ export const sendVerificationEmail = async ({ to, code, name }: SendVerification
     // In development or if SMTP credentials fail, still allow the code to be printed in console
     console.warn(`[EMAIL SERVICE BACKUP] Verification code for ${to} is: [ ${code} ]`);
     return {
-      success: true,
+      success: false,
       delivered: false,
       error: error?.message,
       code,
@@ -161,15 +186,11 @@ export const sendVerificationEmail = async ({ to, code, name }: SendVerification
 };
 
 /**
- * Generic email sender matching user's exact snippet structure
+ * Direct custom email sender via Google SMTP (bypasses Redis queue)
  */
-export const sendCustomEmail = async (options: {
-  to: string;
-  subject: string;
-  message: string;
-  replyTo?: string;
-  html?: string;
-}) => {
+export const sendCustomEmailDirect = async (
+  options: SendCustomEmailParams
+): Promise<EmailSendResult> => {
   const mailOptions: SendMailOptions = {
     from: '"QRchive" <ababafamily2024@gmail.com>',
     to: options.to,
@@ -192,6 +213,38 @@ export const sendCustomEmail = async (options: {
   } catch (error: any) {
     console.error(`[EMAIL SERVICE ERROR] Failed to send custom email to ${options.to}:`, error?.message || error);
     return { success: false, delivered: false, error: error?.message };
+  }
+};
+
+/**
+ * Sends a 6-digit verification code email with QRchive branding.
+ * Dispatches via BullMQ Redis queue with automatic retries and direct fallback.
+ */
+export const sendVerificationEmail = async (
+  params: SendVerificationEmailParams
+): Promise<EmailSendResult> => {
+  try {
+    const { enqueueVerificationEmail } = require('../queues/email.queue');
+    return await enqueueVerificationEmail(params);
+  } catch (err: any) {
+    console.warn('[EMAIL SERVICE] Redis queue dispatch error, falling back to direct sending:', err.message);
+    return await sendVerificationEmailDirect(params);
+  }
+};
+
+/**
+ * Generic email sender matching application needs.
+ * Dispatches via BullMQ Redis queue with automatic retries and direct fallback.
+ */
+export const sendCustomEmail = async (
+  options: SendCustomEmailParams
+): Promise<EmailSendResult> => {
+  try {
+    const { enqueueCustomEmail } = require('../queues/email.queue');
+    return await enqueueCustomEmail(options);
+  } catch (err: any) {
+    console.warn('[EMAIL SERVICE] Redis queue dispatch error, falling back to direct sending:', err.message);
+    return await sendCustomEmailDirect(options);
   }
 };
 

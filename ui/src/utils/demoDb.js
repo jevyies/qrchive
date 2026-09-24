@@ -82,6 +82,14 @@ export async function getDemoQuickPhotos() {
             const req = store.getAll()
             req.onsuccess = () => {
                 const list = req.result || []
+                list.forEach((item) => {
+                    const blob = item.videoBlob || item.blob
+                    if (item.isVideo && blob instanceof Blob) {
+                        item.videoUrl = URL.createObjectURL(blob)
+                    } else if (item.isVideo && (!item.videoUrl || item.videoUrl.startsWith('blob:'))) {
+                        item.videoUrl = item.thumbnailUrl || item.image || item.url || null
+                    }
+                })
                 list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                 resolve(list)
             }
@@ -141,6 +149,14 @@ export async function getDemoChecklistMoments() {
             const req = store.getAll()
             req.onsuccess = () => {
                 const list = req.result || []
+                list.forEach((item) => {
+                    const blob = item.videoBlob || item.blob
+                    if (item.isVideo && blob instanceof Blob) {
+                        item.videoUrl = URL.createObjectURL(blob)
+                    } else if (item.isVideo && (!item.videoUrl || item.videoUrl.startsWith('blob:'))) {
+                        item.videoUrl = item.thumbnailUrl || item.image || item.url || null
+                    }
+                })
                 list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                 resolve(list)
             }

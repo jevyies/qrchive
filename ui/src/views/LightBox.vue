@@ -148,6 +148,19 @@ const onImageError = (e) => {
     }
 }
 
+const videoHasError = ref(false)
+watch(
+    () => activeLightbox.value?.id,
+    () => {
+        videoHasError.value = false
+    },
+)
+
+const onVideoError = (e) => {
+    console.warn('[LightBox] Failed to play video source:', activeVideoSrc.value, e)
+    videoHasError.value = true
+}
+
 // Touch swipe gesture handling
 const dragOffset = ref(0)
 const isDragging = ref(false)
@@ -277,7 +290,8 @@ onBeforeUnmount(() => {
                     transform: `translateX(${dragOffset}px)`,
                     opacity: `${1 - Math.abs(dragOffset) / 300}`,
                 }">
-                    <video v-if="isActiveVideo" controls autoplay playsinline class="vault-lightbox__media" :src="activeVideoSrc"></video>
+                    <video v-if="isActiveVideo && !videoHasError" controls autoplay playsinline class="vault-lightbox__media" :src="activeVideoSrc" @error="onVideoError"></video>
+                    <img v-else-if="isActiveVideo && videoHasError" :alt="activeTitle" class="vault-lightbox__media" :src="activeFallbackSrc || activeImageSrc">
                     <img v-else :alt="activeTitle" class="vault-lightbox__media" :src="activeImageSrc"
                         @error="onImageError">
                 </div>

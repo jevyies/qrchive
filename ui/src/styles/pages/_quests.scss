@@ -478,6 +478,78 @@
 }
 
 // ----------------------------------------------------------------------------
+// Reset Demo Button (Demo Event Mode)
+// ----------------------------------------------------------------------------
+.demo-reset-wrapper {
+  width: 100%;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.demo-reset-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 3rem;
+  padding: 0 1.25rem;
+  border-radius: 0.75rem;
+  background-color: var(--checklist-surface-container-low, #fcf2ec);
+  border: 1px dashed var(--checklist-outline-variant, #d1c5b4);
+  color: var(--checklist-on-surface-variant, #4e4639);
+  font-family: var(--checklist-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover:not(:disabled) {
+    background-color: var(--checklist-surface-container, #f6ece7);
+    border-color: var(--checklist-primary-container, #c5a059);
+    color: var(--checklist-primary, #775a19);
+    box-shadow: 0 2px 6px rgba(119, 90, 25, 0.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  &.is-success {
+    background-color: #ecfdf5;
+    border-color: #10b981;
+    color: #047857;
+    border-style: solid;
+  }
+
+  .material-symbols-outlined {
+    font-size: 20px;
+    transition: transform 0.2s ease;
+  }
+}
+
+.demo-spin {
+  animation: demoSpin 1s linear infinite;
+}
+
+@keyframes demoSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Horizontally Scrollable Stream of Uploaded Photos (Line 482)
 // ----------------------------------------------------------------------------
 .quick-uploaded-stream-container {
@@ -1841,45 +1913,82 @@
   }
 
   &.is-recording {
-    border-color: #ef4444 !important;
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.4), 0 0 24px rgba(239, 68, 68, 0.7) !important;
-    animation: shutterRecordingPulse 1.4s ease-in-out infinite;
+    position: relative;
+    z-index: 20;
+    width: 68px !important;
+    height: 68px !important;
+    min-width: 68px !important;
+    min-height: 68px !important;
+    border: 3.5px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1;
+    padding: 0 !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    transition: all 0.2s ease;
+    animation: none !important;
+
+    &:active {
+      transform: scale(0.95);
+
+      .camera-shutter-core.core-recording {
+        transform: scale(0.9);
+      }
+    }
 
     .camera-shutter-core.core-recording {
-      width: 28px;
-      height: 28px;
+      width: 32px !important;
+      height: 32px !important;
       border-radius: 6px !important;
       background-color: #ef4444 !important;
-      box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: none !important;
+      transition: transform 0.2s ease;
     }
   }
 }
 
-.camera-shutter-progress-svg {
+.camera-shutter-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 86px;
+  flex-shrink: 0;
+}
+
+@keyframes videoProgress {
+  from {
+    stroke-dashoffset: 264;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.video-recording-svg {
   position: absolute;
-  top: -7px;
-  left: -7px;
-  width: calc(100% + 14px);
-  height: calc(100% + 14px);
+  inset: 0;
   pointer-events: none;
+  z-index: 10;
+  width: 86px;
+  height: 86px;
+}
+
+.video-recording-ring {
+  stroke-dasharray: 264;
+  stroke-dashoffset: 264;
+  animation: videoProgress 30s linear infinite;
   transform: rotate(-90deg);
-  z-index: 5;
+  transform-origin: 50% 50%;
 }
 
-.camera-shutter-progress-bg {
-  fill: none;
-  stroke: rgba(239, 68, 68, 0.25);
-  stroke-width: 4;
-}
-
-.camera-shutter-progress-bar {
-  fill: none;
-  stroke: #ef4444;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-dasharray: 226.2;
-  transition: stroke-dashoffset 0.25s linear;
+.camera-gallery-spacer {
+  width: 3rem;
+  height: 3rem;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .camera-shutter-core {
@@ -2055,28 +2164,37 @@
 }
 
 @keyframes shutterRecordingPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.6);
   }
+
   50% {
     box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.2), 0 0 32px rgba(239, 68, 68, 0.85);
   }
 }
 
 @keyframes stopButtonGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
   }
+
   50% {
     box-shadow: 0 0 22px rgba(239, 68, 68, 0.7);
   }
 }
 
 @keyframes recDotBlink {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.25;
     transform: scale(0.85);

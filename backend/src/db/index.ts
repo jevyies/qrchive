@@ -26,4 +26,27 @@ export const client = postgres(connectionString, {
 
 export const db = drizzle(client, { schema });
 
+/**
+ * Ensures runtime database tables (such as snap_photo_likes) exist
+ */
+export async function initDbTables() {
+  try {
+    await client`
+      CREATE TABLE IF NOT EXISTS snap_photo_likes (
+        id BIGSERIAL PRIMARY KEY,
+        photo_id BIGINT NOT NULL REFERENCES snap_photos(id) ON DELETE CASCADE,
+        user_identifier VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT snap_photo_likes_photo_user_uq UNIQUE (photo_id, user_identifier)
+      );
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_snap_photo_likes_photo ON snap_photo_likes(photo_id);
+    `;
+  } catch (err: any) {
+    console.warn('[DB] snap_photo_likes table init notice:', err.message);
+  }
+}
+
 export * from './schema';
+

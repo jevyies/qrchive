@@ -1,7 +1,7 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { eq, ilike, or, and, sql } from 'drizzle-orm';
 import crypto from 'crypto';
-import { db, events, users, guests, snapGuests, snapPhotos, storeUsers, stores, Event, NewEvent } from '../db';
+import { db, events, users, guests, snapGuests, snapPhotos, snapChecklist, storeUsers, stores, Event, NewEvent } from '../db';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 
 export const eventRoutes: FastifyPluginAsync = async (app) => {
@@ -204,6 +204,93 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         storeName,
       });
     }
+  );
+
+  // ==========================================
+  // 2b. GET EVENT CHECKLIST (GET /token/:token/checklist & GET /:id/checklist)
+  // ==========================================
+  const handleGetEventChecklist = async (request: FastifyRequest, reply: FastifyReply) => {
+    const rawId = (request.params as any).token || (request.params as any).id;
+    const isNumeric = /^\d+$/.test(String(rawId));
+    let event = await db.query.events.findFirst({
+      where: isNumeric
+        ? or(eq(events.token, String(rawId)), eq(events.id, Number(rawId)))
+        : eq(events.token, String(rawId)),
+    });
+
+    if (!event && String(rawId) === 'demo-event') {
+      event = await db.query.events.findFirst();
+    }
+
+    if (!event) {
+      return reply.status(404).send({
+        error: 'Not Found',
+        message: `Event with token or ID '${rawId}' not found.`,
+      });
+    }
+
+    const checklist = await db
+      .select({
+        id: snapChecklist.id,
+        name: snapChecklist.name,
+        description: snapChecklist.description,
+      })
+      .from(snapChecklist)
+      .where(eq(snapChecklist.eventId, event.id))
+      .orderBy(snapChecklist.id);
+
+    if (String(rawId) === 'demo-event' && checklist.length === 0) {
+      return reply.send([
+        { id: 1, name: "Couple's Grand Entrance", description: 'Grand applause walking into the hall' },
+        { id: 2, name: "Couple's First Dance", description: 'Under the romantic ballroom lights' },
+        { id: 3, name: 'Dance with Parents', description: 'Tender father-daughter & mother-son dance' },
+        { id: 4, name: 'Guests Laughing', description: 'Hearty laughs and cheerful table toasts' },
+        { id: 5, name: 'The Emcee on Stage', description: 'Lively hosting and games introduction' },
+        { id: 6, name: "Groom's Surprise Number", description: 'Secret performance for the bride' },
+      ]);
+    }
+
+    return reply.send(checklist);
+  };
+
+  app.get(
+    '/token/:token/checklist',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Get Event Checklist by Public Token',
+        description: 'Retrieves all checklist items (only id, name, description) for an event by token.',
+        params: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string' },
+          },
+        },
+      },
+    },
+    handleGetEventChecklist
+  );
+
+  app.get(
+    '/:id/checklist',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Get Event Checklist by Event ID or Token',
+        description: 'Retrieves all checklist items (only id, name, description) for an event by ID or token.',
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+    },
+    handleGetEventChecklist
   );
 
   // ==========================================

@@ -115,17 +115,6 @@ const fetchEventData = async () => {
 
 onMounted(() => {
     // Check if user already entered this celebration
-    if (route.params.id === 'demo-event') {
-        currentEvent.value = {
-            couple: 'Keann & Jenny',
-            title: "Welcome to Keann & Jenny's Wedding",
-            quote: '“A celebration of enduring love & shared memories”',
-            date: 'Dec 28, 2026',
-            storeName: 'QRchive Demo Experience',
-        }
-        isLoading.value = false
-        return;
-    }
     if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('currentEvent')
         if (stored) {
@@ -140,7 +129,19 @@ onMounted(() => {
             }
         }
     }
-    fetchEventData()
+
+    if (route.params.id === 'demo-event') {
+        currentEvent.value = {
+            couple: 'Keann & Jenny',
+            title: "Welcome to Keann & Jenny's Wedding",
+            quote: '“A celebration of enduring love & shared memories”',
+            date: 'Dec 28, 2026',
+            storeName: 'QRchive Demo Experience',
+        }
+        isLoading.value = false
+    } else {
+        fetchEventData()
+    }
     // Direct DOM listeners fallback for template compatibility
     const btn = document.getElementById('enterVaultBtn')
     const arrow = document.getElementById('btnArrow')
@@ -224,7 +225,3 @@ onMounted(() => {
             :event-id="route.params.id" destination="/quests" />
     </div>
 </template>
-
-<style scoped>
-/* Preserve existing styles */
-</style>

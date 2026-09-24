@@ -6,10 +6,14 @@ import { eventRoutes, weddingRoutes } from './events.routes';
 import { storeRoutes } from './stores.routes';
 import { guestRoutes } from './guests.routes';
 import { photoRoutes } from './photos.routes';
+import { imageResizeRoutes } from './imageResize.routes';
 
 export const appRoutes: FastifyPluginAsync = async (app) => {
   // Register testing / system routes at root
   await app.register(testingRoutes);
+
+  // Register image resizing proxy routes at root (/cdn-cgi/image/... and /image/...)
+  await app.register(imageResizeRoutes);
 
   // Register stats routes with /api prefix
   await app.register(statsRoutes, { prefix: '/api' });

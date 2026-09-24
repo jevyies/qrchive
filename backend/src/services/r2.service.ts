@@ -58,12 +58,40 @@ export class R2Service {
   /**
    * Generates a unique, collision-resistant storage key for an event photo
    */
-  static generateStorageKey(eventId: number | string, originalFileName: string): string {
+  static generateStorageKey(
+    eventId: number | string,
+    originalFileName: string,
+    options?: {
+      eventCode?: string | null;
+      guestCode?: string | null;
+      captureMode?: string | null;
+      checkListId?: number | string | null;
+      checklistId?: number | string | null;
+    }
+  ): string {
     const sanitizedName = originalFileName
       .replace(/[^a-zA-Z0-9.-]/g, '_')
       .toLowerCase();
     const uniqueSuffix = `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-    return `${R2_ROOT_FOLDER}/events/${eventId}/${uniqueSuffix}_${sanitizedName}`;
+
+    const eventCode = options?.eventCode || String(eventId);
+    const guestCode = options?.guestCode || 'guest';
+    const captureMode = options?.captureMode;
+    const checkListId = options?.checkListId ?? options?.checklistId;
+
+    if (captureMode === 'checklist' && checkListId) {
+      return `${R2_ROOT_FOLDER}/events/${eventCode}/${guestCode}/${checkListId}/${uniqueSuffix}_${sanitizedName}`;
+    }
+
+    if (captureMode === 'quick' && guestCode) {
+      return `${R2_ROOT_FOLDER}/events/${eventCode}/${guestCode}/quick-snaps/${uniqueSuffix}_${sanitizedName}`;
+    }
+
+    if (guestCode) {
+      return `${R2_ROOT_FOLDER}/events/${eventCode}/${guestCode}/${uniqueSuffix}_${sanitizedName}`;
+    }
+
+    return `${R2_ROOT_FOLDER}/events/${eventCode}/${uniqueSuffix}_${sanitizedName}`;
   }
 
   /**

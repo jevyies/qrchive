@@ -9,6 +9,13 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { axiosInstance } from '@/plugins/axios'
 import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
+import LightBox from '@/views/LightBox.vue'
+import {
+    saveDemoQuickPhoto,
+    getDemoQuickPhotos,
+    saveDemoChecklistMoment,
+    getDemoChecklistMoments,
+} from '@/utils/demoDb'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,11 +59,6 @@ const currentWedding = computed(() => {
     }
 })
 
-const eventHeaderTitle = computed(() => {
-    const couple = currentWedding.value?.couple || 'Keann & Jenny'
-    return `${couple.toUpperCase()}'S WEDDING`
-})
-
 // Experience Switcher state: 'checklist' or 'quick'
 const captureMode = ref('quick')
 
@@ -69,10 +71,6 @@ const pendingQuickPhotos = ref([])
 const uploadedQuickPhotos = ref([])
 const isUploadingQuick = ref(false)
 const uploadedStreamRef = ref(null)
-const uploadEventId = computed(() => {
-    const raw = Number(route.params.id)
-    return isNaN(raw) || raw <= 0 ? 5 : raw
-})
 
 // Helper to convert dataUrl to Blob, or create a realistic sample JPEG
 const getBlobFromCapturedPhoto = async (capturedUrl) => {
@@ -98,7 +96,8 @@ const getBlobFromCapturedPhoto = async (capturedUrl) => {
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 54px sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText('QRCHIVE EVENT #5', 540, 680)
+    const eventLabel = String(route.params.id || 'MOMENT').toUpperCase()
+    ctx.fillText(`QRCHIVE • ${eventLabel}`, 540, 680)
     ctx.font = '36px sans-serif'
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
     ctx.fillText('Instant Photo Drop • ' + new Date().toLocaleTimeString(), 540, 750)
@@ -116,6 +115,30 @@ const startQuickUploads = async () => {
     if (isUploadingQuick.value || pendingQuickPhotos.value.length === 0) return
     isUploadingQuick.value = true
 
+    // Retrieve guestCode, eventCode, and guestName from localStorage currentEvent
+    let storedCurrentEvent = null
+    if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem('currentEvent')
+        if (raw) {
+            try {
+                storedCurrentEvent = JSON.parse(raw)
+            } catch (e) {
+                console.error('Failed to parse currentEvent:', e)
+            }
+        }
+    }
+
+    const eventCode = storedCurrentEvent?.eventCode || route.params.id || 'demo-event'
+    const guestCode =
+        storedCurrentEvent?.guestCode ||
+        (typeof localStorage !== 'undefined' && localStorage.getItem('qrchive_guest_code')) ||
+        'guest'
+    const guestName =
+        storedCurrentEvent?.guestName ||
+        (typeof localStorage !== 'undefined' &&
+            (localStorage.getItem('qrchive_guest_name') || localStorage.getItem('guestName'))) ||
+        'Guest'
+
     while (pendingQuickPhotos.value.length > 0) {
         const currentItem = pendingQuickPhotos.value[0]
         currentItem.status = 'uploading'
@@ -126,22 +149,82 @@ const startQuickUploads = async () => {
                 currentItem.blob = await getBlobFromCapturedPhoto(currentItem.dataUrl)
             }
 
+            const fileName = `${guestCode}_${Date.now()}.jpg`
+
+            if (String(route.params.id) === 'demo-event') {
+                // Simulate smooth progress animation for demo mode
+                for (let p = 25; p <= 100; p += 25) {
+                    currentItem.uploadPercent = p
+                    await new Promise((r) => setTimeout(r, 40))
+                }
+                currentItem.uploadPercent = 100
+                await new Promise((r) => setTimeout(r, 100))
+
+                // Trigger floating animation
+                currentItem.isFloating = true
+                await new Promise((r) => setTimeout(r, 550))
+
+                // Save to local IndexedDB
+                const savedPhoto = await saveDemoQuickPhoto({
+                    id: currentItem.id,
+                    url: currentItem.dataUrl,
+                    fullUrl: currentItem.dataUrl,
+                    thumbnailUrl: currentItem.dataUrl,
+                    fileName: `demo_quick_${Date.now()}.jpg`,
+                    uploadedBy: guestName || 'You',
+                    createdAt: new Date().toISOString(),
+                    likes: 0,
+                    isLiked: false,
+                })
+
+                // Prepend newly uploaded photo to the beginning of the stream
+                uploadedQuickPhotos.value.unshift({
+                    id: savedPhoto.id,
+                    url: savedPhoto.url,
+                    fullUrl: savedPhoto.fullUrl,
+                    thumbnailUrl: savedPhoto.thumbnailUrl,
+                    fileName: savedPhoto.fileName,
+                    uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    guest: savedPhoto.uploadedBy || 'You',
+                    likes: 0,
+                    isLiked: false,
+                    isNew: true,
+                })
+
+                // Remove uploaded photo from pending deck
+                pendingQuickPhotos.value.shift()
+
+                // Smoothly scroll horizontal stream to beginning
+                await nextTick()
+                if (uploadedStreamRef.value) {
+                    uploadedStreamRef.value.scrollTo({ left: 0, behavior: 'smooth' })
+                }
+
+                await new Promise((r) => setTimeout(r, 200))
+                continue
+            }
+
             const formData = new FormData()
-            formData.append('eventId', '5')
-            formData.append('uploadedBy', 'Guest')
+            formData.append('eventId', String(eventCode))
+            formData.append('eventCode', String(eventCode))
+            formData.append('guestCode', String(guestCode))
+            formData.append('captureMode', 'quick')
+            formData.append('uploadedBy', guestName)
             formData.append(
                 'deviceName',
                 typeof navigator !== 'undefined' && navigator.userAgent.includes('Mobile')
                     ? 'Mobile Device'
                     : 'Desktop Browser',
             )
-            const fileName = `quick_drop_event5_${Date.now()}.jpg`
             formData.append('file', currentItem.blob, fileName)
 
             const response = await axiosInstance.post('/api/photos/upload/direct', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
-                    'x-event-id': '5',
+                    'x-event-id': String(eventCode),
+                    'x-event-code': String(eventCode),
+                    'x-guest-code': String(guestCode),
+                    'x-capture-mode': 'quick',
                 },
                 onUploadProgress: (progressEvent) => {
                     if (progressEvent.total) {
@@ -164,9 +247,14 @@ const startQuickUploads = async () => {
             const uploadedPhoto = response.data?.photo
             uploadedQuickPhotos.value.unshift({
                 id: uploadedPhoto?.id || currentItem.id,
-                url: uploadedPhoto?.url || currentItem.dataUrl,
+                url: uploadedPhoto?.thumbnailUrl || uploadedPhoto?.url || currentItem.dataUrl,
+                fullUrl: uploadedPhoto?.fullUrl || uploadedPhoto?.url || currentItem.dataUrl,
+                thumbnailUrl: uploadedPhoto?.thumbnailUrl,
                 fileName: uploadedPhoto?.fileName || fileName,
                 uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                guest: uploadedPhoto?.uploadedBy || 'You',
+                likes: 0,
+                isLiked: false,
                 isNew: true,
             })
 
@@ -192,23 +280,292 @@ const startQuickUploads = async () => {
     isUploadingQuick.value = false
 }
 
-// Fetch existing uploaded photos for event 5
+// Upload captured checklist moment to backend with captureMode === 'checklist' and checkListId folder format
+const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl) => {
+    if (!momentItem || !momentItem.id) return
+    const checkListId = momentItem.id
+
+    // Immediately update local preview in UI & activate uploading border frame
+    const found = moments.value.find((m) => Number(m.id) === Number(checkListId))
+    let progressTimer = null
+    let currentPct = 8
+
+    if (found) {
+        found.captured = true
+        found.image = localPreviewUrl
+        found.isUploading = true
+        found.uploadPercent = currentPct
+        found.showSuccessCheck = false
+
+        // Smooth visual ticker so the running border is visibly running to the user
+        progressTimer = setInterval(() => {
+            if (currentPct < 90) {
+                currentPct += Math.floor(Math.random() * 4) + 6
+                if (currentPct > 90) currentPct = 90
+                found.uploadPercent = currentPct
+            }
+        }, 50)
+    }
+
+    // Retrieve guestCode, eventCode, and guestName from localStorage currentEvent
+    let storedCurrentEvent = null
+    if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem('currentEvent')
+        if (raw) {
+            try {
+                storedCurrentEvent = JSON.parse(raw)
+            } catch (e) {
+                console.error('Failed to parse currentEvent:', e)
+            }
+        }
+    }
+
+    const eventCode = storedCurrentEvent?.eventCode || route.params.id || 'demo-event'
+    const guestCode =
+        storedCurrentEvent?.guestCode ||
+        (typeof localStorage !== 'undefined' && localStorage.getItem('qrchive_guest_code')) ||
+        'guest'
+    const guestName =
+        storedCurrentEvent?.guestName ||
+        (typeof localStorage !== 'undefined' &&
+            (localStorage.getItem('qrchive_guest_name') || localStorage.getItem('guestName'))) ||
+        'Guest'
+
+    let blob = fileOrBlob
+    if (!blob) {
+        blob = await getBlobFromCapturedPhoto(localPreviewUrl)
+    }
+
+    const fileName = `${guestCode}_${Date.now()}.jpg`
+
+    if (String(route.params.id) === 'demo-event') {
+        if (progressTimer) clearInterval(progressTimer)
+
+        if (found) {
+            // Smoothly complete the remaining progress circle to 100%
+            while (currentPct < 100) {
+                currentPct = Math.min(100, currentPct + 20)
+                found.uploadPercent = currentPct
+                await new Promise((r) => setTimeout(r, 35))
+            }
+
+            found.captured = true
+            found.image = localPreviewUrl
+            found.fullImage = localPreviewUrl
+            found.guest = guestName || 'You'
+            found.showSuccessCheck = true
+
+            // Save to IndexedDB demo database with its specific category
+            await saveDemoChecklistMoment({
+                checklistId: checkListId,
+                id: `demo_moment_${checkListId}`,
+                title: found.title,
+                name: found.name,
+                category: found.category || 'reception',
+                categoryLabel: found.categoryLabel || 'Reception',
+                image: localPreviewUrl,
+                fullImage: localPreviewUrl,
+                url: localPreviewUrl,
+                thumbnailUrl: localPreviewUrl,
+                fullUrl: localPreviewUrl,
+                uploadedBy: guestName || 'You',
+                createdAt: new Date().toISOString(),
+                likes: 0,
+                isLiked: false,
+            })
+
+            // Center checkmark will disappear after exactly 1 second
+            setTimeout(() => {
+                found.showSuccessCheck = false
+                found.isUploading = false
+            }, 1000)
+        }
+        return
+    }
+
+    const formData = new FormData()
+    formData.append('eventId', String(eventCode))
+    formData.append('eventCode', String(eventCode))
+    formData.append('guestCode', String(guestCode))
+    formData.append('checkListId', String(checkListId))
+    formData.append('checklistId', String(checkListId))
+    formData.append('captureMode', 'checklist')
+    formData.append('uploadedBy', guestName)
+    formData.append(
+        'deviceName',
+        typeof navigator !== 'undefined' && navigator.userAgent.includes('Mobile')
+            ? 'Mobile Device'
+            : 'Desktop Browser',
+    )
+    formData.append('file', blob, fileName)
+
+    try {
+        const response = await axiosInstance.post('/api/photos/upload/direct', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+                'x-event-id': String(eventCode),
+                'x-event-code': String(eventCode),
+                'x-guest-code': String(guestCode),
+                'x-checklist-id': String(checkListId),
+                'x-capture-mode': 'checklist',
+            },
+            onUploadProgress: (progressEvent) => {
+                if (found && progressEvent.total) {
+                    const actualPct = Math.min(92, Math.round((progressEvent.loaded * 100) / progressEvent.total))
+                    if (actualPct > currentPct) {
+                        currentPct = actualPct
+                        found.uploadPercent = currentPct
+                    }
+                }
+            },
+        })
+
+        if (progressTimer) clearInterval(progressTimer)
+
+        const uploadedPhoto = response.data?.photo
+        if (found) {
+            // Smoothly complete the remaining progress circle to 100%
+            while (currentPct < 100) {
+                currentPct = Math.min(100, currentPct + 15)
+                found.uploadPercent = currentPct
+                await new Promise((r) => setTimeout(r, 35))
+            }
+
+            if (uploadedPhoto?.url || uploadedPhoto?.thumbnailUrl) {
+                found.image = uploadedPhoto.thumbnailUrl || uploadedPhoto.url
+                found.fullImage = uploadedPhoto.fullUrl || uploadedPhoto.url
+                found.guest = uploadedPhoto.uploadedBy || 'You'
+            }
+
+            // Put a check in the center of the image after successful upload
+            found.showSuccessCheck = true
+
+            // Center checkmark will disappear after exactly 1 second
+            setTimeout(() => {
+                found.showSuccessCheck = false
+                found.isUploading = false
+            }, 1000)
+        }
+    } catch (err) {
+        if (progressTimer) clearInterval(progressTimer)
+        console.error('[Quests] Failed to upload checklist photo to R2:', err)
+        if (found) {
+            found.isUploading = false
+            found.showSuccessCheck = false
+            found.uploadPercent = 0
+        }
+    }
+}
+
+// Fetch existing uploaded photos for current event
 const fetchExistingPhotos = async () => {
     try {
-        const { data } = await axiosInstance.get('/api/photos/events/5?limit=20')
+        const eventIdentifier = route.params.id || 'demo-event'
+        const { data } = await axiosInstance.get(`/api/photos/events/${eventIdentifier}?limit=50`)
         if (data && data.photos && data.photos.length > 0) {
-            uploadedQuickPhotos.value = data.photos.map((p) => ({
-                id: p.id,
-                url: p.url,
-                fileName: p.fileName || 'Snapshot',
-                uploadedAt: p.uploadedAt
-                    ? new Date(p.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : 'Earlier',
-                isNew: false,
-            }))
+            uploadedQuickPhotos.value = data.photos
+                .filter((p) => !p.checklistId)
+                .map((p) => ({
+                    id: p.id,
+                    url: p.thumbnailUrl || p.url,
+                    fullUrl: p.fullUrl || p.url,
+                    thumbnailUrl: p.thumbnailUrl,
+                    fileName: p.fileName || 'Snapshot',
+                    uploadedAt: p.uploadedAt || p.createdAt
+                        ? new Date(p.uploadedAt || p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Earlier',
+                    guest: p.uploadedBy || 'You',
+                    likes: p.likesCount || p.likes || 0,
+                    isLiked: Boolean(p.isLiked),
+                    isNew: false,
+                }))
+
+            // Match and restore captured checklist items
+            data.photos.forEach((p) => {
+                if (p.checklistId) {
+                    const matched = moments.value.find((m) => Number(m.id) === Number(p.checklistId))
+                    if (matched) {
+                        matched.captured = true
+                        matched.image = p.thumbnailUrl || p.url
+                        matched.fullImage = p.fullUrl || p.url
+                        matched.guest = p.uploadedBy || 'You'
+                        matched.time = p.uploadedAt || p.createdAt
+                            ? new Date(p.uploadedAt || p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : 'Earlier'
+                        matched.likes = p.likesCount || p.likes || 0
+                        matched.isLiked = Boolean(p.isLiked)
+                    }
+                }
+            })
         }
     } catch {
         // graceful offline fallback
+    }
+}
+
+// LightBox State & Handlers
+const isLightboxOpen = ref(false)
+const lightboxItems = ref([])
+const lightboxIndex = ref(0)
+
+const openQuickPhotoLightbox = (index) => {
+    lightboxItems.value = uploadedQuickPhotos.value.map((p) => ({
+        id: p.id,
+        url: p.url,
+        fullUrl: p.fullUrl || p.url,
+        title: p.fileName ? `Photo: ${p.fileName}` : 'Quick Drop',
+        guest: p.guest || 'You',
+        time: p.uploadedAt || 'Just now',
+        categoryLabel: 'Quick Snap',
+        likes: p.likes || 0,
+        isLiked: Boolean(p.isLiked),
+    }))
+    lightboxIndex.value = Math.max(0, Math.min(index, lightboxItems.value.length - 1))
+    isLightboxOpen.value = true
+}
+
+const openMomentLightbox = (moment) => {
+    if (!moment.image && !moment.fullImage) return
+    const list = moments.value
+        .filter((m) => m.captured && (m.image || m.fullImage))
+        .map((m) => ({
+            id: m.id,
+            url: m.image,
+            fullUrl: m.fullImage || m.image,
+            title: m.title,
+            guest: m.guest || 'You',
+            time: m.time || 'Completed',
+            categoryLabel: m.categoryLabel || 'Quest Moment',
+            likes: m.likes || 0,
+            isLiked: Boolean(m.isLiked),
+        }))
+    const idx = list.findIndex((m) => m.id === moment.id)
+    lightboxItems.value = list
+    lightboxIndex.value = idx !== -1 ? idx : 0
+    isLightboxOpen.value = true
+}
+
+const toggleLightboxLike = async (item, event) => {
+    if (event) event.stopPropagation()
+    item.isLiked = !item.isLiked
+    item.likes = item.isLiked ? (item.likes || 0) + 1 : Math.max(0, (item.likes || 1) - 1)
+
+    if (item.isLiked && typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(20)
+    }
+
+    const isDemoEvent =
+        String(route.params.id || '').toLowerCase().trim() === 'demo-event' ||
+        (route.path && route.path.includes('demo-event')) ||
+        String(item.id).startsWith('demo_')
+
+    if (item.id && !isDemoEvent) {
+        try {
+            const userIdentifier = localStorage.getItem('qrchive_device_id') || 'guest'
+            await axiosInstance.post(`/api/photos/${item.id}/like`, { userIdentifier })
+        } catch (err) {
+            console.warn('[Quests] Failed to toggle photo like:', err)
+        }
     }
 }
 
@@ -235,10 +592,7 @@ const isFlashActive = ref(false)
 const isViewfinderScaled = ref(false)
 
 // Gallery storage
-const galleryPhotos = ref([
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuC_b45E9YjZPsE9FZqujCSRNTm6TpITBwM_TaJFgapEZqnACNNwtSVVLegXCWrGpfncDgbRxwks7l8wtobmCfqQkFQv34yOtgKuuNCrqjBvvgccMhT42aq0aHWZnTM-_kf98W7MIzPhbJg7cCIGS2Qy3CEH8ggjzWg0aUNB4Le6KuNEtqtn-DZAcxxNxm62OShpMnoE5uH6Kye6WAxV9WCfQwoP8bbVduYvD1BF5SQjqaIMfsDR8GxI',
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAtugc2oDwyayarlJO8IfY0KvJE1t-Txs0OEHZIUXi0H29kBMKoVaHtrvXCg_u6ZTSk4htGJYBiWIv9oXQHWmHhBObhhwNp8IiGEZFLrWIjQAN6Dbjg4lq2CknxKewu2RidFIQaLD83ZtDjl8GOmewe9pBnqX_XoFRUNj0nEFWV3atRIeQroa2FQ44na1TzF-KDKTxmI_e-FdlJla9GpGDqzMj7G52Y8JjxXo1RK5-WSqdqhEhPAd7w',
-])
+const galleryPhotos = ref([])
 const galleryCount = ref(12)
 
 const latestGalleryImage = computed(() => {
@@ -374,15 +728,19 @@ const takePhoto = () => {
         pendingQuickPhotos.value.push(pendingItem)
     }
 
-    // Update active moment status
-    if (activeMoment.value) {
-        const cleanTitle = activeMoment.value.title.replace(' (Replace Entry)', '')
+    // Update active moment status and trigger checklist upload
+    if (activeMoment.value && activeMoment.value.id !== 'quick') {
+        const momentRef = activeMoment.value
+        const cleanTitle = momentRef.title ? momentRef.title.replace(' (Replace Entry)', '') : ''
         const found = moments.value.find(
-            (m) => m.id === activeMoment.value.id || m.title === cleanTitle || m.title === activeMoment.value.title,
+            (m) => Number(m.id) === Number(momentRef.id) || m.title === cleanTitle || m.title === momentRef.title,
         )
         if (found) {
             found.captured = true
             found.image = capturedUrl
+            getBlobFromCapturedPhoto(capturedUrl).then((blob) => {
+                uploadChecklistPhoto(found, blob, capturedUrl)
+            })
         }
     }
 
@@ -414,15 +772,21 @@ const handleFileChange = (e) => {
         const reader = new FileReader()
         reader.onload = (event) => {
             if (event.target && event.target.result) {
-                galleryPhotos.value.push(event.target.result)
+                const dataResult = event.target.result
+                galleryPhotos.value.push(dataResult)
                 galleryCount.value += files.length
 
-                if (currentTargetTitle.value) {
-                    const cleanTitle = currentTargetTitle.value.replace(' (Replace Entry)', '')
-                    const matched = moments.value.find((m) => m.title === cleanTitle)
+                if (currentTargetTitle.value || (activeMoment.value && activeMoment.value.id !== 'quick')) {
+                    const cleanTitle = (currentTargetTitle.value || '').replace(' (Replace Entry)', '')
+                    const matched = moments.value.find(
+                        (m) =>
+                            (activeMoment.value && Number(m.id) === Number(activeMoment.value.id)) ||
+                            m.title === cleanTitle,
+                    )
                     if (matched) {
                         matched.captured = true
-                        matched.image = event.target.result
+                        matched.image = dataResult
+                        uploadChecklistPhoto(matched, files[0], dataResult)
                     }
                 }
             }
@@ -432,103 +796,94 @@ const handleFileChange = (e) => {
     }
 }
 
+// Demo category mapping for demo checklist items
+const demoCategoryMap = [
+    { id: 1, category: 'grand-entrance', label: 'Grand Entrance', keywords: ['entrance'] },
+    { id: 2, category: 'first-dance', label: 'First Dance', keywords: ['first dance'] },
+    { id: 3, category: 'dance-with-parents', label: 'Dance with Parents', keywords: ['parent', 'parents'] },
+    { id: 4, category: 'guests-laughing', label: 'Guests Laughing', keywords: ['laughing', 'guests'] },
+    { id: 5, category: 'emcee', label: 'Emcee on Stage', keywords: ['emcee', 'mc'] },
+    { id: 6, category: 'grooms-surprise', label: "Groom's Surprise", keywords: ['groom'] },
+    { id: 7, category: 'brides-surprise', label: "Bride's Surprise", keywords: ['bride'] },
+    { id: 8, category: 'cake-cutting', label: 'Cake Cutting', keywords: ['cake'] },
+    { id: 9, category: 'performances', label: 'Performances', keywords: ['performance', 'band'] },
+    { id: 10, category: 'couple-message', label: "Couple's Message", keywords: ['message'] },
+]
+
+function getDemoCategoryForItem(item, index) {
+    if (!item) return { category: 'reception', label: 'Reception' }
+    const titleLower = (item.name || item.title || '').toLowerCase()
+    const byId = demoCategoryMap.find((m) => Number(m.id) === Number(item.id))
+    if (byId) return { category: byId.category, label: byId.label }
+
+    const byKeyword = demoCategoryMap.find((m) => m.keywords.some((k) => titleLower.includes(k)))
+    if (byKeyword) return { category: byKeyword.category, label: byKeyword.label }
+
+    const byIndex = demoCategoryMap[index]
+    if (byIndex) return { category: byIndex.category, label: byIndex.label }
+
+    return { category: 'reception', label: 'Reception' }
+}
+
+const defaultDemoChecklist = [
+    { id: 1, name: "Couple's Grand Entrance", description: "Capture the high-energy moment the newlyweds enter the reception hall." },
+    { id: 2, name: "Couple's First Dance", description: "The romantic, intimate spotlight dance beneath the chandeliers." },
+    { id: 3, name: "Dance with Parents", description: "Tender, emotional waltz with mother and father." },
+    { id: 4, name: "Guests Laughing", description: "Candid smiles, clinking glasses, and genuine banquet reactions." },
+    { id: 5, name: "The Emcee on Stage", description: "Master of Ceremonies keeping the reception lively and fun." },
+    { id: 6, name: "Groom's Surprise Number", description: "Special choreographed serenade or musical performance." },
+]
+
 // Moments Checklist Data
-const moments = ref([
-    {
-        id: 1,
-        number: '01',
-        title: "Couple's Grand Entrance",
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Grand applause walking into the hall',
-        image:
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuC_b45E9YjZPsE9FZqujCSRNTm6TpITBwM_TaJFgapEZqnACNNwtSVVLegXCWrGpfncDgbRxwks7l8wtobmCfqQkFQv34yOtgKuuNCrqjBvvgccMhT42aq0aHWZnTM-_kf98W7MIzPhbJg7cCIGS2Qy3CEH8ggjzWg0aUNB4Le6KuNEtqtn-DZAcxxNxm62OShpMnoE5uH6Kye6WAxV9WCfQwoP8bbVduYvD1BF5SQjqaIMfsDR8GxI',
-        captured: true,
-    },
-    {
-        id: 2,
-        number: '02',
-        title: "Couple's First Dance",
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Under the romantic ballroom lights',
-        image:
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAtugc2oDwyayarlJO8IfY0KvJE1t-Txs0OEHZIUXi0H29kBMKoVaHtrvXCg_u6ZTSk4htGJYBiWIv9oXQHWmHhBObhhwNp8IiGEZFLrWIjQAN6Dbjg4lq2CknxKewu2RidFIQaLD83ZtDjl8GOmewe9pBnqX_XoFRUNj0nEFWV3atRIeQroa2FQ44na1TzF-KDKTxmI_e-FdlJla9GpGDqzMj7G52Y8JjxXo1RK5-WSqdqhEhPAd7w',
-        captured: true,
-    },
-    {
-        id: 3,
-        number: '03',
-        title: 'Dance with Parents',
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Tender father-daughter & mother-son dance',
-        captured: false,
-    },
-    {
-        id: 4,
-        number: '04',
-        title: 'Guests Laughing',
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Hearty laughs and cheerful table toasts',
-        captured: false,
-    },
-    {
-        id: 5,
-        number: '05',
-        title: 'The Emcee on Stage',
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Lively hosting and games introduction',
-        captured: false,
-    },
-    {
-        id: 6,
-        number: '06',
-        title: "Groom's Surprise Number",
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Keann\'s secret performance for Jenny',
-        captured: false,
-    },
-    {
-        id: 7,
-        number: '07',
-        title: "Bride's Surprise Number",
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Jenny\'s unforgettable serenade or dance',
-        captured: false,
-    },
-    {
-        id: 8,
-        number: '08',
-        title: 'Any Performance',
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Bridal party acts, band, or special music',
-        captured: false,
-    },
-    {
-        id: 9,
-        number: '09',
-        title: "Couple's Cake Cutting",
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'First ceremonial slice together',
-        captured: false,
-    },
-    {
-        id: 10,
-        number: '10',
-        title: "Couple's Thank You Message",
-        category: 'reception',
-        categoryLabel: 'Reception',
-        description: 'Heartfelt words of gratitude to all guests',
-        captured: false,
-    },
-])
+const moments = ref([])
+
+// Helper to populate moments.value from checklist list (id, name, description)
+const populateMoments = (list) => {
+    if (!Array.isArray(list)) return
+    const isDemo = String(route.params.id) === 'demo-event'
+    moments.value = list.map((item, index) => {
+        const existing = moments.value.find((m) => Number(m.id) === Number(item.id))
+        const demoCat = isDemo ? getDemoCategoryForItem(item, index) : null
+        return {
+            id: item.id,
+            number: String(index + 1).padStart(2, '0'),
+            title: item.name,
+            name: item.name,
+            description: item.description,
+            category: demoCat ? demoCat.category : 'reception',
+            categoryLabel: demoCat ? demoCat.label : 'Reception',
+            captured: existing ? existing.captured : false,
+            image: existing ? existing.image : null,
+            fullImage: existing ? existing.fullImage : null,
+            isUploading: false,
+            uploadPercent: 0,
+            showSuccessCheck: false,
+        }
+    })
+}
+
+// Fetch checklist items (only id, name, description) from backend
+const fetchChecklist = async (eventId) => {
+    try {
+        const targetId = eventId || route.params.id || 'demo-event'
+        const response = await axiosInstance.get(`/api/events/${targetId}/checklist`)
+        const list = response.data || []
+
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(
+                'currentCheckList',
+                JSON.stringify({ eventCode: route.params.id, list }),
+            )
+        }
+
+        populateMoments(list)
+    } catch (err) {
+        console.error('[Quests] Error fetching checklist:', err)
+        if (String(route.params.id) === 'demo-event') {
+            populateMoments(defaultDemoChecklist)
+        }
+    }
+}
 
 // Progress calculations
 const capturedCount = computed(() => moments.value.filter((m) => m.captured).length)
@@ -542,8 +897,53 @@ const navigateToLiveVault = () => {
     router.push(`/event/${eventId}/live-vault`)
 }
 
-onMounted(() => {
-    // If not demo-event, verify currentEvent matches route.params.id
+// Fetch existing demo photos from IndexedDB
+const fetchDemoExistingPhotos = async () => {
+    try {
+        const [savedQuick, savedMoments] = await Promise.all([
+            getDemoQuickPhotos(),
+            getDemoChecklistMoments(),
+        ])
+
+        if (savedQuick && savedQuick.length > 0) {
+            uploadedQuickPhotos.value = savedQuick.map((p) => ({
+                id: p.id,
+                url: p.thumbnailUrl || p.url,
+                fullUrl: p.fullUrl || p.url,
+                thumbnailUrl: p.thumbnailUrl,
+                fileName: p.fileName || 'Snapshot',
+                uploadedAt: p.createdAt
+                    ? new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Earlier',
+                guest: p.uploadedBy || 'You',
+                likes: p.likes || 0,
+                isLiked: Boolean(p.isLiked),
+                isNew: false,
+            }))
+        }
+
+        if (savedMoments && savedMoments.length > 0) {
+            savedMoments.forEach((m) => {
+                const matched = moments.value.find((item) => Number(item.id) === Number(m.checklistId ?? m.id))
+                if (matched) {
+                    matched.captured = true
+                    matched.image = m.thumbnailUrl || m.image || m.url
+                    matched.fullImage = m.fullUrl || m.fullImage || m.image || m.url
+                    matched.guest = m.uploadedBy || 'You'
+                    matched.category = m.category || matched.category
+                    matched.categoryLabel = m.categoryLabel || matched.categoryLabel
+                    matched.time = m.createdAt
+                        ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Completed'
+                }
+            })
+        }
+    } catch (err) {
+        console.warn('[Quests] Failed to restore demo photos from demoDb:', err)
+    }
+}
+
+onMounted(async () => {
     const eventId = route.params.id
     if (eventId !== 'demo-event') {
         let isAuthorized = false
@@ -566,9 +966,38 @@ onMounted(() => {
         }
     }
 
+    // Check localStorage key 'currentCheckList'
+    let currentCheckList = null
+    if (typeof localStorage !== 'undefined') {
+        const rawCheckList = localStorage.getItem('currentCheckList')
+        if (rawCheckList) {
+            try {
+                currentCheckList = JSON.parse(rawCheckList)
+            } catch (err) {
+                console.error('[Quests] Error parsing currentCheckList from localStorage:', err)
+            }
+        }
+    }
+
+    // If isAuthorized and route.params.id != currentCheckList.eventCode, refetch the checklist and put it in moments.value
+    if (
+        !currentCheckList ||
+        String(route.params.id) !== String(currentCheckList.eventCode) ||
+        !currentCheckList.list ||
+        !currentCheckList.list.length
+    ) {
+        await fetchChecklist(route.params.id)
+    } else {
+        populateMoments(currentCheckList.list)
+    }
+
     window.triggerUpload = openCamera
     window.switchExperience = switchExperience
-    fetchExistingPhotos()
+    if (route.params.id !== 'demo-event') {
+        await fetchExistingPhotos()
+    } else {
+        await fetchDemoExistingPhotos()
+    }
 })
 
 onBeforeUnmount(() => {
@@ -673,15 +1102,16 @@ onBeforeUnmount(() => {
                             <div class="quick-uploaded-stream-header">
                                 <div class="quick-uploaded-stream-title-group">
                                     <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
-                                    <span class="quick-uploaded-stream-title">Uploaded Moments</span>
-                                    <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}</span>
+                                    <span class="quick-uploaded-stream-title">Uploaded Snaps</span>
                                 </div>
-                                <span class="quick-uploaded-stream-sub">Event #5 Vault</span>
+                                <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/30</span>
                             </div>
                             <div ref="uploadedStreamRef" class="quick-uploaded-stream">
                                 <div v-for="(photo, index) in uploadedQuickPhotos" :key="photo.id || index"
-                                    class="quick-uploaded-item" :class="{ 'is-newly-added': photo.isNew }">
-                                    <img :src="photo.url" alt="Uploaded moment" class="quick-uploaded-img" />
+                                    class="quick-uploaded-item" :class="{ 'is-newly-added': photo.isNew }"
+                                    @click="openQuickPhotoLightbox(index)">
+                                    <img :src="photo.url" alt="Uploaded moment" class="quick-uploaded-img"
+                                        @error="(e) => { if (photo.fullUrl && e.target.src !== photo.fullUrl) e.target.src = photo.fullUrl }" />
                                     <div class="quick-uploaded-overlay">
                                         <span class="material-symbols-outlined quick-uploaded-check">check_circle</span>
                                         <span class="quick-uploaded-time">{{ photo.uploadedAt || 'Just now' }}</span>
@@ -714,6 +1144,7 @@ onBeforeUnmount(() => {
                                                 'is-floating': photo.isFloating && index === 0,
                                             },
                                         ]" :style="{
+                                            '--count': `${photo.uploadPercent || 0}%`,
                                             '--upload-pct': `${photo.uploadPercent || 0}%`,
                                             '--card-index': index,
                                         }">
@@ -802,18 +1233,40 @@ onBeforeUnmount(() => {
                             <div v-for="item in moments" :key="item.id" class="moment-item"
                                 :data-category="item.category">
                                 <div class="moment-item__content">
-                                    <!-- Thumbnail if uploaded -->
-                                    <div v-if="item.captured && item.image" class="moment-item__thumb-wrap">
-                                        <img :alt="item.title" class="moment-item__thumb-img" :src="item.image">
-                                        <div class="moment-item__thumb-badge">
-                                            <span class="material-symbols-outlined"
-                                                style="font-variation-settings: 'FILL' 1;">check</span>
-                                        </div>
-                                    </div>
+                                    <!-- Border Style Progress Frame copying .quick-stack-border-frame -->
+                                    <div class="moment-item__thumb-frame" :class="{
+                                        'is-uploading': item.isUploading,
+                                        'is-success': item.showSuccessCheck,
+                                    }" :style="{
+                                        '--count': `${item.uploadPercent || 0}%`,
+                                        '--upload-pct': `${item.uploadPercent || 0}%`,
+                                    }">
+                                        <!-- Thumbnail if uploaded or currently uploading preview -->
+                                        <div v-if="(item.captured || item.isUploading) && item.image"
+                                            class="moment-item__thumb-wrap"
+                                            @click="item.captured && openMomentLightbox(item)">
+                                            <img :alt="item.title" class="moment-item__thumb-img" :src="item.image"
+                                                @error="(e) => { if (item.fullImage && e.target.src !== item.fullImage) e.target.src = item.fullImage }">
 
-                                    <!-- Placeholder if pending -->
-                                    <div v-else class="moment-item__placeholder-wrap">
-                                        <span class="material-symbols-outlined">broken_image</span>
+                                            <!-- Check in the center of the image after successful upload, disappears after 1 second -->
+                                            <transition name="center-check-pop">
+                                                <div v-if="item.showSuccessCheck" class="moment-item__center-check">
+                                                    <span class="material-symbols-outlined check-icon">check</span>
+                                                </div>
+                                            </transition>
+
+                                            <!-- Regular corner badge when completed and not showing center check -->
+                                            <div v-if="item.captured && !item.isUploading && !item.showSuccessCheck"
+                                                class="moment-item__thumb-badge">
+                                                <span class="material-symbols-outlined"
+                                                    style="font-variation-settings: 'FILL' 1;">check</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Placeholder if pending -->
+                                        <div v-else class="moment-item__placeholder-wrap">
+                                            <span class="material-symbols-outlined">broken_image</span>
+                                        </div>
                                     </div>
 
                                     <!-- Moment Details -->
@@ -1025,5 +1478,9 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </teleport>
+
+        <!-- Fullscreen LightBox Modal Component -->
+        <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"
+            @close="isLightboxOpen = false" @like="toggleLightboxLike" />
     </div>
 </template>

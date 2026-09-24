@@ -147,7 +147,7 @@ const handleWindowScroll = () => {
 
 onMounted(() => {
     const eventId = route.params.id
-    if (!isDemo.value) {
+    if (!isDemo.value && String(eventId) !== 'demo-event') {
         let isAuthorized = false
         if (typeof localStorage !== 'undefined') {
             const stored = localStorage.getItem('currentEvent')

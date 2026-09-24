@@ -71,6 +71,10 @@ const displayGalleryCount = computed(() => {
 
 const isVisible = computed(() => Boolean(props.isOpen || props.modelValue))
 
+const isQuickExperience = computed(() => {
+    return String(props.captureExperience || '').toLowerCase().trim() === 'quick'
+})
+
 // Camera hardware state
 const videoElement = ref(null)
 const mediaStream = ref(null)
@@ -895,34 +899,38 @@ onBeforeUnmount(() => {
                             <span class="material-symbols-outlined">flip_camera_ios</span>
                         </button>
 
-                        <!-- Circular Shutter Button (Red border when recording or video mode) -->
-                        <button id="shutterBtn"
-                            :aria-label="activeCameraMode === 'VIDEO' ? (isRecording ? 'Stop Recording' : 'Start Video Recording') : 'Take Wedding Photo'"
-                            class="camera-shutter-btn"
-                            :class="{
-                                'is-video-mode': activeCameraMode === 'VIDEO',
-                                'is-recording': isRecording,
-                            }"
-                            type="button"
-                            @click="triggerShutter">
-                            <!-- Circular SVG progress ring for 30s limit -->
-                            <svg v-if="activeCameraMode === 'VIDEO' && isRecording" class="camera-shutter-progress-svg" viewBox="0 0 80 80">
-                                <circle class="camera-shutter-progress-bg" cx="40" cy="40" r="36" />
-                                <circle class="camera-shutter-progress-bar" cx="40" cy="40" r="36"
-                                    :style="{ strokeDashoffset: recordingProgressOffset }" />
+                        <!-- Circular Shutter Button Wrapper -->
+                        <div class="camera-shutter-wrap">
+                            <!-- Circular SVG progress ring from snippet when capturing video -->
+                            <svg v-if="activeCameraMode === 'VIDEO' && isRecording"
+                                class="video-recording-svg"
+                                height="86"
+                                viewBox="0 0 100 100"
+                                width="86">
+                                <circle cx="50" cy="50" fill="none" r="42" stroke="rgba(255, 255, 255, 0.2)" stroke-width="4" />
+                                <circle class="video-recording-ring" cx="50" cy="50" fill="none" r="42" stroke="#ef4444" stroke-linecap="round" stroke-width="4" />
                             </svg>
 
-                            <span class="camera-shutter-core" :class="{
-                                'core-video': activeCameraMode === 'VIDEO' && !isRecording,
-                                'core-recording': isRecording,
-                            }">
-                                <span v-if="!isRecording" class="camera-shutter-ring"></span>
-                                <span v-else class="camera-recording-square"></span>
-                            </span>
-                        </button>
+                            <button id="shutterBtn"
+                                :aria-label="activeCameraMode === 'VIDEO' ? (isRecording ? 'Stop Recording' : 'Start Video Recording') : 'Take Wedding Photo'"
+                                class="camera-shutter-btn"
+                                :class="{
+                                    'is-video-mode': activeCameraMode === 'VIDEO',
+                                    'is-recording': isRecording,
+                                }"
+                                type="button"
+                                @click="triggerShutter">
+                                <span class="camera-shutter-core" :class="{
+                                    'core-video': activeCameraMode === 'VIDEO' && !isRecording,
+                                    'core-recording': isRecording,
+                                }">
+                                    <span v-if="!isRecording" class="camera-shutter-ring"></span>
+                                </span>
+                            </button>
+                        </div>
 
-                        <!-- Gallery Picker Preview (Hidden when recording, replaced with Stop button) -->
-                        <button v-if="!isRecording" aria-label="View QRchive Reception Gallery" class="camera-gallery-btn" type="button"
+                        <!-- Gallery Picker Preview (Hidden when recording, and hidden when captureExperience === 'quick') -->
+                        <button v-if="!isRecording && !isQuickExperience" aria-label="View QRchive Reception Gallery" class="camera-gallery-btn" type="button"
                             @click="openGallery">
                             <div class="camera-gallery-frame">
                                 <img alt="Recent candid guest moment" class="camera-gallery-img" :src="galleryImage" />
@@ -934,13 +942,16 @@ onBeforeUnmount(() => {
                         </button>
 
                         <!-- Stop Button (Replaces Gallery button when recording) -->
-                        <button v-else aria-label="Stop Video Recording" class="camera-stop-btn" type="button"
+                        <button v-else-if="isRecording" aria-label="Stop Video Recording" class="camera-stop-btn" type="button"
                             @click="stopVideoRecording">
                             <div class="camera-stop-frame">
                                 <span class="material-symbols-outlined camera-stop-icon">stop</span>
                             </div>
                             <span class="camera-stop-label">Stop</span>
                         </button>
+
+                        <!-- Invisible spacer when gallery button is hidden to keep shutter button centered -->
+                        <div v-else class="camera-gallery-spacer" aria-hidden="true"></div>
                     </div>
 
                     <!-- Home Indicator Safe Area Pill -->
@@ -981,5 +992,87 @@ onBeforeUnmount(() => {
         transform: translate(-50%, -50%) scale(1);
         opacity: 1;
     }
+}
+
+/* Shutter Container and Video Recording Ring */
+.camera-shutter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 86px;
+    height: 86px;
+    flex-shrink: 0;
+}
+
+@keyframes videoProgress {
+    from {
+        stroke-dashoffset: 264;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.video-recording-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    width: 86px;
+    height: 86px;
+}
+
+.video-recording-ring {
+    stroke-dasharray: 264;
+    stroke-dashoffset: 264;
+    animation: videoProgress 30s linear infinite;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+
+.camera-shutter-btn.is-recording {
+    position: relative;
+    z-index: 20;
+    width: 68px !important;
+    height: 68px !important;
+    min-width: 68px !important;
+    min-height: 68px !important;
+    border: 3.5px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1;
+    padding: 0 !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    transition: all 0.2s ease;
+    animation: none !important;
+}
+
+.camera-shutter-btn.is-recording:active {
+    transform: scale(0.95);
+}
+
+.camera-shutter-btn.is-recording .camera-shutter-core.core-recording {
+    width: 32px !important;
+    height: 32px !important;
+    background-color: #ef4444 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition: transform 0.2s ease;
+}
+
+.camera-shutter-btn.is-recording:active .camera-shutter-core.core-recording {
+    transform: scale(0.9);
+}
+
+.camera-gallery-spacer {
+    width: 3rem;
+    height: 3rem;
+    visibility: hidden;
+    pointer-events: none;
 }
 </style>

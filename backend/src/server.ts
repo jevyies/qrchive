@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { client, initDbTables } from './db';
 import { swaggerPlugin } from './plugins/swagger';
 import { appRoutes } from './routes';
+import { emailWorker, photoUploadWorker, guestCreationWorker } from './queues';
 
 dotenv.config();
 
@@ -91,6 +92,11 @@ const start = async () => {
       app.log.info(`Received ${signal}, closing server and database connection gracefully...`);
       try {
         await app.close();
+        await Promise.allSettled([
+          emailWorker.close(),
+          photoUploadWorker.close(),
+          guestCreationWorker.close(),
+        ]);
         await client.end();
         app.log.info('Graceful shutdown completed.');
         process.exit(0);

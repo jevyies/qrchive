@@ -117,8 +117,8 @@ const fetchEventData = async () => {
 onMounted(async () => {
     const eventIdParam = String(route.params.id)
 
-    // Check if user already entered this celebration
-    if (typeof localStorage !== 'undefined') {
+    // Check if user already entered this celebration (skip for demo-event)
+    if (typeof localStorage !== 'undefined' && eventIdParam !== 'demo-event') {
         // 1. Check local session (matches currentEvent or qrchive_event_sessions)
         const localSession = getStoredEventSession(eventIdParam)
         if (localSession) {
@@ -129,7 +129,7 @@ onMounted(async () => {
 
         // 2. Fallback: Search snap_guests in backend using eventToken + deviceSerial
         const deviceSerial = getDeviceSerial()
-        if (deviceSerial && eventIdParam !== 'demo-event') {
+        if (deviceSerial) {
             try {
                 const res = await axiosInstance.get('/api/guests/snap/lookup', {
                     params: {

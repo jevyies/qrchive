@@ -107,6 +107,7 @@ export const getDeviceName = () => {
 export const getStoredEventSession = (eventCode) => {
   if (typeof localStorage === 'undefined' || !eventCode) return null
   const codeStr = String(eventCode)
+  if (codeStr === 'demo-event') return null
 
   // 1. Check currentEvent if matching
   try {
@@ -134,7 +135,8 @@ export const getStoredEventSession = (eventCode) => {
 }
 
 /**
- * Saves guest session data into both 'currentEvent' and 'qrchive_event_sessions'
+ * Saves guest session data into 'currentEvent' and 'qrchive_event_sessions'.
+ * Explicitly skips saving into 'qrchive_event_sessions' if eventCode is 'demo-event'.
  * @param {string|number} eventCode 
  * @param {object} sessionData 
  */
@@ -145,6 +147,21 @@ export const saveStoredEventSession = (eventCode, sessionData) => {
   try {
     localStorage.setItem('currentEvent', JSON.stringify(sessionData))
   } catch (e) {}
+
+  // Never store demo-event into the persistent multi-event sessions dictionary
+  if (codeStr === 'demo-event') {
+    try {
+      const rawSessions = localStorage.getItem('qrchive_event_sessions')
+      if (rawSessions) {
+        const sessions = JSON.parse(rawSessions)
+        if (sessions && sessions['demo-event']) {
+          delete sessions['demo-event']
+          localStorage.setItem('qrchive_event_sessions', JSON.stringify(sessions))
+        }
+      }
+    } catch (e) {}
+    return
+  }
 
   if (codeStr) {
     try {

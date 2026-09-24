@@ -40,12 +40,34 @@ export function formatSimplifiedPhoto(photo: {
   isLiked?: boolean;
   checklistId?: number | null;
   fileName?: string | null;
+  mimeType?: string | null;
+  thumbnailUrl?: string | null;
 }) {
   let fullUrl = photo.url;
   if (!fullUrl || fullUrl.includes('r2.cloudflarestorage.com')) {
     fullUrl = R2Service.getPublicUrl(photo.storageKey || '', photo.id);
   }
-  const thumbnailUrl = formatThumbnailUrl(fullUrl);
+
+  const isVideo = Boolean(
+    photo.mimeType?.startsWith('video/') ||
+    photo.fileName?.endsWith('.mp4') ||
+    photo.fileName?.endsWith('.webm') ||
+    fullUrl.endsWith('.mp4') ||
+    fullUrl.endsWith('.webm')
+  );
+
+  let thumbnailUrl = photo.thumbnailUrl || '';
+  if (!thumbnailUrl) {
+    if (isVideo && photo.storageKey) {
+      const thumbKey = photo.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+      thumbnailUrl = R2Service.getPublicUrl(thumbKey);
+    } else if (isVideo) {
+      thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
+    } else {
+      thumbnailUrl = formatThumbnailUrl(fullUrl);
+    }
+  }
+
   const uploadedByName = photo.uploadedBy || 'Guest';
   const createdAtStr =
     typeof photo.createdAt === 'string'
@@ -63,10 +85,13 @@ export function formatSimplifiedPhoto(photo: {
     likesCount: Number(photo.likesCount || 0),
     likes: Number(photo.likesCount || 0),
     isLiked: Boolean(photo.isLiked || false),
-    // Retained for backward-compatibility with quests.vue
+    // Retained for backward-compatibility with quests.vue & live-vault.vue
     url: fullUrl,
     checklistId: photo.checklistId || null,
     fileName: photo.fileName || null,
+    mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+    isVideo,
+    type: isVideo ? 'video' : 'photo',
   };
 }
 
@@ -713,6 +738,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         isLiked: false,
         checklistId: updatedPhoto.checklistId,
         fileName: updatedPhoto.fileName,
+        mimeType: updatedPhoto.mimeType,
       });
 
       if (guestEventId) {
@@ -873,6 +899,11 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       const fileBuffer = await data.toBuffer();
       const fileName = data.filename || 'photo.jpg';
       const mimeType = data.mimetype || 'image/jpeg';
+      const isVideo = Boolean(
+        mimeType.startsWith('video/') ||
+        fileName.endsWith('.mp4') ||
+        fileName.endsWith('.webm')
+      );
       const storageKey = R2Service.generateStorageKey(eventId, fileName, {
         eventCode,
         guestCode,
@@ -889,6 +920,20 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           error: 'R2UploadError',
           message: `Failed to upload photo to R2: ${err.message}`,
         });
+      }
+
+      // If video, process and upload video thumbnail to R2
+      let thumbUrl = '';
+      const rawThumbnail = fields.thumbnailBase64?.value || (request.headers['x-thumbnail-base64'] as string);
+      if (isVideo && rawThumbnail && typeof rawThumbnail === 'string') {
+        try {
+          const base64Data = rawThumbnail.replace(/^data:[^;]+;base64,/, '');
+          const thumbBuffer = Buffer.from(base64Data, 'base64');
+          const thumbStorageKey = storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+          thumbUrl = await R2Service.putObject(thumbStorageKey, thumbBuffer, 'image/jpeg');
+        } catch (err: any) {
+          request.log.warn(err, 'Failed to upload video thumbnail to R2');
+        }
       }
 
       let uploader = fields.uploadedBy?.value;
@@ -932,6 +977,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         isLiked: false,
         checklistId: newPhoto.checklistId,
         fileName: newPhoto.fileName,
+        mimeType: newPhoto.mimeType,
+        thumbnailUrl: thumbUrl || undefined,
       });
 
       const eventToken = event?.token || String(eventId);
@@ -1083,6 +1130,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           isLiked: p.isLiked,
           checklistId: p.checklistId,
           fileName: p.fileName,
+          mimeType: p.mimeType,
         })
       );
 

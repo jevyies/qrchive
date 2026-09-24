@@ -1,6 +1,6 @@
 import { Queue, Worker, Job, QueueEvents } from 'bullmq';
 import crypto from 'crypto';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { bullMqConnectionOptions } from '../config/redis';
 import { db, snapGuests, SnapGuest } from '../db';
 
@@ -37,6 +37,27 @@ export async function directCreateSnapGuest(
 ): Promise<CreateSnapGuestResult> {
   const { eventId, name, deviceSerial, deviceName } = data;
   const cleanName = (name || 'Guest').trim() || 'Guest';
+
+  // If deviceSerial is provided, check if guest is already registered for this event
+  if (deviceSerial) {
+    const existing = await db.query.snapGuests.findFirst({
+      where: and(
+        eq(snapGuests.eventId, eventId),
+        eq(snapGuests.deviceSerial, String(deviceSerial).trim())
+      ),
+    });
+
+    if (existing) {
+      return {
+        id: existing.id,
+        guest_code: existing.guestCode || '',
+        name: existing.name,
+        eventId: existing.eventId,
+        deviceSerial: existing.deviceSerial,
+        deviceName: existing.deviceName,
+      };
+    }
+  }
 
   // Ensure unique guest code
   let guestCode = generateGuestCode();

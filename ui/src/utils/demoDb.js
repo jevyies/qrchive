@@ -167,6 +167,39 @@ export async function getAllDemoPhotos() {
 }
 
 /**
+ * Get total count of saved demo photos in local database (quick snaps + checklist moments)
+ */
+export async function getDemoPhotosCount() {
+    try {
+        const db = await openDB()
+        return new Promise((resolve) => {
+            const tx = db.transaction([STORE_QUICK, STORE_CHECKLIST], 'readonly')
+            const reqQuick = tx.objectStore(STORE_QUICK).count()
+            const reqChecklist = tx.objectStore(STORE_CHECKLIST).count()
+            let qCount = 0
+            let cCount = 0
+
+            reqQuick.onsuccess = () => {
+                qCount = reqQuick.result || 0
+            }
+            reqChecklist.onsuccess = () => {
+                cCount = reqChecklist.result || 0
+            }
+
+            tx.oncomplete = () => {
+                resolve(qCount + cCount)
+            }
+            tx.onerror = () => {
+                resolve(memoryFallback.quick.length + Object.keys(memoryFallback.checklist).length)
+            }
+        })
+    } catch (err) {
+        console.warn('[demoDb] Fallback getting demo photos count from memory:', err)
+        return memoryFallback.quick.length + Object.keys(memoryFallback.checklist).length
+    }
+}
+
+/**
  * Clear all demo photos from local database
  */
 export async function clearDemoData() {

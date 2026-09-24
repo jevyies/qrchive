@@ -87,6 +87,18 @@ const activeImageSrc = computed(() => {
     return activeLightbox.value.fullUrl || activeLightbox.value.url || activeLightbox.value.image || ''
 })
 
+const isActiveVideo = computed(() => {
+    if (!activeLightbox.value) return false
+    if (activeLightbox.value.isVideo) return true
+    const src = String(activeLightbox.value.url || activeLightbox.value.fullUrl || activeImageSrc.value || '').toLowerCase()
+    return src.endsWith('.mp4') || src.endsWith('.webm') || (src.startsWith('blob:') && String(activeLightbox.value.mimeType || '').startsWith('video/'))
+})
+
+const activeVideoSrc = computed(() => {
+    if (!activeLightbox.value) return ''
+    return activeLightbox.value.videoUrl || activeLightbox.value.fullUrl || activeLightbox.value.url || activeImageSrc.value
+})
+
 const activeFallbackSrc = computed(() => {
     if (!activeLightbox.value) return ''
     return activeLightbox.value.url || activeLightbox.value.thumbnailUrl || activeLightbox.value.image || ''
@@ -265,7 +277,8 @@ onBeforeUnmount(() => {
                     transform: `translateX(${dragOffset}px)`,
                     opacity: `${1 - Math.abs(dragOffset) / 300}`,
                 }">
-                    <img :alt="activeTitle" class="vault-lightbox__media" :src="activeImageSrc"
+                    <video v-if="isActiveVideo" controls autoplay playsinline class="vault-lightbox__media" :src="activeVideoSrc"></video>
+                    <img v-else :alt="activeTitle" class="vault-lightbox__media" :src="activeImageSrc"
                         @error="onImageError">
                 </div>
 

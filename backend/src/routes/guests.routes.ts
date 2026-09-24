@@ -1418,5 +1418,111 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       });
     }
   );
+
+  // ==========================================
+  // 13. LOOKUP SNAP GUEST (GET /snap/lookup)
+  // Check if a guest already exists for this event and deviceSerial
+  // ==========================================
+  app.get(
+    '/snap/lookup',
+    {
+      schema: {
+        tags: ['Guests'],
+        summary: 'Lookup Existing Snap Guest by Device Serial',
+        description: 'Checks if a guest has already registered for the event from this device serial.',
+        querystring: {
+          type: 'object',
+          required: ['deviceSerial'],
+          properties: {
+            eventToken: { type: 'string' },
+            eventId: { type: ['integer', 'string'] },
+            deviceSerial: { type: 'string' },
+          },
+        },
+        response: {
+          200: {
+            description: 'Snap guest found for this device',
+            type: 'object',
+            properties: {
+              exists: { type: 'boolean' },
+              guest: {
+                type: 'object',
+                properties: {
+                  id: { type: 'integer' },
+                  guestCode: { type: 'string' },
+                  guest_code: { type: 'string' },
+                  name: { type: 'string' },
+                  guestName: { type: 'string' },
+                  eventId: { type: 'integer' },
+                  eventCode: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Guest or event not found',
+            type: 'object',
+            properties: {
+              exists: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = (request.query as any) || {};
+      const rawTokenOrId = query.eventToken || query.eventId;
+      const deviceSerial = query.deviceSerial;
+
+      if (!rawTokenOrId || !deviceSerial) {
+        return reply.status(400).send({
+          exists: false,
+          message: 'Both eventToken/eventId and deviceSerial are required.',
+        });
+      }
+
+      const isNumeric = /^\d+$/.test(String(rawTokenOrId));
+      const event = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(rawTokenOrId)), eq(events.id, Number(rawTokenOrId)))
+          : eq(events.token, String(rawTokenOrId)),
+      });
+
+      if (!event) {
+        return reply.status(404).send({
+          exists: false,
+          message: 'Event not found for provided token or ID.',
+        });
+      }
+
+      const existingGuest = await db.query.snapGuests.findFirst({
+        where: and(
+          eq(snapGuests.eventId, event.id),
+          eq(snapGuests.deviceSerial, String(deviceSerial).trim())
+        ),
+      });
+
+      if (!existingGuest) {
+        return reply.status(404).send({
+          exists: false,
+          message: 'No guest registered with this device serial for this event.',
+        });
+      }
+
+      return reply.status(200).send({
+        exists: true,
+        guest: {
+          id: existingGuest.id,
+          guestCode: existingGuest.guestCode,
+          guest_code: existingGuest.guestCode,
+          name: existingGuest.name,
+          guestName: existingGuest.name,
+          eventId: existingGuest.eventId,
+          eventCode: event.token || String(event.id),
+        },
+      });
+    }
+  );
 };
 

@@ -48,6 +48,7 @@ export const buildApp = async () => {
   await app.register(fastifyMultipart, {
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB chunk or file limit
+      fieldSize: 10 * 1024 * 1024, // 10MB limit for text fields (including thumbnailBase64)
     },
   });
 

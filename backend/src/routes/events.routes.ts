@@ -114,6 +114,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         brideLastname: e.brideLastname,
         groomFirstname: e.groomFirstname,
         groomLastname: e.groomLastname,
+        maxGuest: e.maxGuest,
+        price: e.price,
         invitationDeadline: e.invitationDeadline,
         eventDate: e.eventDate,
         weddingDate: e.eventDate,
@@ -343,6 +345,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         brideLastname: event.brideLastname,
         groomFirstname: event.groomFirstname,
         groomLastname: event.groomLastname,
+        maxGuest: event.maxGuest,
+        price: event.price,
         invitationDeadline: event.invitationDeadline,
         eventDate: event.eventDate,
         weddingDate: event.eventDate,
@@ -377,6 +381,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
+            maxGuest: { type: 'integer' },
+            price: { type: ['string', 'number'] },
             userId: { type: 'integer' },
           },
         },
@@ -407,6 +413,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           groomLastname: body.groomLastname || null,
           invitationDeadline: body.invitationDeadline || null,
           eventDate: body.eventDate || null,
+          maxGuest: body.maxGuest !== undefined && body.maxGuest !== null ? Number(body.maxGuest) : null,
+          price: body.price !== undefined && body.price !== null ? String(body.price) : null,
         })
         .returning();
 
@@ -451,6 +459,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
+            maxGuest: { type: 'integer' },
+            price: { type: ['string', 'number'] },
           },
         },
       },
@@ -480,6 +490,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       if (body.invitationDeadline !== undefined) updatePayload.invitationDeadline = body.invitationDeadline;
       if (body.eventDate !== undefined) updatePayload.eventDate = body.eventDate;
       if (body.weddingDate !== undefined) updatePayload.eventDate = body.weddingDate;
+      if (body.maxGuest !== undefined) updatePayload.maxGuest = body.maxGuest !== null ? Number(body.maxGuest) : null;
+      if (body.price !== undefined) updatePayload.price = body.price !== null ? String(body.price) : null;
 
       const [updated] = await db
         .update(events)

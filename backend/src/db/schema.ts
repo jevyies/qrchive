@@ -8,6 +8,8 @@ import {
   timestamp,
   bigint,
   boolean,
+  integer,
+  numeric,
 } from 'drizzle-orm/pg-core';
 import { sql, relations, type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 
@@ -80,6 +82,8 @@ export const events = pgTable('events', {
   brideLastname: varchar('bride_lastname', { length: 100 }),
   groomFirstname: varchar('groom_firstname', { length: 100 }),
   groomLastname: varchar('groom_lastname', { length: 100 }),
+  maxGuest: integer('max_guest'),
+  price: numeric('price', { precision: 10, scale: 2 }),
   invitationDeadline: timestamp('invitation_deadline', { withTimezone: true, mode: 'string' }),
   eventDate: timestamp('event_date', { withTimezone: true, mode: 'string' }),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
@@ -251,6 +255,23 @@ export const snapPhotoLikes = pgTable('snap_photo_likes', {
 export const photoLikes = snapPhotoLikes;
 
 // ==========================================
+// 15. PRICING
+// ==========================================
+export const pricing = pgTable('pricing', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  maxGuest: integer('max_guest'),
+  price: numeric('price', { precision: 10, scale: 2 }),
+  group: varchar('group', { length: 100 }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+// Backward-compatibility alias
+export const pricings = pricing;
+
+// ==========================================
 // DRIZZLE RELATIONS (For query API)
 // ==========================================
 
@@ -416,5 +437,8 @@ export type NewSnapPhotoLike = InferInsertModel<typeof snapPhotoLikes>;
 
 export type PhotoLike = SnapPhotoLike;
 export type NewPhotoLike = NewSnapPhotoLike;
+
+export type Pricing = InferSelectModel<typeof pricing>;
+export type NewPricing = InferInsertModel<typeof pricing>;
 
 

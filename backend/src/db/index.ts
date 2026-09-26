@@ -27,7 +27,7 @@ export const client = postgres(connectionString, {
 export const db = drizzle(client, { schema });
 
 /**
- * Ensures runtime database tables (such as snap_photo_likes) exist
+ * Ensures runtime database tables (such as snap_photo_likes, pricing) and columns exist
  */
 export async function initDbTables() {
   try {
@@ -43,8 +43,40 @@ export async function initDbTables() {
     await client`
       CREATE INDEX IF NOT EXISTS idx_snap_photo_likes_photo ON snap_photo_likes(photo_id);
     `;
+    await client`
+      CREATE TABLE IF NOT EXISTS pricing (
+        id BIGSERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        max_guest INTEGER,
+        price NUMERIC(10, 2),
+        "group" VARCHAR(100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS max_guest INTEGER;
+    `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2);
+    `;
+
+    // Seed default pricing packages if table is currently empty
+    const pricingCountResult = await client`
+      SELECT COUNT(*)::int as count FROM pricing;
+    `;
+    if (pricingCountResult[0]?.count === 0) {
+      await client`
+        INSERT INTO pricing (name, max_guest, price, "group") VALUES
+        ('Standard Snap - Up to 100', 100, 500.00, 'standard'),
+        ('Standard Snap - Up to 300', 300, 800.00, 'standard'),
+        ('Standard Snap - 300+ guests', NULL, 1000.00, 'standard'),
+        ('Unlimited Snap - Up to 100', 100, 1000.00, 'unlimited'),
+        ('Unlimited Snap - Up to 300', 300, 1500.00, 'unlimited'),
+        ('Unlimited Snap - 300+ guests', NULL, 2000.00, 'unlimited');
+      `;
+    }
   } catch (err: any) {
-    console.warn('[DB] snap_photo_likes table init notice:', err.message);
+    console.warn('[DB] runtime table/column init notice:', err.message);
   }
 }
 

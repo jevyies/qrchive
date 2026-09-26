@@ -7,6 +7,7 @@ import { storeRoutes } from './stores.routes';
 import { guestRoutes } from './guests.routes';
 import { photoRoutes } from './photos.routes';
 import { imageResizeRoutes } from './imageResize.routes';
+import { pricingRoutes } from './pricing.routes';
 
 export const appRoutes: FastifyPluginAsync = async (app) => {
   // Register testing / system routes at root
@@ -27,6 +28,9 @@ export const appRoutes: FastifyPluginAsync = async (app) => {
   // Backward compatibility: Register /api/weddings pointing to eventRoutes
   await app.register(weddingRoutes, { prefix: '/api/weddings' });
 
+  // Register pricing routes with /api/pricing prefix
+  await app.register(pricingRoutes, { prefix: '/api/pricing' });
+
   // Register stores routes with /api/stores prefix
   await app.register(storeRoutes, { prefix: '/api/stores' });
 
@@ -41,6 +45,7 @@ export * from './authentication.routes';
 export * from './stats.routes';
 export * from './testing.routes';
 export * from './events.routes';
+export * from './pricing.routes';
 export * from './stores.routes';
 export * from './guests.routes';
 export * from './photos.routes';

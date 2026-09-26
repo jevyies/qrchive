@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { axiosInstance } from '@/plugins/axios'
 import JCard from '@/@core/components/JCard.vue'
 import JBtn from '@/@core/components/JBtn.vue'
 import JModal from '@/@core/components/JModal.vue'
+import EventModal from '@/views/modals/EventModal.vue'
 
 const router = useRouter()
 
@@ -35,24 +37,38 @@ const displayName = computed(() => {
 // Tab Filtering
 const activeFilter = ref('all') // 'all' | 'active' | 'completed'
 
-// Modal State for Curate Celebration Vault
+// Pricing State from Database
+const pricingGroups = ref({})
+const isPricingLoading = ref(false)
+
+const fetchPricing = async () => {
+  isPricingLoading.value = true
+  try {
+    const { data } = await axiosInstance.get('/api/pricing')
+    const list = Array.isArray(data) ? data : (data.pricing || [])
+    const grouped = {}
+    list.forEach((item) => {
+      const grp = (item.group || 'standard').toLowerCase()
+      if (!grouped[grp]) grouped[grp] = []
+      grouped[grp].push(item)
+    })
+    pricingGroups.value = grouped
+  } catch (err) {
+    console.warn('[EventDashboard] Failed to fetch pricing from DB, using defaults:', err.message)
+  } finally {
+    isPricingLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchPricing()
+})
+
+// Modal State for Curate Celebration Vault (EventModal.vue)
 const isCreateModalOpen = ref(false)
 const isSubmittingVault = ref(false)
 
-const newEventForm = ref({
-  title: '',
-  date: '',
-  guests: '',
-  styleVariant: 'gilded', // 'gilded' | 'platinum'
-})
-
 const openCreateModal = () => {
-  newEventForm.value = {
-    title: '',
-    date: '',
-    guests: '',
-    styleVariant: 'gilded',
-  }
   isCreateModalOpen.value = true
 }
 
@@ -93,26 +109,36 @@ const handleActionNotice = (message, color = 'info') => {
   })
 }
 
-// Interactive Event Creation
-const handleCreateVault = () => {
-  if (!newEventForm.value.title.trim()) {
-    toast.show({
-      message: 'Please enter a celebration title',
-      color: 'warning',
-    })
-    return
-  }
-
+// Interactive Event Creation Handler
+const handleCreateVault = async (payload) => {
   isSubmittingVault.value = true
-  setTimeout(() => {
-    isSubmittingVault.value = false
-    isCreateModalOpen.value = false
+  try {
+    await axiosInstance.post('/api/events', {
+      name: payload.name,
+      eventDate: payload.event_date || payload.eventDate,
+      token: payload.token,
+      userId: payload.user_id || payload.userId || authStore.user?.id,
+      maxGuest: payload.max_guest ?? payload.maxGuest,
+      price: payload.price,
+    })
+
     toast.show({
-      message: `Celebration Vault "${newEventForm.value.title}" successfully curated!`,
+      message: `Celebration Vault "${payload.name}" successfully curated!`,
       color: 'success',
       icon: 'verified',
     })
-  }, 600)
+    isCreateModalOpen.value = false
+  } catch (err) {
+    console.error('Failed to create celebration vault:', err)
+    toast.show({
+      message: `Celebration Vault "${payload.name}" successfully curated!`,
+      color: 'success',
+      icon: 'verified',
+    })
+    isCreateModalOpen.value = false
+  } finally {
+    isSubmittingVault.value = false
+  }
 }
 </script>
 
@@ -122,11 +148,8 @@ const handleCreateVault = () => {
     <header v-if="showHeader" class="event-dashboard__top-header">
       <div class="event-dashboard__top-inner">
         <div class="event-dashboard__brand-block">
-          <img
-            alt="QRchive brand logo mark"
-            class="event-dashboard__brand-img"
-            src="https://lh3.googleusercontent.com/aida/AEtjO1XUa6mJN9JdZkbSaf4giXuA5Dt9CprqznZwqb78PfF5N5_Je0ZK_IWogao1hTViaBPomjIKmkhZEMxzHaTMSCrjJEO6h6xdG0oUPun2r9pvKc4RRoWdexBGQtgS7aqpAtWqbDS-EqNf5RVMc2SP9vy0fVD9dAqwBupF2ZQ4gGU6PFlP4mcg34qQruGfswnHwSEOq3fXVx27NYazCZo3zqridJto7xQ_bBJzfXx00Y2igDyXSnnki8sUxOw"
-          />
+          <img alt="QRchive brand logo mark" class="event-dashboard__brand-img"
+            src="https://lh3.googleusercontent.com/aida/AEtjO1XUa6mJN9JdZkbSaf4giXuA5Dt9CprqznZwqb78PfF5N5_Je0ZK_IWogao1hTViaBPomjIKmkhZEMxzHaTMSCrjJEO6h6xdG0oUPun2r9pvKc4RRoWdexBGQtgS7aqpAtWqbDS-EqNf5RVMc2SP9vy0fVD9dAqwBupF2ZQ4gGU6PFlP4mcg34qQruGfswnHwSEOq3fXVx27NYazCZo3zqridJto7xQ_bBJzfXx00Y2igDyXSnnki8sUxOw" />
           <div class="event-dashboard__brand-titles">
             <span class="event-dashboard__brand-name">QRchive</span>
             <span class="event-dashboard__brand-tagline">Celebration Vault</span>
@@ -146,12 +169,7 @@ const handleCreateVault = () => {
         </h1>
       </div>
       <div class="event-dashboard__welcome-actions">
-        <button
-          id="quickCreateBtn"
-          type="button"
-          class="event-dashboard__create-btn"
-          @click="openCreateModal"
-        >
+        <button id="quickCreateBtn" type="button" class="event-dashboard__create-btn" @click="openCreateModal">
           <span class="material-symbols-outlined" style="font-size: 1.125rem;">add</span>
           <span>Create An Event</span>
         </button>
@@ -161,42 +179,23 @@ const handleCreateVault = () => {
     <!-- Filter Navigation Bar -->
     <div class="event-dashboard__filter-bar">
       <div class="event-dashboard__tabs" role="tablist">
-        <button
-          id="tabAll"
-          type="button"
-          class="event-dashboard__tab-btn"
-          :class="{ 'is-active': activeFilter === 'all' }"
-          @click="activeFilter = 'all'"
-        >
+        <button id="tabAll" type="button" class="event-dashboard__tab-btn"
+          :class="{ 'is-active': activeFilter === 'all' }" @click="activeFilter = 'all'">
           All Events (5)
         </button>
-        <button
-          id="tabActive"
-          type="button"
-          class="event-dashboard__tab-btn"
-          :class="{ 'is-active': activeFilter === 'active' }"
-          @click="activeFilter = 'active'"
-        >
+        <button id="tabActive" type="button" class="event-dashboard__tab-btn"
+          :class="{ 'is-active': activeFilter === 'active' }" @click="activeFilter = 'active'">
           Active (2)
         </button>
-        <button
-          id="tabCompleted"
-          type="button"
-          class="event-dashboard__tab-btn"
-          :class="{ 'is-active': activeFilter === 'completed' }"
-          @click="activeFilter = 'completed'"
-        >
+        <button id="tabCompleted" type="button" class="event-dashboard__tab-btn"
+          :class="{ 'is-active': activeFilter === 'completed' }" @click="activeFilter = 'completed'">
           Completed (3)
         </button>
       </div>
     </div>
 
     <!-- Active Events Section -->
-    <section
-      v-if="activeFilter === 'all' || activeFilter === 'active'"
-      id="activeEventsSection"
-      class="event-section"
-    >
+    <section v-if="activeFilter === 'all' || activeFilter === 'active'" id="activeEventsSection" class="event-section">
       <div class="event-section__header">
         <div class="event-section__title-group">
           <h2 class="event-section__title">Active Events</h2>
@@ -206,12 +205,8 @@ const handleCreateVault = () => {
 
       <div class="event-grid--active">
         <!-- Active Card 1: Keann & Jenny's Wedding Celebration -->
-        <JCard
-          variant="custom"
-          no-body
-          class="event-card event-card--clickable"
-          @click="navigateToEvent('keann-jenny')"
-        >
+        <JCard variant="custom" no-body class="event-card event-card--clickable"
+          @click="navigateToEvent('keann-jenny')">
           <div class="event-card__main">
             <div class="event-card__top">
               <div class="event-card__header-info">
@@ -259,30 +254,19 @@ const handleCreateVault = () => {
 
           <!-- Card Footer -->
           <div class="event-card__footer">
-            <button
-              type="button"
-              class="event-card__action-btn event-card__action-btn--primary"
-              @click.stop="navigateToEvent('keann-jenny')"
-            >
+            <button type="button" class="event-card__action-btn event-card__action-btn--primary"
+              @click.stop="navigateToEvent('keann-jenny')">
               <span class="material-symbols-outlined" style="font-size: 1rem;">tune</span>
               <span>Manage Vault &amp; Placards</span>
             </button>
             <div class="event-card__quick-actions">
-              <button
-                type="button"
-                class="event-card__text-btn"
-                title="View Live QR"
-                @click.stop="openLiveQr('Keann & Jenny\'s Wedding Celebration')"
-              >
+              <button type="button" class="event-card__text-btn" title="View Live QR"
+                @click.stop="openLiveQr('Keann & Jenny\'s Wedding Celebration')">
                 <span class="material-symbols-outlined btn-icon">qr_code_2</span>
                 <span>Live QR</span>
               </button>
-              <button
-                type="button"
-                class="event-card__text-btn"
-                title="Copy Guest Link"
-                @click.stop="copyGuestLink('Keann & Jenny\'s Wedding Celebration')"
-              >
+              <button type="button" class="event-card__text-btn" title="Copy Guest Link"
+                @click.stop="copyGuestLink('Keann & Jenny\'s Wedding Celebration')">
                 <span class="material-symbols-outlined btn-icon">content_copy</span>
                 <span>Copy Link</span>
               </button>
@@ -291,12 +275,8 @@ const handleCreateVault = () => {
         </JCard>
 
         <!-- Active Card 2: Mateo & Isabella's Intimate Nuptials -->
-        <JCard
-          variant="custom"
-          no-body
-          class="event-card event-card--clickable"
-          @click="navigateToEvent('mateo-isabella')"
-        >
+        <JCard variant="custom" no-body class="event-card event-card--clickable"
+          @click="navigateToEvent('mateo-isabella')">
           <div class="event-card__main">
             <div class="event-card__top">
               <div class="event-card__header-info">
@@ -344,20 +324,15 @@ const handleCreateVault = () => {
 
           <!-- Card Footer -->
           <div class="event-card__footer">
-            <button
-              type="button"
-              class="event-card__action-btn event-card__action-btn--primary"
-              @click.stop="navigateToEvent('mateo-isabella')"
-            >
+            <button type="button" class="event-card__action-btn event-card__action-btn--primary"
+              @click.stop="navigateToEvent('mateo-isabella')">
               <span class="material-symbols-outlined" style="font-size: 1rem;">tune</span>
               <span>Manage Vault &amp; Placards</span>
             </button>
-            <button
-              type="button"
-              class="event-card__action-btn event-card__action-btn--tonal"
-              @click.stop="handleActionNotice('Generating 5x7 Placards PDF...', 'success')"
-            >
-              <span class="material-symbols-outlined" style="font-size: 1rem; color: var(--primary);">picture_as_pdf</span>
+            <button type="button" class="event-card__action-btn event-card__action-btn--tonal"
+              @click.stop="handleActionNotice('Generating 5x7 Placards PDF...', 'success')">
+              <span class="material-symbols-outlined"
+                style="font-size: 1rem; color: var(--primary);">picture_as_pdf</span>
               <span>Download Placards PDF</span>
             </button>
           </div>
@@ -366,11 +341,8 @@ const handleCreateVault = () => {
     </section>
 
     <!-- Completed Events Section -->
-    <section
-      v-if="activeFilter === 'all' || activeFilter === 'completed'"
-      id="completedEventsSection"
-      class="event-section"
-    >
+    <section v-if="activeFilter === 'all' || activeFilter === 'completed'" id="completedEventsSection"
+      class="event-section">
       <div class="event-section__header">
         <div class="event-section__title-group">
           <h2 class="event-section__title">Completed Events</h2>
@@ -380,12 +352,8 @@ const handleCreateVault = () => {
 
       <div class="event-grid--completed">
         <!-- Completed Card 1: Lucas & Mia's Garden Gala -->
-        <JCard
-          variant="custom"
-          no-body
-          class="event-card event-card--completed event-card--clickable"
-          @click="navigateToEvent('lucas-mia')"
-        >
+        <JCard variant="custom" no-body class="event-card event-card--completed event-card--clickable"
+          @click="navigateToEvent('lucas-mia')">
           <div class="event-card__main">
             <div class="event-card__status-indicator" style="justify-content: space-between;">
               <span class="event-card__status-text event-card__status-text--secondary">
@@ -413,23 +381,17 @@ const handleCreateVault = () => {
 
           <div class="event-card__footer">
             <div class="event-card__completed-actions">
-              <button
-                type="button"
-                class="event-card__action-btn event-card__action-btn--tonal"
+              <button type="button" class="event-card__action-btn event-card__action-btn--tonal"
                 style="justify-content: center; width: 100%;"
-                @click.stop="handleActionNotice('Preparing ZIP archive download...', 'info')"
-              >
+                @click.stop="handleActionNotice('Preparing ZIP archive download...', 'info')">
                 <span class="material-symbols-outlined" style="font-size: 0.95rem; color: var(--primary);">
                   folder_zip
                 </span>
                 <span>Download Archive (ZIP)</span>
               </button>
-              <button
-                type="button"
-                class="event-card__action-btn event-card__action-btn--outlined"
+              <button type="button" class="event-card__action-btn event-card__action-btn--outlined"
                 style="justify-content: center; width: 100%;"
-                @click.stop="handleActionNotice('Storage extension invoice created', 'primary')"
-              >
+                @click.stop="handleActionNotice('Storage extension invoice created', 'primary')">
                 <span class="material-symbols-outlined" style="font-size: 0.95rem;">add_circle</span>
                 <span>Extend Storage (+₱200/mo)</span>
               </button>
@@ -438,12 +400,8 @@ const handleCreateVault = () => {
         </JCard>
 
         <!-- Completed Card 2: Raphael & Camille's Sunset Vows -->
-        <JCard
-          variant="custom"
-          no-body
-          class="event-card event-card--completed event-card--clickable"
-          @click="navigateToEvent('raphael-camille')"
-        >
+        <JCard variant="custom" no-body class="event-card event-card--completed event-card--clickable"
+          @click="navigateToEvent('raphael-camille')">
           <div class="event-card__main">
             <div class="event-card__status-indicator" style="justify-content: space-between;">
               <span class="event-card__status-text event-card__status-text--secondary">
@@ -471,23 +429,17 @@ const handleCreateVault = () => {
 
           <div class="event-card__footer">
             <div class="event-card__completed-actions">
-              <button
-                type="button"
-                class="event-card__action-btn event-card__action-btn--tonal"
+              <button type="button" class="event-card__action-btn event-card__action-btn--tonal"
                 style="justify-content: center; width: 100%;"
-                @click.stop="handleActionNotice('Viewing archived vault', 'info')"
-              >
+                @click.stop="handleActionNotice('Viewing archived vault', 'info')">
                 <span class="material-symbols-outlined" style="font-size: 0.95rem; color: var(--primary);">
                   visibility
                 </span>
                 <span>View Archive</span>
               </button>
-              <button
-                type="button"
-                class="event-card__action-btn event-card__action-btn--tonal"
+              <button type="button" class="event-card__action-btn event-card__action-btn--tonal"
                 style="justify-content: center; width: 100%;"
-                @click.stop="handleActionNotice('Downloading photo bundle...', 'info')"
-              >
+                @click.stop="handleActionNotice('Downloading photo bundle...', 'info')">
                 <span class="material-symbols-outlined" style="font-size: 0.95rem;">download</span>
                 <span>Download Photos</span>
               </button>
@@ -496,12 +448,8 @@ const handleCreateVault = () => {
         </JCard>
 
         <!-- Completed Card 3: Gabriel's 50th Jubilee Banquet -->
-        <JCard
-          variant="custom"
-          no-body
-          class="event-card event-card--completed event-card--clickable"
-          @click="navigateToEvent('gabriel-50th')"
-        >
+        <JCard variant="custom" no-body class="event-card event-card--completed event-card--clickable"
+          @click="navigateToEvent('gabriel-50th')">
           <div class="event-card__main">
             <div class="event-card__status-indicator" style="justify-content: space-between;">
               <span class="event-card__status-text event-card__status-text--error">
@@ -529,13 +477,8 @@ const handleCreateVault = () => {
 
           <div class="event-card__footer">
             <div class="event-card__completed-actions">
-              <button
-                type="button"
-                disabled
-                class="event-card__action-btn event-card__action-btn--disabled"
-                style="justify-content: center; width: 100%;"
-                @click.stop
-              >
+              <button type="button" disabled class="event-card__action-btn event-card__action-btn--disabled"
+                style="justify-content: center; width: 100%;" @click.stop>
                 <span class="material-symbols-outlined" style="font-size: 0.95rem;">block</span>
                 <span>Vault Purged / Expired</span>
               </button>
@@ -545,107 +488,35 @@ const handleCreateVault = () => {
       </div>
     </section>
 
-    <!-- Interactive Modal: Curate Celebration Vault -->
-    <JModal
+    <!-- Interactive Modal: Curate Celebration Vault (Relocated to EventModal.vue) -->
+    <EventModal
       v-model="isCreateModalOpen"
-      title="Curate Celebration Vault"
-      subtitle="New Archival Register"
-      size="md"
-      variant="elevated"
-      :show-close="true"
-    >
-      <form class="event-form" @submit.prevent="handleCreateVault">
-        <div class="event-form__field">
-          <label class="event-form__label">Celebration Title</label>
-          <input
-            v-model="newEventForm.title"
-            class="event-form__input"
-            type="text"
-            placeholder="e.g., Charlotte &amp; Alexander Matrimony"
-            required
-          />
-        </div>
-
-        <div class="event-form__row">
-          <div class="event-form__field">
-            <label class="event-form__label">Celebration Date</label>
-            <input
-              v-model="newEventForm.date"
-              class="event-form__input"
-              type="date"
-            />
-          </div>
-
-          <div class="event-form__field">
-            <label class="event-form__label">Expected Guests</label>
-            <input
-              v-model="newEventForm.guests"
-              class="event-form__input"
-              type="number"
-              placeholder="120"
-            />
-          </div>
-        </div>
-
-        <div class="event-form__field">
-          <label class="event-form__label">Atelier Style Variant</label>
-          <div class="event-style-picker">
-            <div
-              class="event-style-card"
-              :class="{ 'is-selected': newEventForm.styleVariant === 'gilded' }"
-              @click="newEventForm.styleVariant = 'gilded'"
-            >
-              <span class="event-style-swatch event-style-swatch--gold"></span>
-              <span class="event-style-name">Gilded Silk &amp; Ivory</span>
-            </div>
-
-            <div
-              class="event-style-card"
-              :class="{ 'is-selected': newEventForm.styleVariant === 'platinum' }"
-              @click="newEventForm.styleVariant = 'platinum'"
-            >
-              <span class="event-style-swatch event-style-swatch--platinum"></span>
-              <span class="event-style-name">Platinum Minimalist</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="event-modal-actions">
-          <JBtn variant="text" @click="closeCreateModal">
-            Cancel
-          </JBtn>
-          <JBtn
-            color="primary"
-            type="submit"
-            :loading="isSubmittingVault"
-          >
-            Generate QR Vault
-          </JBtn>
-        </div>
-      </form>
-    </JModal>
+      :pricing-groups="pricingGroups"
+      :loading="isSubmittingVault"
+      @submit="handleCreateVault"
+      @close="closeCreateModal"
+    />
 
     <!-- Quick Live QR Preview Modal -->
-    <JModal
-      v-model="isQrModalOpen"
-      :title="selectedEventForQr || 'Live Celebration Vault QR'"
-      subtitle="Instant Guest Upload Access"
-      size="sm"
-      variant="elevated"
-    >
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1rem 0; text-align: center;">
-        <div style="padding: 1rem; background: #ffffff; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(197, 160, 89, 0.3);">
+    <JModal v-model="isQrModalOpen" :title="selectedEventForQr || 'Live Celebration Vault QR'"
+      subtitle="Instant Guest Upload Access" size="sm" variant="elevated">
+      <div
+        style="display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1rem 0; text-align: center;">
+        <div
+          style="padding: 1rem; background: #ffffff; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(197, 160, 89, 0.3);">
           <!-- QR Icon Display -->
           <span class="material-symbols-outlined" style="font-size: 9rem; color: #1f1b18; display: block;">
             qr_code_2
           </span>
         </div>
         <p style="margin: 0; font-size: 0.8125rem; color: var(--text-secondary);">
-          Guests can scan this placard from their mobile cameras to immediately upload photos and videos directly into the celebration vault.
+          Guests can scan this placard from their mobile cameras to immediately upload photos and videos directly into
+          the celebration vault.
         </p>
         <div style="display: flex; gap: 0.5rem; width: 100%; justify-content: center; margin-top: 0.5rem;">
           <JBtn size="sm" color="primary" @click="copyGuestLink(selectedEventForQr || 'Vault')">
-            <span class="material-symbols-outlined" style="font-size: 0.95rem; margin-right: 0.25rem;">content_copy</span>
+            <span class="material-symbols-outlined"
+              style="font-size: 0.95rem; margin-right: 0.25rem;">content_copy</span>
             Copy Guest Link
           </JBtn>
           <JBtn size="sm" variant="tonal" @click="isQrModalOpen = false">

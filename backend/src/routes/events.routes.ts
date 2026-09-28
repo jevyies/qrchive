@@ -141,7 +141,136 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
   );
 
   // ==========================================
-  // 2. GET EVENT BY TOKEN (GET /token/:token)
+  // 2. GET MY EVENTS (GET /my)
+  // Returns all events owned by the authenticated user (from JWT token id)
+  // with all columns + computed status: 'active' | 'completed'
+  // ==========================================
+  app.get(
+    '/my',
+    {
+      preHandler: [authenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Get My Events',
+        description: 'Retrieves all events created by the authenticated user. Active = eventDate is in the future (or not set). Completed = eventDate has already passed.',
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            search: { type: 'string', description: 'Search event name, bride, or groom' },
+          },
+        },
+        response: {
+          200: {
+            description: 'List of events for the current user',
+            type: 'object',
+            properties: {
+              total: { type: 'integer' },
+              activeCount: { type: 'integer' },
+              completedCount: { type: 'integer' },
+              events: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'integer' },
+                    userId: { type: 'integer' },
+                    token: { type: 'string', nullable: true },
+                    name: { type: 'string' },
+                    brideFirstname: { type: 'string', nullable: true },
+                    brideLastname: { type: 'string', nullable: true },
+                    groomFirstname: { type: 'string', nullable: true },
+                    groomLastname: { type: 'string', nullable: true },
+                    maxGuest: { type: 'integer', nullable: true },
+                    price: { type: 'string', nullable: true },
+                    invitationDeadline: { type: 'string', nullable: true },
+                    eventDate: { type: 'string', nullable: true },
+                    createdAt: { type: 'string' },
+                    status: { type: 'string', enum: ['active', 'completed'] },
+                    guestCount: { type: 'integer' },
+                    photoCount: { type: 'integer' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const currentUserId = (request.user as any)?.id;
+      if (!currentUserId) {
+        return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid token.' });
+      }
+
+      const { search } = (request.query as any) || {};
+
+      const searchClause = search
+        ? or(
+          ilike(events.name, `%${search}%`),
+          ilike(events.brideFirstname, `%${search}%`),
+          ilike(events.brideLastname, `%${search}%`),
+          ilike(events.groomFirstname, `%${search}%`),
+          ilike(events.groomLastname, `%${search}%`)
+        )
+        : undefined;
+
+      const whereClause = searchClause
+        ? and(eq(events.userId, currentUserId), searchClause)
+        : eq(events.userId, currentUserId);
+
+      const eventList = await db.query.events.findMany({
+        where: whereClause,
+        orderBy: (e, { desc }) => [desc(e.createdAt)],
+        with: {
+          guests: true,
+          snapGuests: {
+            with: { photos: true },
+          },
+        },
+      });
+
+      const now = new Date();
+
+      const formatted = eventList.map((e) => {
+        const isCompleted = e.eventDate ? new Date(e.eventDate) < now : false;
+        return {
+          id: e.id,
+          userId: e.userId,
+          token: e.token,
+          name: e.name,
+          brideFirstname: e.brideFirstname,
+          brideLastname: e.brideLastname,
+          groomFirstname: e.groomFirstname,
+          groomLastname: e.groomLastname,
+          maxGuest: e.maxGuest,
+          price: e.price,
+          isUnlimited: e.isUnlimited,
+          uploadExpiry: e.uploadExpiry,
+          photoExpiry: e.photoExpiry,
+          invitationDeadline: e.invitationDeadline,
+          eventDate: e.eventDate,
+          createdAt: e.createdAt,
+          status: isCompleted ? 'completed' : 'active',
+          guestCount: e.guests?.length ?? 0,
+          photoCount: (e as any).snapGuests?.reduce((sum: number, g: any) => sum + (g.photos?.length || 0), 0) ?? 0,
+        };
+      });
+
+      const activeCount = formatted.filter(e => e.status === 'active').length;
+      const completedCount = formatted.filter(e => e.status === 'completed').length;
+
+      return reply.send({
+        total: formatted.length,
+        activeCount,
+        completedCount,
+        events: formatted,
+      });
+    }
+  );
+
+  // ==========================================
+  // 2b. GET EVENT BY TOKEN (GET /token/:token)
   // ==========================================
   app.get(
     '/token/:token',
@@ -203,9 +332,132 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         name: event.name,
         token: event.token,
         eventDate: event.eventDate,
+        uploadExpiry: event.uploadExpiry,
+        photoExpiry: event.photoExpiry,
+        isUnlimited: event.isUnlimited,
         storeName,
       });
     }
+  );
+
+  // ==========================================
+  // 2c. GET EVENT STATS BY TOKEN (GET /token/:token/stats)
+  // [id, event_date, upload_expiry, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers (total uploaders)]
+  // ==========================================
+  const handleGetEventStats = async (request: FastifyRequest, reply: FastifyReply) => {
+    const rawToken = (request.params as any).token || (request.params as any).id;
+    const isNumeric = /^\d+$/.test(String(rawToken));
+    let event = await db.query.events.findFirst({
+      where: isNumeric
+        ? or(eq(events.token, String(rawToken)), eq(events.id, Number(rawToken)))
+        : eq(events.token, String(rawToken)),
+    });
+
+    if (!event && String(rawToken) === 'demo-event') {
+      event = await db.query.events.findFirst();
+    }
+
+    if (!event) {
+      return reply.status(404).send({
+        error: 'Not Found',
+        message: `Event with token or ID '${rawToken}' not found.`,
+      });
+    }
+
+    // Fetch completed photos and videos for stats
+    const mediaRows = await db
+      .select({
+        id: snapPhotos.id,
+        uploadedBy: snapPhotos.uploadedBy,
+        fileSize: snapPhotos.fileSize,
+        mimeType: snapPhotos.mimeType,
+        fileName: snapPhotos.fileName,
+        url: snapPhotos.url,
+      })
+      .from(snapPhotos)
+      .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
+      .where(
+        and(
+          eq(snapGuests.eventId, event.id),
+          eq(snapPhotos.status, 'completed')
+        )
+      );
+
+    let totalPhotos = 0;
+    let totalVideos = 0;
+    let totalBytes = 0;
+    const uploaderSet = new Set<number>();
+
+    for (const item of mediaRows) {
+      const isVideo = Boolean(
+        item.mimeType?.startsWith('video/') ||
+        item.fileName?.endsWith('.mp4') ||
+        item.fileName?.endsWith('.webm') ||
+        item.url?.endsWith('.mp4') ||
+        item.url?.endsWith('.webm')
+      );
+
+      if (isVideo) {
+        totalVideos += 1;
+      } else {
+        totalPhotos += 1;
+      }
+
+      if (item.fileSize) {
+        totalBytes += Number(item.fileSize);
+      }
+
+      if (item.uploadedBy) {
+        uploaderSet.add(Number(item.uploadedBy));
+      }
+    }
+
+    const totalUsers = uploaderSet.size;
+    const rawGb = totalBytes / (1024 * 1024 * 1024);
+    let totalGigabytes = 0;
+    if (totalBytes > 0) {
+      totalGigabytes = rawGb < 0.01 ? Number(rawGb.toFixed(4)) : Number(rawGb.toFixed(2));
+    }
+
+    return reply.send({
+      id: event.id,
+      name: event.name,
+      token: event.token,
+      isUnlimited: event.isUnlimited,
+      event_date: event.eventDate,
+      upload_expiry: event.uploadExpiry,
+      photo_expiry: event.photoExpiry,
+      totalPhotos,
+      totalVideos,
+      totalGigabytes,
+      totalUsers,
+      // camelCase aliases for convenience
+      eventDate: event.eventDate,
+      uploadExpiry: event.uploadExpiry,
+      photoExpiry: event.photoExpiry,
+      totalUploaders: totalUsers,
+      totalBytes,
+    });
+  };
+
+  app.get(
+    '/token/:token/stats',
+    {
+      preHandler: [authenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Get Event Stats by Public Token',
+        description: 'Retrieves event stats (id, event_date, upload_expiry, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers) by event token.',
+        params: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string' },
+          },
+        },
+      },
+    },
+    handleGetEventStats
   );
 
   // ==========================================
@@ -295,6 +547,28 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
     handleGetEventChecklist
   );
 
+  app.get(
+    '/:id/stats',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Get Event Stats by ID or Token',
+        description: 'Retrieves event information and stats (totalPhotos, totalVideos, totalGigabytes, totalUsers) by event ID or token.',
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+    },
+    handleGetEventStats
+  );
+
+  app.get('/:id/summary', { preHandler: [optionalAuthenticate] }, handleGetEventStats);
+
   // ==========================================
   // 3. GET SINGLE EVENT BY ID (GET /:id)
   // ==========================================
@@ -347,6 +621,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         groomLastname: event.groomLastname,
         maxGuest: event.maxGuest,
         price: event.price,
+        isUnlimited: event.isUnlimited,
+        uploadExpiry: event.uploadExpiry,
+        photoExpiry: event.photoExpiry,
         invitationDeadline: event.invitationDeadline,
         eventDate: event.eventDate,
         weddingDate: event.eventDate,
@@ -381,6 +658,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
+            uploadExpiry: { type: 'string' },
+            photoExpiry: { type: 'string' },
+            isUnlimited: { type: 'boolean' },
             maxGuest: { type: 'integer' },
             price: { type: ['string', 'number'] },
             userId: { type: 'integer' },
@@ -401,6 +681,24 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const generatedToken = body.token || crypto.randomBytes(4).toString('hex');
+      const targetEventDate = body.eventDate || body.weddingDate || null;
+
+      let uploadExpiry: string | null = body.uploadExpiry || body.upload_expiry || null;
+      let photoExpiry: string | null = body.photoExpiry || body.photo_expiry || null;
+
+      if (targetEventDate) {
+        const eventDateObj = new Date(targetEventDate);
+        if (!isNaN(eventDateObj.getTime())) {
+          const uploadExpiryDate = new Date(eventDateObj);
+          uploadExpiryDate.setDate(uploadExpiryDate.getDate() + 30);
+          uploadExpiry = uploadExpiryDate.toISOString();
+
+          const photoExpiryDate = new Date(eventDateObj);
+          photoExpiryDate.setDate(photoExpiryDate.getDate() + 60);
+          photoExpiry = photoExpiryDate.toISOString();
+        }
+      }
+
       const [newEvent] = await db
         .insert(events)
         .values({
@@ -412,7 +710,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           groomFirstname: body.groomFirstname || null,
           groomLastname: body.groomLastname || null,
           invitationDeadline: body.invitationDeadline || null,
-          eventDate: body.eventDate || null,
+          eventDate: targetEventDate,
+          uploadExpiry: uploadExpiry,
+          photoExpiry: photoExpiry,
+          isUnlimited: body.isUnlimited !== undefined && body.isUnlimited !== null ? Boolean(body.isUnlimited) : false,
           maxGuest: body.maxGuest !== undefined && body.maxGuest !== null ? Number(body.maxGuest) : null,
           price: body.price !== undefined && body.price !== null ? String(body.price) : null,
         })
@@ -425,6 +726,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           name: newEvent.name,
           token: newEvent.token,
           eventDate: newEvent.eventDate,
+          uploadExpiry: newEvent.uploadExpiry,
+          photoExpiry: newEvent.photoExpiry,
+          isUnlimited: newEvent.isUnlimited,
         },
       });
     }
@@ -459,6 +763,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
+            uploadExpiry: { type: 'string' },
+            photoExpiry: { type: 'string' },
+            isUnlimited: { type: 'boolean' },
             maxGuest: { type: 'integer' },
             price: { type: ['string', 'number'] },
           },
@@ -488,8 +795,28 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       if (body.groomFirstname !== undefined) updatePayload.groomFirstname = body.groomFirstname;
       if (body.groomLastname !== undefined) updatePayload.groomLastname = body.groomLastname;
       if (body.invitationDeadline !== undefined) updatePayload.invitationDeadline = body.invitationDeadline;
-      if (body.eventDate !== undefined) updatePayload.eventDate = body.eventDate;
-      if (body.weddingDate !== undefined) updatePayload.eventDate = body.weddingDate;
+      const newEventDate = body.eventDate !== undefined ? body.eventDate : body.weddingDate;
+      if (newEventDate !== undefined) {
+        updatePayload.eventDate = newEventDate;
+        if (newEventDate) {
+          const eventDateObj = new Date(newEventDate);
+          if (!isNaN(eventDateObj.getTime())) {
+            const uploadExpiryDate = new Date(eventDateObj);
+            uploadExpiryDate.setDate(uploadExpiryDate.getDate() + 30);
+            updatePayload.uploadExpiry = uploadExpiryDate.toISOString();
+
+            const photoExpiryDate = new Date(eventDateObj);
+            photoExpiryDate.setDate(photoExpiryDate.getDate() + 60);
+            updatePayload.photoExpiry = photoExpiryDate.toISOString();
+          }
+        }
+      }
+      if (body.uploadExpiry !== undefined) updatePayload.uploadExpiry = body.uploadExpiry;
+      if (body.upload_expiry !== undefined) updatePayload.uploadExpiry = body.upload_expiry;
+      if (body.photoExpiry !== undefined) updatePayload.photoExpiry = body.photoExpiry;
+      if (body.photo_expiry !== undefined) updatePayload.photoExpiry = body.photo_expiry;
+      if (body.isUnlimited !== undefined) updatePayload.isUnlimited = Boolean(body.isUnlimited);
+      if (body.is_unlimited !== undefined) updatePayload.isUnlimited = Boolean(body.is_unlimited);
       if (body.maxGuest !== undefined) updatePayload.maxGuest = body.maxGuest !== null ? Number(body.maxGuest) : null;
       if (body.price !== undefined) updatePayload.price = body.price !== null ? String(body.price) : null;
 

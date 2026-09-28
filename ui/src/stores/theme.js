@@ -15,21 +15,21 @@ export const themes = [
 export const useThemeStore = defineStore('theme', () => {
   // Helper to query device system theme preference
   const getSystemTheme = () => {
-    if (typeof window === 'undefined') return 'dark'
+    if (typeof window === 'undefined') return 'light'
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   }
 
   // Resolve initial theme
   const resolveInitialTheme = () => {
-    if (typeof window === 'undefined') return 'dark'
+    if (typeof window === 'undefined') return 'light'
     const storedTheme = localStorage.getItem('jui_theme')
     if (storedTheme === 'dark' || storedTheme === 'light') return storedTheme
     if (storedTheme === 'system') return getSystemTheme()
 
-    if (!themeConfig.defaultTheme || themeConfig.defaultTheme === 'system' || !['dark', 'light'].includes(themeConfig.defaultTheme)) {
-      return getSystemTheme()
+    if (themeConfig.defaultTheme === 'dark' || themeConfig.defaultTheme === 'light') {
+      return themeConfig.defaultTheme
     }
-    return themeConfig.defaultTheme
+    return 'light'
   }
 
   // Helper to query theme background color
@@ -54,10 +54,10 @@ export const useThemeStore = defineStore('theme', () => {
 
   // Resolve initial theme mode
   const resolveInitialThemeMode = () => {
-    if (typeof window === 'undefined') return 'system'
+    if (typeof window === 'undefined') return 'light'
     const stored = localStorage.getItem('jui_theme')
     if (stored && ['dark', 'light', 'system'].includes(stored)) return stored
-    return (themeConfig.defaultTheme && ['dark', 'light', 'system'].includes(themeConfig.defaultTheme)) ? themeConfig.defaultTheme : 'system'
+    return (themeConfig.defaultTheme && ['dark', 'light', 'system'].includes(themeConfig.defaultTheme)) ? themeConfig.defaultTheme : 'light'
   }
 
   // Reactive State in Pinia
@@ -330,7 +330,7 @@ export const useThemeStore = defineStore('theme', () => {
 
   const resetAllDefaults = () => {
     setLayoutMode('sidebar')
-    selectTheme('system')
+    selectTheme('light')
     resetColors()
     setInputPattern('boxed')
     setButtonPattern('solid', 'md')

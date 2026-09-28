@@ -106,7 +106,7 @@ watch(isMobileSidebarOpen, (isOpen) => {
         <!-- =================================================================== -->
         <!-- MAIN PAGE CONTENT (RouterView)                                      -->
         <!-- =================================================================== -->
-        <main class="p-sm-4 p-md-6 flex-1 w-full" style="max-width: 100%; overflow-x: hidden;"
+        <main class="p-sm-4 p-md-6 flex-1 w-full" style="max-width: 100%; overflow-x: clip;"
           :class="{ 'p-5': !isMobile }">
           <RouterView />
         </main>

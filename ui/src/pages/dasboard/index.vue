@@ -2,8 +2,6 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
-import { useLayout } from '../../composables/useLayout'
-import { useThemeStore } from '../../stores/theme'
 import { axiosInstance, API_BASE_URL } from '../../plugins/axios'
 import { getCookie, getAuthToken, getRefreshToken } from '../../@core/utils/cookies'
 
@@ -11,19 +9,7 @@ import AdminDashboard from '@/views/dashboards/admin/index.vue'
 import OwnerDashboard from '@/views/dashboards/owner/index.vue'
 import OrdinaryDashboard from '@/views/dashboards/ordinary/index.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
-const layout = useLayout()
-const themeStore = useThemeStore()
-
-// Example: Inject globalFunctions and extract accessToken value
-const globalFunctions = inject('globalFunctions')
-console.log(globalFunctions.getToken())
-
-// Extracted Token Claims (status, authPosition, id) from accessToken via globalFunctions.getToken()
-const tokenClaims = computed(() => {
-  return globalFunctions.getToken()
-})
 
 // State for Token Inspection
 const activeAccessToken = ref('')

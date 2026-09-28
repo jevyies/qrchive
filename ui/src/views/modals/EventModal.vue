@@ -178,12 +178,6 @@ const handleStep2Submit = () => {
     return
   }
 
-  // Generate unique event token
-  const generatedToken =
-    'ev-' +
-    Math.random().toString(36).substring(2, 8) +
-    Date.now().toString(36).substring(4, 8)
-
   // Creator User ID from authStore
   const currentUserId = authStore.user?.id || null
 
@@ -193,7 +187,6 @@ const handleStep2Submit = () => {
     name: eventName.value.trim(),
     event_date: eventDate.value,
     eventDate: eventDate.value,
-    token: generatedToken,
     user_id: currentUserId,
     userId: currentUserId,
     max_guest: tier?.maxGuest ?? null,
@@ -202,6 +195,7 @@ const handleStep2Submit = () => {
     group: selectedGroup.value,
     pricing_id: tier?.id ?? null,
     pricingName: tier?.name ?? null,
+    is_unlimited: selectedGroup.value === 'unlimited',
   }
 
   emit('submit', payload)
@@ -209,32 +203,18 @@ const handleStep2Submit = () => {
 </script>
 
 <template>
-  <JModal
-    :model-value="modelValue"
-    :bottom-sheet-on-mobile="true"
-    :show-close="false"
-    max-width="860px"
-    variant="elevated"
-    modal-class="event-vault-modal-root"
-    dialog-class="event-vault-dialog"
-    content-class="event-vault-modal-card"
-    body-class="event-vault-modal-body p-0"
-    @update:model-value="emit('update:modelValue', $event)"
-    @close="handleClose"
-  >
+  <JModal :model-value="modelValue" :bottom-sheet-on-mobile="true" :show-close="false" max-width="860px"
+    variant="elevated" modal-class="event-vault-modal-root" dialog-class="event-vault-dialog"
+    content-class="event-vault-modal-card" body-class="event-vault-modal-body p-0"
+    @update:model-value="emit('update:modelValue', $event)" @close="handleClose">
     <div class="event-vault-container" id="qrchive-event-modal">
       <!-- Subtle Decorative Golden Ray Ambient Highlights -->
       <div class="ambient-glow glow-top-right" aria-hidden="true"></div>
       <div class="ambient-glow glow-bottom-left" aria-hidden="true"></div>
 
       <!-- Floating Squircle Close Button (Upper Right) -->
-      <button
-        type="button"
-        id="close-event-modal-btn"
-        class="floating-close-squircle group"
-        aria-label="Close dialog"
-        @click="handleClose"
-      >
+      <button type="button" id="close-event-modal-btn" class="floating-close-squircle group" aria-label="Close dialog"
+        @click="handleClose">
         <span class="material-symbols-outlined close-icon">close</span>
       </button>
 
@@ -242,11 +222,8 @@ const handleStep2Submit = () => {
       <div class="stepper-progress-wrapper" aria-label="Vault Creation Progress">
         <div class="stepper-progress-track">
           <!-- Step 1 Indicator -->
-          <div
-            class="stepper-node"
-            :class="{ active: currentStep === 1, completed: currentStep > 1 }"
-            @click="currentStep > 1 && (currentStep = 1)"
-          >
+          <div class="stepper-node" :class="{ active: currentStep === 1, completed: currentStep > 1 }"
+            @click="currentStep > 1 && (currentStep = 1)">
             <div class="stepper-circle">
               <span v-if="currentStep > 1" class="material-symbols-outlined check-icon">check</span>
               <span v-else>1</span>
@@ -258,10 +235,7 @@ const handleStep2Submit = () => {
           <div class="stepper-line" :class="{ filled: currentStep >= 2 }"></div>
 
           <!-- Step 2 Indicator -->
-          <div
-            class="stepper-node"
-            :class="{ active: currentStep === 2 }"
-          >
+          <div class="stepper-node" :class="{ active: currentStep === 2 }">
             <div class="stepper-circle">
               <span>2</span>
             </div>
@@ -287,7 +261,8 @@ const handleStep2Submit = () => {
         </h2>
         <p class="modal-editorial-lead">
           <template v-if="currentStep === 1">
-            Simple per-celebration flat pricing tailored to your guest size with zero surprise fees. Grouped by tier category.
+            Simple per-celebration flat pricing tailored to your guest size with zero surprise fees. Grouped by tier
+            category.
           </template>
           <template v-else>
             Enter your celebration name and celebration date to curate your unique archival vault register.
@@ -307,11 +282,8 @@ const handleStep2Submit = () => {
       <div v-if="currentStep === 1" class="wizard-step step-1">
         <div class="pricing-grid">
           <!-- TIER 1: Standard Snap (group: 'standard') -->
-          <div
-            class="pricing-card"
-            :class="{ 'is-selected-card': selectedGroup === 'standard' }"
-            @click="selectedGroup = 'standard'"
-          >
+          <div class="pricing-card" :class="{ 'is-selected-card': selectedGroup === 'standard' }"
+            @click="selectedGroup = 'standard'">
             <div class="pricing-card-top">
               <div class="pricing-title-row">
                 <h3 class="pricing-title">Standard Snap</h3>
@@ -325,30 +297,21 @@ const handleStep2Submit = () => {
               <div class="capacity-selector-block">
                 <label class="capacity-label">Select Guest Size</label>
                 <div class="capacity-buttons">
-                  <button
-                    type="button"
-                    class="cap-btn"
+                  <button type="button" class="cap-btn"
                     :class="{ active: selectedGroup === 'standard' && selectedStandardCap === '100' }"
-                    @click.stop="handleSelectTier('standard', '100')"
-                  >
+                    @click.stop="handleSelectTier('standard', '100')">
                     <span class="cap-name">Up to 100</span>
                     <span class="cap-price">{{ resolvedPricing.standard['100']?.formattedPrice || '₱500' }}</span>
                   </button>
-                  <button
-                    type="button"
-                    class="cap-btn"
+                  <button type="button" class="cap-btn"
                     :class="{ active: selectedGroup === 'standard' && selectedStandardCap === '300' }"
-                    @click.stop="handleSelectTier('standard', '300')"
-                  >
+                    @click.stop="handleSelectTier('standard', '300')">
                     <span class="cap-name">Up to 300</span>
                     <span class="cap-price">{{ resolvedPricing.standard['300']?.formattedPrice || '₱800' }}</span>
                   </button>
-                  <button
-                    type="button"
-                    class="cap-btn"
+                  <button type="button" class="cap-btn"
                     :class="{ active: selectedGroup === 'standard' && selectedStandardCap === 'plus' }"
-                    @click.stop="handleSelectTier('standard', 'plus')"
-                  >
+                    @click.stop="handleSelectTier('standard', 'plus')">
                     <span class="cap-name">300+ guests</span>
                     <span class="cap-price">{{ resolvedPricing.standard['plus']?.formattedPrice || '₱1,000' }}</span>
                   </button>
@@ -380,12 +343,9 @@ const handleStep2Submit = () => {
               </ul>
             </div>
 
-            <button
-              type="button"
-              class="btn-tier-select"
+            <button type="button" class="btn-tier-select"
               :class="selectedGroup === 'standard' ? 'btn-tier-selected' : 'btn-tier-ghost'"
-              @click.stop="handleSelectTier('standard', selectedStandardCap, true)"
-            >
+              @click.stop="handleSelectTier('standard', selectedStandardCap, true)">
               <span v-if="selectedGroup === 'standard'">
                 Selected • {{ resolvedPricing.standard[selectedStandardCap]?.formattedPrice }}
               </span>
@@ -396,11 +356,8 @@ const handleStep2Submit = () => {
           </div>
 
           <!-- TIER 2: Unlimited Snap (group: 'unlimited') -->
-          <div
-            class="pricing-card featured-pricing-card"
-            :class="{ 'is-selected-card': selectedGroup === 'unlimited' }"
-            @click="selectedGroup = 'unlimited'"
-          >
+          <div class="pricing-card featured-pricing-card" :class="{ 'is-selected-card': selectedGroup === 'unlimited' }"
+            @click="selectedGroup = 'unlimited'">
             <!-- Top Gold Floating Badge -->
             <div class="cherished-badge">
               <span>♥</span>
@@ -421,30 +378,21 @@ const handleStep2Submit = () => {
               <div class="capacity-selector-block">
                 <label class="capacity-label">Select Guest Size</label>
                 <div class="capacity-buttons">
-                  <button
-                    type="button"
-                    class="cap-btn"
+                  <button type="button" class="cap-btn"
                     :class="{ active: selectedGroup === 'unlimited' && selectedUnlimitedCap === '100' }"
-                    @click.stop="handleSelectTier('unlimited', '100')"
-                  >
+                    @click.stop="handleSelectTier('unlimited', '100')">
                     <span class="cap-name">Up to 100</span>
                     <span class="cap-price">{{ resolvedPricing.unlimited['100']?.formattedPrice || '₱1,000' }}</span>
                   </button>
-                  <button
-                    type="button"
-                    class="cap-btn"
+                  <button type="button" class="cap-btn"
                     :class="{ active: selectedGroup === 'unlimited' && selectedUnlimitedCap === '300' }"
-                    @click.stop="handleSelectTier('unlimited', '300')"
-                  >
+                    @click.stop="handleSelectTier('unlimited', '300')">
                     <span class="cap-name">Up to 300</span>
                     <span class="cap-price">{{ resolvedPricing.unlimited['300']?.formattedPrice || '₱1,500' }}</span>
                   </button>
-                  <button
-                    type="button"
-                    class="cap-btn"
+                  <button type="button" class="cap-btn"
                     :class="{ active: selectedGroup === 'unlimited' && selectedUnlimitedCap === 'plus' }"
-                    @click.stop="handleSelectTier('unlimited', 'plus')"
-                  >
+                    @click.stop="handleSelectTier('unlimited', 'plus')">
                     <span class="cap-name">300+ guests</span>
                     <span class="cap-price">{{ resolvedPricing.unlimited['plus']?.formattedPrice || '₱2,000' }}</span>
                   </button>
@@ -484,11 +432,8 @@ const handleStep2Submit = () => {
               </ul>
             </div>
 
-            <button
-              type="button"
-              class="btn-tier-select btn-tier-primary"
-              @click.stop="handleSelectTier('unlimited', selectedUnlimitedCap, true)"
-            >
+            <button type="button" class="btn-tier-select btn-tier-primary"
+              @click.stop="handleSelectTier('unlimited', selectedUnlimitedCap, true)">
               <span v-if="selectedGroup === 'unlimited'">
                 Selected • {{ resolvedPricing.unlimited[selectedUnlimitedCap]?.formattedPrice }}
               </span>
@@ -502,13 +447,7 @@ const handleStep2Submit = () => {
 
         <!-- Navigation Actions -->
         <div class="step-actions-row single-action mt-6">
-          <JBtn
-            id="step1-next-btn"
-            type="button"
-            block
-            class="submit-profile-btn"
-            @click="handleStep1Next"
-          >
+          <JBtn id="step1-next-btn" type="button" block class="submit-profile-btn" @click="handleStep1Next">
             <span>Continue to Event Details ({{ currentSelectedTier?.formattedPrice || 'Select Tier' }})</span>
             <span class="material-symbols-outlined submit-arrow">arrow_forward</span>
           </JBtn>
@@ -544,17 +483,10 @@ const handleStep2Submit = () => {
 
             <!-- Input 1: name -->
             <div class="field-item">
-              <JInput
-                id="event-name"
-                v-model="eventName"
-                label="Celebration Title"
-                placeholder="e.g., Charlotte & Alexander Matrimony"
-                required
-                autocomplete="off"
-                container-class="profile-input-container"
-                input-class="profile-input-control"
-                label-class="profile-field-label"
-              >
+              <JInput id="event-name" v-model="eventName" label="Celebration Title"
+                placeholder="e.g., Charlotte & Alexander Matrimony" required autocomplete="off"
+                container-class="profile-input-container" input-class="profile-input-control"
+                label-class="profile-field-label">
                 <template #label>
                   <span class="label-with-req">Celebration Title <span class="required-star">*</span></span>
                 </template>
@@ -566,16 +498,9 @@ const handleStep2Submit = () => {
 
             <!-- Input 2: event_date -->
             <div class="field-item">
-              <JInput
-                id="event-date"
-                v-model="eventDate"
-                type="date"
-                label="Celebration Date"
-                required
-                container-class="profile-input-container"
-                input-class="profile-input-control"
-                label-class="profile-field-label"
-              >
+              <JInput id="event-date" v-model="eventDate" type="date" label="Celebration Date" required
+                container-class="profile-input-container" input-class="profile-input-control"
+                label-class="profile-field-label">
                 <template #label>
                   <span class="label-with-req">Celebration Date <span class="required-star">*</span></span>
                 </template>
@@ -585,23 +510,13 @@ const handleStep2Submit = () => {
 
           <!-- Navigation Actions -->
           <div class="step-actions-row dual-action">
-            <button
-              type="button"
-              id="step2-back-btn"
-              class="back-step-btn"
-              :disabled="loading"
-              @click="handleStep2Back"
-            >
+            <button type="button" id="step2-back-btn" class="back-step-btn" :disabled="loading"
+              @click="handleStep2Back">
               <span class="material-symbols-outlined">arrow_back</span>
               <span>Back to Pricing</span>
             </button>
 
-            <JBtn
-              id="submit-event-btn"
-              type="submit"
-              class="submit-profile-btn flex-grow"
-              :loading="loading"
-            >
+            <JBtn id="submit-event-btn" type="submit" class="submit-profile-btn flex-grow" :loading="loading">
               <span>Generate QR Vault</span>
               <span class="material-symbols-outlined submit-arrow">qr_code_2</span>
             </JBtn>
@@ -794,6 +709,7 @@ const handleStep2Submit = () => {
       color: #ffffff;
       box-shadow: 0 0 0 4px rgba(119, 90, 25, 0.18);
     }
+
     .stepper-label {
       color: var(--primary, #775a19);
       font-weight: 700;
@@ -806,6 +722,7 @@ const handleStep2Submit = () => {
       border-color: var(--primary, #775a19);
       color: #ffffff;
     }
+
     .stepper-label {
       color: var(--text-primary, #1f1b18);
     }

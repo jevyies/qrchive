@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { getDemoPhotosCount } from '@/utils/demoDb'
+import { useEventVaultStore } from '@/stores/eventVault'
 
 const props = defineProps({
     isOpen: {
@@ -35,6 +36,18 @@ const props = defineProps({
     captureExperience: {
         type: String,
         default: 'quick',
+    },
+    quickPhotosLeft: {
+        type: Number,
+        default: 0,
+    },
+    uploadedQuickPhotos: {
+        type: Array,
+        default: () => [],
+    },
+    pendingQuickPhotos: {
+        type: Array,
+        default: () => [],
     },
 })
 
@@ -73,6 +86,24 @@ const isVisible = computed(() => Boolean(props.isOpen || props.modelValue))
 
 const isQuickExperience = computed(() => {
     return String(props.captureExperience || '').toLowerCase().trim() === 'quick'
+})
+
+const eventVaultStore = useEventVaultStore()
+const sessionCaptureCount = ref(0)
+
+const isCaptureLimitReached = computed(() => {
+    if (isQuickExperience.value) {
+        if (props.quickPhotosLeft <= 0) return true
+        const uploaded = (props.uploadedQuickPhotos && props.uploadedQuickPhotos.length > 0)
+            ? props.uploadedQuickPhotos.length
+            : (eventVaultStore.uploadedQuickPhotos?.length || 0)
+        const pending = props.pendingQuickPhotos?.length || 0
+        const total = uploaded + Math.max(pending, sessionCaptureCount.value)
+        return total >= props.quickPhotosLeft
+    } else {
+        // When not in quick mode (e.g. checklist mode), limit only by 1 capture
+        return sessionCaptureCount.value >= 1
+    }
 })
 
 // Camera hardware state
@@ -284,6 +315,8 @@ const toggleTimer = () => {
 
 // Execute single photo capture
 const executeCapture = async () => {
+    if (isCaptureLimitReached.value) return
+
     isFlashActive.value = true
     isViewfinderScaled.value = true
 
@@ -337,6 +370,7 @@ const executeCapture = async () => {
         isViewfinderScaled.value = false
     }, 120)
 
+    sessionCaptureCount.value++
     emit('capture', {
         type: 'photo',
         isVideo: false,
@@ -397,7 +431,7 @@ const generateFallbackVideoBlob = async () => {
 
 // Start video recording
 const startVideoRecording = async () => {
-    if (isRecording.value) return
+    if (isRecording.value || isCaptureLimitReached.value) return
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate([40, 30, 40])
     }
@@ -512,6 +546,7 @@ const stopVideoRecording = async () => {
         const fileName = `video_${Date.now()}.${ext}`
         const videoUrl = blob ? URL.createObjectURL(blob) : thumbnailDataUrl
 
+        sessionCaptureCount.value++
         emit('capture', {
             type: 'video',
             isVideo: true,
@@ -547,6 +582,7 @@ const stopVideoRecording = async () => {
 // - VIDEO mode: starts recording if idle; if recording, pauses/stops recording and uploads!
 const triggerShutter = () => {
     if (activeCameraMode.value === 'PHOTO') {
+        if (isCaptureLimitReached.value) return
         if (countdownSeconds.value !== null) return
 
         if (currentTimer.value > 0) {
@@ -561,7 +597,9 @@ const triggerShutter = () => {
                     clearInterval(timerInterval)
                     timerInterval = null
                     countdownSeconds.value = null
-                    executeCapture()
+                    if (!isCaptureLimitReached.value) {
+                        executeCapture()
+                    }
                 }
             }, 1000)
         } else {
@@ -573,6 +611,7 @@ const triggerShutter = () => {
             // "when 30 seconds not hit and the user press the capture button, it will pause the recording and it will also upload"
             stopVideoRecording()
         } else {
+            if (isCaptureLimitReached.value) return
             if (currentTimer.value > 0 && countdownSeconds.value === null) {
                 countdownSeconds.value = currentTimer.value
                 timerInterval = setInterval(() => {
@@ -585,7 +624,9 @@ const triggerShutter = () => {
                         clearInterval(timerInterval)
                         timerInterval = null
                         countdownSeconds.value = null
-                        startVideoRecording()
+                        if (!isCaptureLimitReached.value) {
+                            startVideoRecording()
+                        }
                     }
                 }, 1000)
             } else {
@@ -604,6 +645,7 @@ const openGallery = () => {
 
 // Close camera
 const handleClose = () => {
+    sessionCaptureCount.value = 0
     if (isRecording.value) {
         stopVideoRecording()
     }
@@ -706,6 +748,7 @@ watch(
     isVisible,
     (val) => {
         if (val) {
+            sessionCaptureCount.value = 0
             fetchLocalDemoCount()
             nextTick(() => {
                 startCameraStream()
@@ -824,13 +867,17 @@ onBeforeUnmount(() => {
                         </div>
                         <p class="camera-mission-desc">
                             {{
-                                isRecording
-                                    ? 'Recording (Max 30s) • Tap capture or stop to finish'
-                                    : (activeMoment
-                                        ? activeMoment.description
-                                        : (activeCameraMode === 'VIDEO'
-                                            ? 'Record up to 30s video moment for the wedding vault'
-                                            : 'Capture their magical spin under chandeliers'))
+                                isCaptureLimitReached && !isRecording
+                                    ? (isQuickExperience
+                                        ? `Quick snapshot limit reached (${quickPhotosLeft}/${quickPhotosLeft})`
+                                        : 'Moment captured (1/1) • Tap close to return to checklist')
+                                    : (isRecording
+                                        ? 'Recording (Max 30s) • Tap capture or stop to finish'
+                                        : (activeMoment
+                                            ? activeMoment.description
+                                            : (activeCameraMode === 'VIDEO'
+                                                ? 'Record up to 30s video moment for the wedding vault'
+                                                : 'Capture their magical spin under chandeliers')))
                             }}
                         </p>
                     </div>
@@ -890,6 +937,12 @@ onBeforeUnmount(() => {
                         </span>
                     </div>
 
+                    <!-- Limit Notice if reached -->
+                    <div v-if="isCaptureLimitReached && !isRecording" class="camera-limit-badge">
+                        <span class="material-symbols-outlined camera-limit-icon">lock</span>
+                        <span>{{ isQuickExperience ? `Limit reached (${quickPhotosLeft}/${quickPhotosLeft} Snaps)` : 'Limit reached: 1 capture per moment' }}</span>
+                    </div>
+
                     <!-- Shutter Row & Triggers -->
                     <div class="camera-controls-row">
                         <!-- Flip Camera -->
@@ -917,12 +970,15 @@ onBeforeUnmount(() => {
                                 :class="{
                                     'is-video-mode': activeCameraMode === 'VIDEO',
                                     'is-recording': isRecording,
+                                    'is-disabled': isCaptureLimitReached && !isRecording,
                                 }"
+                                :disabled="isCaptureLimitReached && !isRecording"
                                 type="button"
                                 @click="triggerShutter">
                                 <span class="camera-shutter-core" :class="{
                                     'core-video': activeCameraMode === 'VIDEO' && !isRecording,
                                     'core-recording': isRecording,
+                                    'core-disabled': isCaptureLimitReached && !isRecording,
                                 }">
                                     <span v-if="!isRecording" class="camera-shutter-ring"></span>
                                 </span>

@@ -59,6 +59,18 @@ export async function initDbTables() {
     await client`
       ALTER TABLE events ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2);
     `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS upload_expiry TIMESTAMP WITH TIME ZONE;
+    `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS photo_expiry TIMESTAMP WITH TIME ZONE;
+    `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS is_unlimited BOOLEAN DEFAULT FALSE;
+    `;
+    await client`
+      ALTER TABLE snap_guests ADD COLUMN IF NOT EXISTS guest_code VARCHAR(255);
+    `;
 
     // Seed default pricing packages if table is currently empty
     const pricingCountResult = await client`

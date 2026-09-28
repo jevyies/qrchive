@@ -11,14 +11,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { axiosInstance } from '@/plugins/axios'
 import { useEventVaultStore } from '@/stores/eventVault'
-import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 import LightBox from '@/views/LightBox.vue'
 import Camera from '@/views/Camera.vue'
+import EventTab from '@/views/EventTab.vue'
 import {
     saveDemoQuickPhoto,
-    getDemoQuickPhotos,
     saveDemoChecklistMoment,
-    getDemoChecklistMoments,
     getDemoPhotosCount,
     clearDemoData,
 } from '@/utils/demoDb'
@@ -28,8 +26,14 @@ const route = useRoute()
 const router = useRouter()
 const eventVaultStore = useEventVaultStore()
 const { uploadedQuickPhotos, moments } = storeToRefs(eventVaultStore)
+const maxNumberOfPhotosAllowed = 30;
 
 const currentWedding = computed(() => eventVaultStore.currentWedding)
+
+const quickPhotosLeft = computed(() => {
+    const diff = maxNumberOfPhotosAllowed - moments.value.length
+    return diff > 0 ? diff : 0
+})
 
 // Experience Switcher state: 'checklist' or 'quick'
 const captureMode = ref('quick')
@@ -473,11 +477,6 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
     }
 }
 
-// Fetch existing uploaded photos for current event via centralized store
-const fetchExistingPhotos = async () => {
-    await eventVaultStore.fetchPhotos({ eventId: route.params.id, limit: 10 })
-}
-
 // LightBox State & Handlers
 const isLightboxOpen = ref(false)
 const lightboxItems = ref([])
@@ -585,6 +584,10 @@ const latestGalleryImage = computed(() => {
 })
 
 const openCamera = (moment) => {
+    const isQuick = !moment || moment.id === 'quick'
+    if (isQuick && captureMode.value === 'quick' && uploadedQuickPhotos.value.length >= quickPhotosLeft.value) {
+        return
+    }
     if (isDemoRoute.value) {
         updateDemoGalleryCount()
     }
@@ -604,10 +607,6 @@ const handleCameraClose = () => {
     if (captureMode.value === 'quick' && pendingQuickPhotos.value.length > 0 && !isUploadingQuick.value) {
         startQuickUploads()
     }
-}
-
-const closeCamera = () => {
-    handleCameraClose()
 }
 
 const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, videoUrl, duration, fileName, mimeType }) => {
@@ -666,8 +665,8 @@ const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, video
         }
     }
 
-    // In checklist mode: record only one entry/video, then close camera viewfinder
-    if (captureMode.value !== 'quick' && currentMoment && currentMoment.id !== 'quick') {
+    // In checklist mode / non-quick mode: record only one entry/video, then close camera viewfinder
+    if (captureMode.value !== 'quick') {
         setTimeout(() => {
             isCameraOpen.value = false
         }, 500)
@@ -685,8 +684,6 @@ const openGalleryPicker = () => {
 const handleFileChange = (e) => {
     const files = e.target.files
     if (files && files.length > 0) {
-        const rawTitle = currentTargetTitle.value || currentWedding.value.couple
-
         const reader = new FileReader()
         reader.onload = (event) => {
             if (event.target && event.target.result) {
@@ -713,70 +710,10 @@ const handleFileChange = (e) => {
     }
 }
 
-// Demo category mapping for demo checklist items
-const demoCategoryMap = [
-    { id: 1, category: 'grand-entrance', label: 'Grand Entrance', keywords: ['entrance'] },
-    { id: 2, category: 'first-dance', label: 'First Dance', keywords: ['first dance'] },
-    { id: 3, category: 'dance-with-parents', label: 'Dance with Parents', keywords: ['parent', 'parents'] },
-    { id: 4, category: 'guests-laughing', label: 'Guests Laughing', keywords: ['laughing', 'guests'] },
-    { id: 5, category: 'emcee', label: 'Emcee on Stage', keywords: ['emcee', 'mc'] },
-    { id: 6, category: 'grooms-surprise', label: "Groom's Surprise", keywords: ['groom'] },
-    { id: 7, category: 'brides-surprise', label: "Bride's Surprise", keywords: ['bride'] },
-    { id: 8, category: 'cake-cutting', label: 'Cake Cutting', keywords: ['cake'] },
-    { id: 9, category: 'performances', label: 'Performances', keywords: ['performance', 'band'] },
-    { id: 10, category: 'couple-message', label: "Couple's Message", keywords: ['message'] },
-]
-
-function getDemoCategoryForItem(item, index) {
-    if (!item) return { category: 'reception', label: 'Reception' }
-    const titleLower = (item.name || item.title || '').toLowerCase()
-    const byId = demoCategoryMap.find((m) => Number(m.id) === Number(item.id))
-    if (byId) return { category: byId.category, label: byId.label }
-
-    const byKeyword = demoCategoryMap.find((m) => m.keywords.some((k) => titleLower.includes(k)))
-    if (byKeyword) return { category: byKeyword.category, label: byKeyword.label }
-
-    const byIndex = demoCategoryMap[index]
-    if (byIndex) return { category: byIndex.category, label: byIndex.label }
-
-    return { category: 'reception', label: 'Reception' }
-}
-
-const defaultDemoChecklist = [
-    { id: 1, name: "Couple's Grand Entrance", description: "Capture the high-energy moment the newlyweds enter the reception hall." },
-    { id: 2, name: "Couple's First Dance", description: "The romantic, intimate spotlight dance beneath the chandeliers." },
-    { id: 3, name: "Dance with Parents", description: "Tender, emotional waltz with mother and father." },
-    { id: 4, name: "Guests Laughing", description: "Candid smiles, clinking glasses, and genuine banquet reactions." },
-    { id: 5, name: "The Emcee on Stage", description: "Master of Ceremonies keeping the reception lively and fun." },
-    { id: 6, name: "Groom's Surprise Number", description: "Special choreographed serenade or musical performance." },
-]
-// Moments Checklist Data from Centralized Store (provided via storeToRefs)
-
-// Helper to populate moments.value from checklist list (id, name, description)
-const populateMoments = (list) => {
-    eventVaultStore.populateMoments(list)
-}
-
-// Fetch checklist items (only id, name, description) from backend
-const fetchChecklist = async (eventId) => {
-    await eventVaultStore.fetchChecklist(eventId)
-}
-
 // Progress calculations
 const capturedCount = computed(() => eventVaultStore.capturedCount)
 const totalCount = computed(() => eventVaultStore.totalCount)
 const progressPercent = computed(() => eventVaultStore.progressPercent)
-
-const navigateToLiveVault = () => {
-    const eventId = route.params.id || 'demo-event'
-    router.push(`/event/${eventId}/live-vault`)
-}
-
-// Fetch existing demo photos from IndexedDB
-const fetchDemoExistingPhotos = async () => {
-    await eventVaultStore.fetchDemoPhotos()
-    await updateDemoGalleryCount()
-}
 
 // Reset Demo State (only for demo-event)
 const isResettingDemo = ref(false)
@@ -874,7 +811,8 @@ onMounted(async () => {
 
     // Centralized store initialization: fetches checklist & initial photos once
     // Does NOT re-query or discard photos when toggling tabs!
-    await eventVaultStore.fetchInitialData(eventId)
+    const { guestCode } = getGuestCredentials()
+    await eventVaultStore.fetchInitialGuestData(eventId, guestCode)
     if (eventId === 'demo-event') {
         await updateDemoGalleryCount()
     }
@@ -973,48 +911,10 @@ onMounted(async () => {
                     <!-- Quick Capture Prominent CTA Section -->
                     <div v-show="captureMode === 'quick'" id="quick-capture-section" class="checklist-quick-section">
                         <!-- Horizontally Scrollable Stream of Uploaded Photos -->
-                        <div v-if="uploadedQuickPhotos.length > 0" id="quick-uploaded-stream-container"
-                            class="quick-uploaded-stream-container">
-                            <div class="quick-uploaded-stream-header">
-                                <div class="quick-uploaded-stream-title-group">
-                                    <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
-                                    <span class="quick-uploaded-stream-title">Uploaded Snaps</span>
-                                </div>
-                                <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/30</span>
-                            </div>
-                            <div ref="uploadedStreamRef" class="quick-uploaded-stream">
-                                <div v-for="(photo, index) in uploadedQuickPhotos" :key="photo.id || index"
-                                    class="quick-uploaded-item" :class="{ 'is-newly-added': photo.isNew }"
-                                    @click="openQuickPhotoLightbox(index)">
-                                    <img :src="photo.url" alt="Uploaded moment" class="quick-uploaded-img"
-                                        @error="(e) => { if (photo.fullUrl && e.target.src !== photo.fullUrl) e.target.src = photo.fullUrl }" />
-                                    <!-- Video Play Badge if Video -->
-                                    <div v-if="photo.isVideo" class="quick-video-badge">
-                                        <span class="material-symbols-outlined">play_arrow</span>
-                                    </div>
-                                    <div class="quick-uploaded-overlay">
-                                        <span class="material-symbols-outlined quick-uploaded-check">check_circle</span>
-                                        <span class="quick-uploaded-time">{{ photo.uploadedAt || 'Just now' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="checklist-quick-card">
-                            <!-- When no photos are stacked, show original icon/title/desc -->
-                            <template v-if="pendingQuickPhotos.length === 0">
-                                <div class="checklist-quick-card__icon-wrap">
-                                    <span class="material-symbols-outlined"
-                                        style="font-variation-settings: 'FILL' 1;">photo_camera</span>
-                                </div>
-                                <h2 class="checklist-quick-card__title">Instant Photo Drop</h2>
-                                <p class="checklist-quick-card__desc">
-                                    Capture spontaneous laughter, candid toasts, and celebration moments as they happen.
-                                </p>
-                            </template>
-
+                        <div>
                             <!-- When quick photos are snapped, hide original content and show stacked photos deck -->
-                            <div v-else class="quick-stack-preview">
+                            <div v-if="pendingQuickPhotos.length" class="quick-stack-preview">
                                 <div class="quick-stack-deck">
                                     <div v-for="(photo, index) in pendingQuickPhotos.slice(0, 3)" :key="photo.id"
                                         class="quick-stack-card" :class="[
@@ -1067,13 +967,13 @@ onMounted(async () => {
                                 </div>
                                 <div class="quick-stack-status-info">
                                     <p class="quick-stack-status-title">
-                                        {{ isUploadingQuick ? `Uploading photo to Event #5...
+                                        {{ isUploadingQuick ? `Uploading photo...
                                         (${pendingQuickPhotos[0]?.uploadPercent || 0}%)` :
                                             `${pendingQuickPhotos.length} photo${pendingQuickPhotos.length > 1 ? 's' : ''}
                                         captured` }}
                                     </p>
                                     <p class="quick-stack-status-hint">
-                                        {{ isUploadingQuick ? 'Streaming directly to Cloudflare R2 bucket' :
+                                        {{ isUploadingQuick ? 'Syncing directly to the gallery...' :
                                             'Tap Close in camera to automatically sync' }}
                                     </p>
                                 </div>
@@ -1081,11 +981,41 @@ onMounted(async () => {
 
                             <div class="checklist-quick-card__actions">
                                 <button class="checklist-quick-card__submit-btn" type="button"
+                                    :disabled="uploadedQuickPhotos.length >= quickPhotosLeft"
                                     @click="openCamera({ id: 'quick', number: '⚡', title: 'Quick Snapshot', description: 'Instant candid capture saved to vault' })">
                                     <span class="material-symbols-outlined"
-                                        style="font-variation-settings: 'FILL' 1;">photo_camera</span>
-                                    <span>Snap &amp; Share Now</span>
+                                        style="font-variation-settings: 'FILL' 1;">{{ uploadedQuickPhotos.length >=
+                                            quickPhotosLeft ? 'lock' : 'photo_camera' }}</span>
+                                    <span>{{ uploadedQuickPhotos.length >= quickPhotosLeft ? 'Photo Limit Reached' :
+                                        'Snap & Share Now' }}</span>
                                 </button>
+                            </div>
+                        </div>
+                        <div v-if="uploadedQuickPhotos.length > 0" id="quick-uploaded-stream-container"
+                            class="quick-uploaded-stream-container">
+                            <div class="quick-uploaded-stream-header">
+                                <div class="quick-uploaded-stream-title-group">
+                                    <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
+                                    <span class="quick-uploaded-stream-title">Uploaded Snaps</span>
+                                </div>
+                                <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/{{
+                                    quickPhotosLeft }}</span>
+                            </div>
+                            <div ref="uploadedStreamRef" class="quick-uploaded-stream">
+                                <div v-for="(photo, index) in uploadedQuickPhotos" :key="photo.id || index"
+                                    class="quick-uploaded-item" :class="{ 'is-newly-added': photo.isNew }"
+                                    @click="openQuickPhotoLightbox(index)">
+                                    <img :src="photo.url" alt="Uploaded moment" class="quick-uploaded-img"
+                                        @error="(e) => { if (photo.fullUrl && e.target.src !== photo.fullUrl) e.target.src = photo.fullUrl }" />
+                                    <!-- Video Play Badge if Video -->
+                                    <div v-if="photo.isVideo" class="quick-video-badge">
+                                        <span class="material-symbols-outlined">play_arrow</span>
+                                    </div>
+                                    <div class="quick-uploaded-overlay">
+                                        <span class="material-symbols-outlined quick-uploaded-check">check_circle</span>
+                                        <span class="quick-uploaded-time">{{ photo.uploadedAt || 'Just now' }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1210,24 +1140,14 @@ onMounted(async () => {
         </main>
 
         <!-- Bottom Navigation Bar -->
-        <nav class="checklist-bottom-nav" data-active-classes="text-primary">
-            <div class="checklist-bottom-nav__inner">
-                <a class="checklist-bottom-nav__item is-active" href="#" @click.prevent="openCamera(null)">
-                    <span class="material-symbols-outlined checklist-bottom-nav__icon"
-                        style="font-variation-settings: 'FILL' 1;">photo_camera</span>
-                    <span class="checklist-bottom-nav__label">Capture</span>
-                </a>
-                <a class="checklist-bottom-nav__item is-inactive" href="#" @click.prevent="navigateToLiveVault">
-                    <span class="material-symbols-outlined checklist-bottom-nav__icon">photo_library</span>
-                    <span class="checklist-bottom-nav__label">Live Vault</span>
-                </a>
-            </div>
-        </nav>
+        <EventTab @capture="openCamera(null)" />
 
         <!-- Fullscreen Camera Viewfinder Modal Component -->
         <Camera :is-open="isCameraOpen" :active-moment="activeMoment" :wedding="currentWedding"
             :gallery-image="latestGalleryImage" :gallery-count="galleryCount" :capture-experience="captureMode"
-            @close="handleCameraClose" @capture="handleCameraCapture" @open-gallery="openGalleryPicker" />
+            :quick-photos-left="quickPhotosLeft" :uploaded-quick-photos="uploadedQuickPhotos"
+            :pending-quick-photos="pendingQuickPhotos" @close="handleCameraClose" @capture="handleCameraCapture"
+            @open-gallery="openGalleryPicker" />
 
         <!-- Fullscreen LightBox Modal Component -->
         <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"

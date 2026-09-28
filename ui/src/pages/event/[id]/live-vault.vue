@@ -12,6 +12,7 @@ import { useIntersectionObserver } from '@vueuse/core'
 import { useEventVaultStore, extractPhotoCategoryKey } from '@/stores/eventVault'
 import { getStoredEventSession, saveStoredEventSession } from '@/utils/device'
 import LightBox from '@/views/LightBox.vue'
+import EventTab from '@/views/EventTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -279,12 +280,10 @@ onBeforeUnmount(() => {
                         <div v-for="item in filteredMedia" :key="item.id" class="vault-card"
                             @click="openLightbox(item)">
                             <!-- Fallback video frame if video has no image thumbnail or thumbnail is a video URL -->
-                            <video v-if="item.type === 'video' && (!item.thumbnailUrl || item.thumbnailUrl.endsWith('.mp4') || item.thumbnailUrl.endsWith('.webm'))"
-                                class="vault-card__image vault-card__video-preview"
-                                :src="item.videoUrl || item.fullUrl"
-                                muted
-                                playsinline
-                                preload="metadata">
+                            <video
+                                v-if="item.type === 'video' && (!item.thumbnailUrl || item.thumbnailUrl.endsWith('.mp4') || item.thumbnailUrl.endsWith('.webm'))"
+                                class="vault-card__image vault-card__video-preview" :src="item.videoUrl || item.fullUrl"
+                                muted playsinline preload="metadata">
                             </video>
 
                             <!-- Media Image Thumbnail (100% full bleed, zero padding) -->
@@ -338,23 +337,7 @@ onBeforeUnmount(() => {
         </main>
 
         <!-- Bottom Navigation Bar -->
-        <nav class="vault-bottom-nav" data-active-classes="text-primary font-semibold">
-            <div class="vault-bottom-nav__inner">
-                <!-- Capture Tab: Inactive (routes to quests) -->
-                <a aria-label="Navigate to Photo Checklist & Capture" class="vault-bottom-nav__item is-inactive"
-                    href="#" @click.prevent="navigateToCapture">
-                    <span class="material-symbols-outlined vault-bottom-nav__icon">photo_camera</span>
-                    <span class="vault-bottom-nav__label">Capture</span>
-                </a>
-
-                <!-- Live Vault Tab: Active -->
-                <a aria-current="page" aria-label="Active page: Live Vault" class="vault-bottom-nav__item is-active"
-                    href="#" @click.prevent>
-                    <span class="material-symbols-outlined vault-bottom-nav__icon">photo_library</span>
-                    <span class="vault-bottom-nav__label">Live Vault</span>
-                </a>
-            </div>
-        </nav>
+        <EventTab />
 
         <!-- Fullscreen Lightbox Modal Component -->
         <LightBox :is-open="isLightboxOpen" :items="filteredMedia" :initial-index="activeLightboxIndex"

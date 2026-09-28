@@ -106,6 +106,9 @@ router.beforeEach((to) => {
     to.path.startsWith('/event') ||
     to.path === '/quests' ||
     to.path === '/404' ||
+    to.path === '/privacy-policy' ||
+    to.path === '/terms-of-service' ||
+    to.path === '/security-standards' ||
     to.meta?.public
   ) {
     if (authenticated && (to.path === '/login' || to.path === '/register')) {

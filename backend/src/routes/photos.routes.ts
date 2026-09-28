@@ -3,10 +3,11 @@ import { eq, desc, and, or, sql } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { db, snapPhotos, snapGuests, photos, events, snapPhotoLikes, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
+import { db, snapPhotos, snapGuests, snapChecklist, photos, events, snapPhotoLikes, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
 import { R2Service } from '../services/r2.service';
 import { BatchUploadService } from '../services/batchUpload.service';
 import { photoUploadQueue } from '../queues/photoUpload.queue';
+import { enqueueZipArchiveJob, getZipArchiveJobStatus, ZIP_STORAGE_DIR } from '../queues/zipArchive.queue';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 import { wsManager } from '../services/websocket.service';
 
@@ -95,6 +96,69 @@ export function formatSimplifiedPhoto(photo: {
   };
 }
 
+/**
+ * Formats a photo record without like stats (for guest-specific photo list):
+ * { id, thumbnailUrl, fullUrl, uploadedBy, createdAt, url, checklistId, fileName, mimeType, isVideo, type }
+ */
+export function formatSimplifiedGuestPhoto(photo: {
+  id: number;
+  url: string;
+  storageKey?: string | null;
+  uploadedBy?: string | null;
+  createdAt: string | Date;
+  checklistId?: number | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  thumbnailUrl?: string | null;
+}) {
+  let fullUrl = photo.url;
+  if (!fullUrl || fullUrl.includes('r2.cloudflarestorage.com')) {
+    fullUrl = R2Service.getPublicUrl(photo.storageKey || '', photo.id);
+  }
+
+  const isVideo = Boolean(
+    photo.mimeType?.startsWith('video/') ||
+    photo.fileName?.endsWith('.mp4') ||
+    photo.fileName?.endsWith('.webm') ||
+    fullUrl.endsWith('.mp4') ||
+    fullUrl.endsWith('.webm')
+  );
+
+  let thumbnailUrl = photo.thumbnailUrl || '';
+  if (!thumbnailUrl) {
+    if (isVideo && photo.storageKey) {
+      const thumbKey = photo.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+      thumbnailUrl = R2Service.getPublicUrl(thumbKey);
+    } else if (isVideo) {
+      thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
+    } else {
+      thumbnailUrl = formatThumbnailUrl(fullUrl);
+    }
+  }
+
+  const uploadedByName = photo.uploadedBy || 'Guest';
+  const createdAtStr =
+    typeof photo.createdAt === 'string'
+      ? photo.createdAt
+      : photo.createdAt instanceof Date
+        ? photo.createdAt.toISOString()
+        : String(photo.createdAt);
+
+  return {
+    id: photo.id,
+    thumbnailUrl,
+    fullUrl,
+    uploadedBy: uploadedByName,
+    createdAt: createdAtStr,
+    url: fullUrl,
+    checklistId: photo.checklistId || null,
+    fileName: photo.fileName || null,
+    mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+    isVideo,
+    type: isVideo ? 'video' : 'photo',
+  };
+}
+
 const TEMP_CHUNKS_DIR = path.join(__dirname, '../../uploads/temp_chunks');
 
 // Ensure temporary staging directory exists
@@ -115,12 +179,22 @@ async function resolveSnapGuest(
   eventId: number,
   guestName?: string,
   deviceSerial?: string | null,
-  deviceName?: string | null
+  deviceName?: string | null,
+  guestCode?: string | null
 ): Promise<number> {
   const name = (guestName || 'Guest').trim() || 'Guest';
 
   let existingGuest = null;
-  if (deviceSerial) {
+  if (guestCode) {
+    existingGuest = await db.query.snapGuests.findFirst({
+      where: and(
+        eq(snapGuests.eventId, eventId),
+        eq(snapGuests.guestCode, guestCode)
+      ),
+    });
+  }
+
+  if (!existingGuest && deviceSerial) {
     existingGuest = await db.query.snapGuests.findFirst({
       where: and(
         eq(snapGuests.eventId, eventId),
@@ -139,6 +213,12 @@ async function resolveSnapGuest(
   }
 
   if (existingGuest) {
+    if (guestCode && !existingGuest.guestCode) {
+      await db
+        .update(snapGuests)
+        .set({ guestCode })
+        .where(eq(snapGuests.id, existingGuest.id));
+    }
     return existingGuest.id;
   }
 
@@ -147,6 +227,7 @@ async function resolveSnapGuest(
     .values({
       eventId,
       name,
+      guestCode: guestCode || null,
       deviceSerial: deviceSerial || null,
       deviceName: deviceName || null,
     })
@@ -445,7 +526,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         eventId,
         uploader,
         body.deviceSerial,
-        body.deviceName
+        body.deviceName,
+        guestCode
       );
 
       // Create record in snap_photos table (status: uploading)
@@ -826,7 +908,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       // Clean local session temp files
       const sessionDir = getSessionDir(uploadId);
       if (fs.existsSync(sessionDir)) {
-        await fs.promises.rm(sessionDir, { recursive: true, force: true }).catch(() => {});
+        await fs.promises.rm(sessionDir, { recursive: true, force: true }).catch(() => { });
       }
 
       // Mark record as failed
@@ -949,7 +1031,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         eventId,
         uploader,
         fields.deviceSerial?.value,
-        fields.deviceName?.value
+        fields.deviceName?.value,
+        guestCode
       );
 
       const [newPhoto] = await db
@@ -1145,6 +1228,434 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       });
     }
   );
+
+  // =========================================================================
+  // 6b. LIST ALL PHOTOS FOR GUEST IN EVENT (GET /events/:eventId/guests/:guestCode)
+  // =========================================================================
+  const getGuestPhotosHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { eventId, guestCode, guest_code } = (request.params as any) || {};
+      const { status = 'completed', guestCode: qGuestCode, guest_code: qGuest_code } =
+        (request.query as any) || {};
+
+      let resolvedEventId = Number(eventId);
+      if (isNaN(resolvedEventId) || resolvedEventId <= 0) {
+        const [ev] = await db
+          .select({ id: events.id })
+          .from(events)
+          .where(eq(events.token, String(eventId)))
+          .limit(1);
+        if (!ev && String(eventId) === 'demo-event') {
+          const [firstEv] = await db.select({ id: events.id }).from(events).limit(1);
+          resolvedEventId = firstEv ? firstEv.id : 0;
+        } else {
+          resolvedEventId = ev ? ev.id : 0;
+        }
+      }
+
+      const numEventId = resolvedEventId;
+      const targetGuestCode =
+        guestCode ||
+        guest_code ||
+        qGuestCode ||
+        qGuest_code ||
+        (request.headers['x-guest-code'] as string);
+
+      if (!targetGuestCode) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'guest_code is required to fetch guest photos.',
+        });
+      }
+
+      if (!numEventId) {
+        return reply.send({
+          total: 0,
+          photos: [],
+        });
+      }
+
+      const whereClause = and(
+        eq(snapGuests.eventId, numEventId),
+        eq(snapGuests.guestCode, String(targetGuestCode).trim()),
+        status && status !== 'all' ? eq(snapPhotos.status, status) : undefined
+      );
+
+      const rows = await db
+        .select({
+          id: snapPhotos.id,
+          checklistId: snapPhotos.checklistId,
+          url: snapPhotos.url,
+          uploadedBy: snapGuests.name,
+          guestId: snapGuests.id,
+          deviceSerial: snapGuests.deviceSerial,
+          deviceName: snapGuests.deviceName,
+          uploadedAt: snapPhotos.createdAt,
+          fileName: snapPhotos.fileName,
+          fileSize: snapPhotos.fileSize,
+          mimeType: snapPhotos.mimeType,
+          storageKey: snapPhotos.storageKey,
+          status: snapPhotos.status,
+          createdAt: snapPhotos.createdAt,
+        })
+        .from(snapPhotos)
+        .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
+        .where(whereClause)
+        .orderBy(desc(snapPhotos.createdAt));
+
+      const formattedPhotos = rows.map((p: any) =>
+        formatSimplifiedGuestPhoto({
+          id: p.id,
+          url: p.url,
+          storageKey: p.storageKey,
+          uploadedBy: p.uploadedBy,
+          createdAt: p.createdAt,
+          checklistId: p.checklistId,
+          fileName: p.fileName,
+          mimeType: p.mimeType,
+        })
+      );
+
+      return reply.send({
+        total: formattedPhotos.length,
+        photos: formattedPhotos,
+      });
+    } catch (err: any) {
+      request.log.error(err, '[Photos] Error in getGuestPhotosHandler:');
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: err.message || 'Failed to fetch guest photos',
+        total: 0,
+        photos: [],
+      });
+    }
+  };
+
+  app.get(
+    '/events/:eventId/guests/:guestCode',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'List All Photos for Specific Guest in Event',
+        description:
+          'Retrieves all photos uploaded by a guest (linking eventId and guest_code to snap_guests), returning all items without limit and excluding like data.',
+        params: {
+          type: 'object',
+          required: ['eventId', 'guestCode'],
+          properties: {
+            eventId: { type: ['integer', 'string'] },
+            guestCode: { type: 'string' },
+          },
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', default: 'completed' },
+          },
+        },
+      },
+    },
+    getGuestPhotosHandler
+  );
+
+  // =========================================================================
+  // 6c. LIST 1 PHOTO EACH CHECKLIST_ID (GET /events/:eventId/checklist-photos)
+  // =========================================================================
+  const getEventChecklistPhotosHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const rawParam = (request.params as any)?.token || (request.params as any)?.eventId;
+      const { format = 'object', includeEmpty = false } = (request.query as any) || {};
+
+      let resolvedEventId = 0;
+      if (rawParam) {
+        // 1. Look up by event token
+        const [ev] = await db
+          .select({ id: events.id })
+          .from(events)
+          .where(eq(events.token, String(rawParam)))
+          .limit(1);
+
+        if (ev) {
+          resolvedEventId = ev.id;
+        } else if (String(rawParam) === 'demo-event') {
+          const [firstEv] = await db.select({ id: events.id }).from(events).limit(1);
+          resolvedEventId = firstEv ? firstEv.id : 0;
+        } else {
+          // 2. Fallback to numeric eventId
+          const numId = Number(rawParam);
+          if (!isNaN(numId) && numId > 0) {
+            const [evById] = await db
+              .select({ id: events.id })
+              .from(events)
+              .where(eq(events.id, numId))
+              .limit(1);
+            resolvedEventId = evById ? evById.id : 0;
+          }
+        }
+      }
+
+      if (!resolvedEventId) {
+        if (format === 'array') {
+          return reply.send([]);
+        }
+        return reply.send({
+          total: 0,
+          checklists: [],
+          photos: [],
+        });
+      }
+
+      // 1. Fetch event checklists for name lookup
+      const checklistRows = await db
+        .select({
+          id: snapChecklist.id,
+          name: snapChecklist.name,
+          description: snapChecklist.description,
+        })
+        .from(snapChecklist)
+        .where(eq(snapChecklist.eventId, resolvedEventId))
+        .orderBy(snapChecklist.id);
+
+      const checklistMap = new Map<number, { name: string; description: string | null }>();
+      for (const c of checklistRows) {
+        checklistMap.set(c.id, { name: c.name, description: c.description });
+      }
+
+      // 2. Fetch all completed photos for the event with their likes count
+      const rows = await db
+        .select({
+          id: snapPhotos.id,
+          checklistId: snapPhotos.checklistId,
+          url: snapPhotos.url,
+          uploadedBy: snapGuests.name,
+          guestId: snapGuests.id,
+          deviceSerial: snapGuests.deviceSerial,
+          deviceName: snapGuests.deviceName,
+          uploadedAt: snapPhotos.createdAt,
+          fileName: snapPhotos.fileName,
+          fileSize: snapPhotos.fileSize,
+          mimeType: snapPhotos.mimeType,
+          storageKey: snapPhotos.storageKey,
+          status: snapPhotos.status,
+          createdAt: snapPhotos.createdAt,
+          likesCount: sql<number>`(SELECT count(*)::int FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id})`.as('likes_count'),
+        })
+        .from(snapPhotos)
+        .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
+        .where(
+          and(
+            eq(snapGuests.eventId, resolvedEventId),
+            eq(snapPhotos.status, 'completed')
+          )
+        )
+        .orderBy(desc(snapPhotos.createdAt));
+
+      // 3. Group by checklist_id
+      interface ChecklistGroup {
+        checklistId: number | null;
+        checklistName: string;
+        name: string;
+        description: string | null;
+        totalPhotos: number;
+        totalVideos: number;
+        totalItems: number;
+        topPhoto: any | null;
+      }
+
+      const groups = new Map<string, ChecklistGroup>();
+
+      for (const p of rows) {
+        const rawChecklistId = p.checklistId !== null && p.checklistId !== undefined ? Number(p.checklistId) : null;
+        const groupKey = rawChecklistId === null ? 'null' : String(rawChecklistId);
+
+        if (!groups.has(groupKey)) {
+          let name = 'Quick Captures';
+          let desc: string | null = null;
+          if (rawChecklistId !== null) {
+            const meta = checklistMap.get(rawChecklistId);
+            name = meta?.name || `Checklist #${rawChecklistId}`;
+            desc = meta?.description || null;
+          }
+
+          groups.set(groupKey, {
+            checklistId: rawChecklistId,
+            checklistName: name,
+            name,
+            description: desc,
+            totalPhotos: 0,
+            totalVideos: 0,
+            totalItems: 0,
+            topPhoto: null,
+          });
+        }
+
+        const group = groups.get(groupKey)!;
+
+        const isVid = Boolean(
+          p.mimeType?.startsWith('video/') ||
+          p.fileName?.endsWith('.mp4') ||
+          p.fileName?.endsWith('.webm') ||
+          p.url?.endsWith('.mp4') ||
+          p.url?.endsWith('.webm')
+        );
+
+        if (isVid) {
+          group.totalVideos += 1;
+        } else {
+          group.totalPhotos += 1;
+        }
+        group.totalItems += 1;
+
+        // Determine if this photo is better than current top photo:
+        // "it must return the very liked photo. If no likes then the first photo by id desc."
+        const photoLikes = Number(p.likesCount || 0);
+        let isBetter = false;
+
+        if (!group.topPhoto) {
+          isBetter = true;
+        } else {
+          const currentTopLikes = Number(group.topPhoto.likesCount || 0);
+          if (photoLikes > currentTopLikes) {
+            isBetter = true;
+          } else if (photoLikes === currentTopLikes) {
+            // If tied (or both 0 likes), pick the one with highest id (first by id desc)
+            if (p.id > group.topPhoto.id) {
+              isBetter = true;
+            }
+          }
+        }
+
+        if (isBetter) {
+          group.topPhoto = {
+            ...p,
+            likesCount: photoLikes,
+            isVideo: isVid,
+          };
+        }
+      }
+
+      // If includeEmpty=true, also add any checklist that has 0 photos
+      if (includeEmpty === 'true' || includeEmpty === true) {
+        for (const c of checklistRows) {
+          const key = String(c.id);
+          if (!groups.has(key)) {
+            groups.set(key, {
+              checklistId: c.id,
+              checklistName: c.name,
+              name: c.name,
+              description: c.description,
+              totalPhotos: 0,
+              totalVideos: 0,
+              totalItems: 0,
+              topPhoto: null,
+            });
+          }
+        }
+      }
+
+      // Convert groups to sorted array:
+      // Quick Captures first (checklistId === null), then sorted by checklistId ascending
+      const results = Array.from(groups.values()).map((g) => {
+        const formattedPhoto = g.topPhoto
+          ? formatSimplifiedPhoto({
+            id: g.topPhoto.id,
+            url: g.topPhoto.url,
+            storageKey: g.topPhoto.storageKey,
+            uploadedBy: g.topPhoto.uploadedBy,
+            createdAt: g.topPhoto.createdAt,
+            likesCount: g.topPhoto.likesCount,
+            checklistId: g.topPhoto.checklistId,
+            fileName: g.topPhoto.fileName,
+            mimeType: g.topPhoto.mimeType,
+          })
+          : null;
+
+        return {
+          checklistId: g.checklistId,
+          checklistName: g.checklistName,
+          name: g.checklistName,
+          description: g.description,
+          totalPhotos: g.totalPhotos,
+          totalVideos: g.totalVideos,
+          totalItems: g.totalItems,
+          photo: formattedPhoto,
+          // Flat convenience properties matching the top photo
+          id: formattedPhoto?.id ?? null,
+          url: formattedPhoto?.fullUrl || formattedPhoto?.url || null,
+          thumbnailUrl: formattedPhoto?.thumbnailUrl || null,
+          fullUrl: formattedPhoto?.fullUrl || null,
+          uploadedBy: formattedPhoto?.uploadedBy ?? null,
+          createdAt: formattedPhoto?.createdAt ?? null,
+          likesCount: formattedPhoto?.likesCount ?? 0,
+          likes: formattedPhoto?.likesCount ?? 0,
+          isVideo: formattedPhoto?.isVideo ?? false,
+          type: formattedPhoto?.type ?? 'photo',
+        };
+      });
+
+      results.sort((a, b) => {
+        if (a.checklistId === null) return -1;
+        if (b.checklistId === null) return 1;
+        return (a.checklistId || 0) - (b.checklistId || 0);
+      });
+
+      if (format === 'array') {
+        return reply.send(results);
+      }
+
+      return reply.send({
+        total: results.length,
+        checklists: results,
+      });
+    } catch (err: any) {
+      request.log.error(err, '[Photos] Error in getEventChecklistPhotosHandler:');
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: err.message || 'Failed to fetch checklist photos',
+        total: 0,
+        checklists: [],
+      });
+    }
+  };
+
+  app.get(
+    '/token/:token/checklist-photos',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'List 1 Top Photo for Each Checklist by Token',
+        description:
+          'Returns 1 photo for each checklist_id (most liked photo, or newest/highest id desc if tied/no likes), along with checklist name, total photos, and total videos by event token. Items with checklist_id = null are named "Quick Captures".',
+        params: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string' },
+          },
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            format: { type: 'string', enum: ['object', 'array'], default: 'object' },
+            includeEmpty: { type: 'boolean', default: false },
+          },
+        },
+      },
+    },
+    getEventChecklistPhotosHandler
+  );
+
+  app.get('/token/:token/checklist-summary', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
+  app.get('/token/:token/checklists', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
+  app.get('/token/:token/albums', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
+
+  // Backward-compatibility aliases
+  app.get('/events/:eventId/checklist-photos', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
+  app.get('/events/:eventId/checklist-summary', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
+  app.get('/events/:eventId/checklists', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
+  app.get('/events/:eventId/albums', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
 
   // =========================================================================
   // 7. GET SINGLE PHOTO METADATA (GET /:id)
@@ -1429,6 +1940,258 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         isLiked: result.isLiked,
         likesCount: result.likesCount,
       });
+    }
+  );
+
+  // =========================================================================
+  // 12. BATCH EVENT MEDIA DOWNLOAD (ZIP ARCHIVE VIA REDIS QUEUE)
+  // =========================================================================
+
+  // Helper to resolve event token or id
+  const resolveEventForDownload = async (rawIdentifier: string) => {
+    if (!rawIdentifier) return null;
+
+    // 1. Try by token
+    const [byToken] = await db
+      .select({ id: events.id, name: events.name, token: events.token })
+      .from(events)
+      .where(eq(events.token, String(rawIdentifier)))
+      .limit(1);
+
+    if (byToken) return byToken;
+
+    // 2. Try by numeric id
+    const numId = Number(rawIdentifier);
+    if (!isNaN(numId) && numId > 0) {
+      const [byId] = await db
+        .select({ id: events.id, name: events.name, token: events.token })
+        .from(events)
+        .where(eq(events.id, numId))
+        .limit(1);
+
+      if (byId) return byId;
+    }
+
+    return null;
+  };
+
+  /**
+   * POST /token/:token/download-zip
+   * Enqueue ZIP archive generation for all photos/videos of an event in Redis BullMQ
+   */
+  app.post(
+    '/token/:token/download-zip',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'Enqueue Event ZIP Archive Download',
+        description: 'Enqueues background job to bundle all completed event photos/videos into a ZIP archive',
+        params: {
+          type: 'object',
+          required: ['token'],
+          properties: {
+            token: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { token } = request.params as { token: string };
+        const ev = await resolveEventForDownload(token);
+
+        if (!ev) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: `Event '${token}' was not found`,
+          });
+        }
+
+        const jobId = crypto.randomUUID();
+
+        await enqueueZipArchiveJob({
+          jobId,
+          eventId: ev.id,
+          eventToken: ev.token || undefined,
+          eventName: ev.name || undefined,
+          requestedAt: new Date().toISOString(),
+        });
+
+        request.log.info(`[Photos] Enqueued ZIP archive job ${jobId} for event ${ev.id} (${ev.token})`);
+
+        return reply.status(202).send({
+          success: true,
+          jobId,
+          eventId: ev.id,
+          eventToken: ev.token || undefined,
+          eventName: ev.name,
+          status: 'queued',
+          message: 'ZIP archive generation has been queued in Redis',
+          statusUrl: `/api/photos/download-zip/${jobId}/status`,
+          downloadUrl: `/api/photos/download-zip/${jobId}/file`,
+        });
+      } catch (err: any) {
+        request.log.error(err, '[Photos] Error enqueuing ZIP archive download:');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: err.message || 'Failed to queue ZIP archive download',
+        });
+      }
+    }
+  );
+
+  // Alias for events/:eventId/download-zip
+  app.post(
+    '/events/:eventId/download-zip',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'Enqueue Event ZIP Archive Download by Event ID',
+        params: {
+          type: 'object',
+          required: ['eventId'],
+          properties: {
+            eventId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { eventId } = request.params as { eventId: string };
+        const ev = await resolveEventForDownload(eventId);
+        if (!ev) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: `Event '${eventId}' was not found`,
+          });
+        }
+
+        const jobId = crypto.randomUUID();
+        await enqueueZipArchiveJob({
+          jobId,
+          eventId: ev.id,
+          eventToken: ev.token || undefined,
+          eventName: ev.name || undefined,
+          requestedAt: new Date().toISOString(),
+        });
+
+        return reply.status(202).send({
+          success: true,
+          jobId,
+          eventId: ev.id,
+          eventToken: ev.token || undefined,
+          status: 'queued',
+          message: 'ZIP archive generation has been queued in Redis',
+          statusUrl: `/api/photos/download-zip/${jobId}/status`,
+          downloadUrl: `/api/photos/download-zip/${jobId}/file`,
+        });
+      } catch (err: any) {
+        request.log.error(err, '[Photos] Error enqueuing ZIP archive download by eventId:');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: err.message || 'Failed to queue ZIP archive download',
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /download-zip/:jobId/status
+   * Poll status and progress of the ZIP generation job
+   */
+  app.get(
+    '/download-zip/:jobId/status',
+    {
+      schema: {
+        tags: ['Photos'],
+        summary: 'Check ZIP Archive Generation Status',
+        params: {
+          type: 'object',
+          required: ['jobId'],
+          properties: {
+            jobId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { jobId } = request.params as { jobId: string };
+        const statusData = await getZipArchiveJobStatus(jobId);
+
+        return reply.send({
+          success: true,
+          ...statusData,
+          downloadUrl: statusData.status === 'completed' ? `/api/photos/download-zip/${jobId}/file` : undefined,
+        });
+      } catch (err: any) {
+        request.log.error(err, '[Photos] Error fetching ZIP archive status:');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: err.message || 'Failed to check status',
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /download-zip/:jobId/file
+   * Download the generated ZIP file
+   */
+  app.get(
+    '/download-zip/:jobId/file',
+    {
+      schema: {
+        tags: ['Photos'],
+        summary: 'Download Completed Event ZIP File',
+        params: {
+          type: 'object',
+          required: ['jobId'],
+          properties: {
+            jobId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { jobId } = request.params as { jobId: string };
+        const statusData = await getZipArchiveJobStatus(jobId);
+
+        const filePath = path.join(ZIP_STORAGE_DIR, `${jobId}.zip`);
+
+        if (!fs.existsSync(filePath)) {
+          if (statusData.status === 'processing' || statusData.status === 'queued') {
+            return reply.status(202).send({
+              status: statusData.status,
+              message: 'ZIP archive is still being prepared',
+              progress: statusData.progress,
+            });
+          }
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: 'ZIP archive file does not exist or has expired',
+          });
+        }
+
+        const stat = fs.statSync(filePath);
+        const fileName = statusData.result?.fileName || `event-photos-${jobId.slice(0, 8)}.zip`;
+
+        reply.header('Content-Type', 'application/zip');
+        reply.header('Content-Length', stat.size);
+        reply.header('Content-Disposition', `attachment; filename="${fileName}"`);
+
+        return reply.send(fs.createReadStream(filePath));
+      } catch (err: any) {
+        request.log.error(err, '[Photos] Error serving ZIP file:');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: err.message || 'Failed to stream ZIP archive',
+        });
+      }
     }
   );
 

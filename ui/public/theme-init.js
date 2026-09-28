@@ -12,14 +12,13 @@
 
     var storedTheme = localStorage.getItem('jui_theme')
     var storedBg = localStorage.getItem('jui_theme_bg') || localStorage.getItem('jui_bg_color')
-    var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
 
     var activeTheme = storedTheme
     if (!activeTheme || activeTheme === 'system' || (activeTheme !== 'dark' && activeTheme !== 'light')) {
-      activeTheme = isDark ? 'dark' : 'light'
+      activeTheme = 'light'
     }
 
-    var bg = storedBg || THEME_BACKGROUNDS[activeTheme] || '#161311'
+    var bg = storedBg || THEME_BACKGROUNDS[activeTheme] || '#fff8f5'
 
     // Persist if not already stored
     if (!storedBg) {

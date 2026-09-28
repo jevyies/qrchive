@@ -3,11 +3,23 @@ import cors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyWebsocket from '@fastify/websocket';
+import dns from 'node:dns';
 import dotenv from 'dotenv';
 import { client, initDbTables } from './db';
 import { swaggerPlugin } from './plugins/swagger';
 import { appRoutes } from './routes';
-import { emailWorker, photoUploadWorker, guestCreationWorker } from './queues';
+import { emailWorker, photoUploadWorker, guestCreationWorker, zipArchiveWorker } from './queues';
+
+// Ensure reliable DNS resolution on systems where Node defaults to localhost loopback (127.0.0.1)
+try {
+  const currentServers = dns.getServers();
+  if (!currentServers.length || (currentServers.length === 1 && currentServers[0] === '127.0.0.1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+  }
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignore if restricted
+}
 
 dotenv.config();
 
@@ -96,6 +108,7 @@ const start = async () => {
           emailWorker.close(),
           photoUploadWorker.close(),
           guestCreationWorker.close(),
+          zipArchiveWorker.close(),
         ]);
         await client.end();
         app.log.info('Graceful shutdown completed.');

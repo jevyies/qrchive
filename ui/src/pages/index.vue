@@ -108,7 +108,7 @@ const handleUserClick = () => {
         <a href="#" class="brand-link" @click.prevent="scrollTo('top', 'explore')">
           <AppLogo :width="38" :height="38" color="primary" class="brand-logo" />
           <div class="brand-text">
-            <span class="brand-title">QRchive</span>
+            <span class="brand-title">QRchive Events</span>
             <span class="brand-subtitle">Celebration Vault</span>
           </div>
         </a>
@@ -206,14 +206,14 @@ const handleUserClick = () => {
 
             <!-- Subtitle -->
             <p class="hero-subtitle">
-              Instant QR guest capture with your bespoke milestone cover motif, uncompressed original photos, 30-second
-              candid video clips, and seamless cloud archive export.
+              With a simple QR scan, guests can snap photos and share candid 30-second clips—no app required. After the
+              event, receive a download-ready link to all your memories.
             </p>
 
             <!-- Action Row -->
             <div class="hero-cta-group">
               <button type="button" class="btn-primary-gradient hero-cta-btn" @click="scrollTo('launch-vault')">
-                <span>Create Your QR Now</span>
+                <span>Create Your Event Now</span>
                 <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
               </button>
 
@@ -231,13 +231,8 @@ const handleUserClick = () => {
               </div>
               <span class="trust-dot">•</span>
               <div class="trust-item">
-                <span class="material-symbols-outlined trust-icon">bolt</span>
-                <span>High-speed QR scanning</span>
-              </div>
-              <span class="trust-dot">•</span>
-              <div class="trust-item">
                 <span class="material-symbols-outlined trust-icon">hd</span>
-                <span>Uncompressed RAW &amp; 4K</span>
+                <span>Uncompressed Photos &amp; Videos</span>
               </div>
             </div>
           </div>
@@ -436,14 +431,14 @@ const handleUserClick = () => {
                 </div>
                 <span class="feature-tag">1-Click Export</span>
               </div>
-              <h3 class="feature-title">Full Archive &amp; Cloud Export</h3>
+              <h3 class="feature-title">Full Archive &amp; Dedicated Download Link</h3>
               <p class="feature-text">
-                Never worry about losing a single memory. Download a full chronologically organized ZIP archive or
-                trigger an instant synchronization directly to your private Google Drive folder.
+                Never worry about losing a single memory. Download a full chronologically organized ZIP archive through
+                QRchive's built-in system — a dedicated secure download link is generated for every event.
               </p>
               <div class="feature-sublabel">
                 <span class="material-symbols-outlined text-[16px]">verified_user</span>
-                <span>Direct Google Drive Shareable Link</span>
+                <span>System-Generated Dedicated Download Link</span>
               </div>
             </div>
 
@@ -658,7 +653,7 @@ const handleUserClick = () => {
                   </li>
                   <li class="perk-item">
                     <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>Google Drive shareable export link &amp; 1-click ZIP archive</span>
+                    <span>System dedicated download link &amp; 1-click ZIP archive</span>
                   </li>
                 </ul>
               </div>
@@ -704,65 +699,13 @@ const handleUserClick = () => {
               </p>
             </div>
 
-            <!-- Interactive Registration Form -->
-            <form class="launch-form" @submit.prevent="handleFormSubmit">
-              <div class="form-grid">
-                <!-- Input 1: Couple Names / Hosts -->
-                <div class="form-group">
-                  <label class="form-label">Couple Names / Hosts</label>
-                  <input v-model="formData.hosts" type="text" required class="form-input"
-                    placeholder="e.g., Sarah &amp; James" />
-                </div>
-
-                <!-- Input 2: Event Date -->
-                <div class="form-group">
-                  <label class="form-label">Celebration Date</label>
-                  <input v-model="formData.date" type="date" required class="form-input" />
-                </div>
-
-                <!-- Input 3: Select Package Tier -->
-                <div class="form-group">
-                  <label class="form-label">Select Package Tier</label>
-                  <select v-model="formData.packageTier" class="form-input form-select">
-                    <option value="unlimited-100">Unlimited Snap — Up to 100 Guests (₱1,000)</option>
-                    <option value="unlimited-300">Unlimited Snap — Up to 300 Guests (₱1,500)</option>
-                    <option value="unlimited-plus">Unlimited Snap — 300+ Guests (₱2,000)</option>
-                    <option value="standard-100">Standard Snap — Up to 100 Guests (₱500)</option>
-                    <option value="standard-300">Standard Snap — Up to 300 Guests (₱800)</option>
-                    <option value="standard-plus">Standard Snap — 300+ Guests (₱1,000)</option>
-                  </select>
-                </div>
-
-                <!-- Input 4: Contact Email -->
-                <div class="form-group">
-                  <label class="form-label">Your Contact Email</label>
-                  <input v-model="formData.email" type="email" required class="form-input"
-                    placeholder="you@domain.com" />
-                </div>
-              </div>
-
-              <!-- Submit Button -->
-              <div class="form-actions text-center">
-                <button type="submit" class="btn-primary-gradient submit-btn" :disabled="isSubmitting">
-                  <span class="material-symbols-outlined text-[20px]">qr_code_2</span>
-                  <span>{{ isSubmitting ? 'Configuring Vault...' : 'Create Event Snap & Share QR' }}</span>
-                </button>
-
-                <!-- Confirmation Alert Message -->
-                <div v-if="isFormSubmitted" class="submit-success-msg">
-                  ✨ Vault Configured! Your customized 5x7 printable template is being dispatched to {{ formData.email ||
-                    'your email' }}!
-                </div>
-              </div>
-            </form>
-
             <!-- Reassurance Trust Badges -->
             <div class="launch-trust-footer">
               <span>1-Mo Upload &amp; 2-Mo Storage</span>
               <span class="text-accent">•</span>
               <span>+₱200/mo Extension</span>
               <span class="text-accent">•</span>
-              <span>Google Drive Export</span>
+              <span>Dedicated Download Link</span>
             </div>
           </div>
         </div>
@@ -831,9 +774,9 @@ const handleUserClick = () => {
         <div class="footer-bottom-row">
           <p>© 2026 QRchive Atelier Inc. All rights reserved.</p>
           <div class="footer-legal-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Heirloom Service</a>
-            <a href="#">Security Standards</a>
+            <a href="/privacy-policy" @click.prevent="router.push('/privacy-policy')">Privacy Policy</a>
+            <a href="/terms-of-service" @click.prevent="router.push('/terms-of-service')">Terms of Service</a>
+            <a href="/security-standards" @click.prevent="router.push('/security-standards')">Security Standards</a>
           </div>
         </div>
       </div>

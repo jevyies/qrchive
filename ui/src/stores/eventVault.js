@@ -304,12 +304,12 @@ export function extractPhotoCategoryKey(item) {
             return 'quick-snaps'
         }
 
-        const eventsMatch = rawUrl.match(/events\/[^\/]+\/[^\/]+\/([^\/]+)\//)
+        const eventsMatch = rawUrl.match(/events\/[^/]+\/[^/]+\/([^/]+)\//)
         if (eventsMatch && eventsMatch[1]) {
             return eventsMatch[1]
         }
 
-        const genericMatch = rawUrl.match(/\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)\/([^\/]+)\/[^\/]+$/)
+        const genericMatch = rawUrl.match(/\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)\/([^/]+)\/[^/]+$/)
         if (genericMatch && genericMatch[3]) {
             return genericMatch[3]
         }
@@ -408,6 +408,8 @@ export const useEventVaultStore = defineStore('eventVault', () => {
     const dynamicChecklist = ref([])
     const moments = ref([])
     const isChecklistLoaded = ref(false)
+    const isGuestInitialLoaded = ref(false)
+    const currentGuestCode = ref('')
     const uploadedQuickPhotos = ref([])
     const demoDbCount = ref(0)
 
@@ -494,6 +496,8 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         if (currentEventId.value !== strId) {
             currentEventId.value = strId
             isInitialLoaded.value = false
+            isGuestInitialLoaded.value = false
+            currentGuestCode.value = ''
             isChecklistLoaded.value = false
             mediaItems.value = strId === 'demo-event' ? [...demoMediaItems] : []
             uploadedQuickPhotos.value = []
@@ -855,6 +859,80 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         }
     }
 
+    // Fetch photos for a specific guest from backend (/api/photos/events/:eventId/guests/:guestCode)
+    const fetchGuestPhotos = async ({ eventId, guestCode, force = false } = {}) => {
+        const targetId = eventId || currentEventId.value || 'demo-event'
+        setEventId(targetId)
+
+        const targetGuestCode = guestCode || getGuestIdentifier() || 'guest'
+        const isGuestChanged = currentGuestCode.value !== String(targetGuestCode)
+        currentGuestCode.value = String(targetGuestCode)
+
+        const isTargetDemo = String(targetId).toLowerCase().trim() === 'demo-event' || isDemo.value
+
+        if (isTargetDemo) {
+            if (!isGuestInitialLoaded.value || force || isGuestChanged) {
+                await fetchDemoPhotos()
+                isGuestInitialLoaded.value = true
+            }
+            return
+        }
+
+        // If not force, not changed, and already loaded for this guest, reuse cache
+        if (!force && !isGuestChanged && isGuestInitialLoaded.value) {
+            return
+        }
+
+        isLoadingPhotos.value = true
+        try {
+            const { data } = await axiosInstance.get(`/api/photos/events/${targetId}/guests/${targetGuestCode}`)
+
+            const photosList = Array.isArray(data) ? data : data?.photos || []
+            const mapped = photosList.map((p) => mapPhotoToMediaItem(p, dynamicChecklist.value))
+
+            if (!mediaItems.value || mediaItems.value.length === 0) {
+                mediaItems.value = mapped
+            }
+
+            // Sync with quests checklist and uploaded snaps
+            syncPhotosToQuests(photosList)
+
+            isGuestInitialLoaded.value = true
+        } catch (err) {
+            console.error('[EventVaultStore] Failed to fetch guest photos:', err)
+            // Mark loaded so app doesn't continuously hang on network errors
+            isGuestInitialLoaded.value = true
+        } finally {
+            isLoadingPhotos.value = false
+        }
+    }
+
+    // Initialize full event data for a specific guest using /api/photos/events/:eventId/guests/:guestCode
+    const fetchInitialGuestData = async (eventId, guestCode) => {
+        const targetId = eventId || currentEventId.value || 'demo-event'
+        const isChanged = currentEventId.value !== String(targetId)
+        setEventId(targetId)
+
+        if (!isChecklistLoaded.value || isChanged) {
+            await fetchChecklist(targetId)
+        }
+
+        const effectiveGuestCode = guestCode || getGuestIdentifier() || 'guest'
+        const isGuestChanged = currentGuestCode.value !== String(effectiveGuestCode)
+
+        if (!isGuestInitialLoaded.value || isChanged || isGuestChanged) {
+            await fetchGuestPhotos({ eventId: targetId, guestCode: effectiveGuestCode })
+        }
+
+        // Connect WebSocket if real event
+        if (!isDemo.value) {
+            connectWebSocket(targetId)
+        }
+    }
+
+    const fetchGuestInitialData = fetchInitialGuestData
+    const fetchInitialDataByGuest = fetchInitialGuestData
+
     // Add newly uploaded photo immediately to store
     const addUploadedPhoto = (photo, { isChecklist = false, checklistId = null } = {}) => {
         if (!photo) return
@@ -1124,6 +1202,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         dynamicChecklist,
         moments,
         isChecklistLoaded,
+        isGuestInitialLoaded,
         uploadedQuickPhotos,
         demoDbCount,
 
@@ -1147,6 +1226,10 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         fetchPhotos,
         loadMorePhotos,
         fetchInitialData,
+        fetchGuestPhotos,
+        fetchInitialGuestData,
+        fetchGuestInitialData,
+        fetchInitialDataByGuest,
         addUploadedPhoto,
         toggleLike,
         syncLikeState,

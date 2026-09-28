@@ -39,7 +39,7 @@ export const themeConfig = {
   // - 'dark'      : Deep espresso noir & champagne gold
   // - 'light'     : Warm ivory & champagne bronze
   // --------------------------------------------------------------------------
-  defaultTheme: 'system',
+  defaultTheme: 'light',
 
   // --------------------------------------------------------------------------
   // 3. COLOR PALETTE OVERRIDES

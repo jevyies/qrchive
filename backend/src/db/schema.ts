@@ -86,6 +86,9 @@ export const events = pgTable('events', {
   price: numeric('price', { precision: 10, scale: 2 }),
   invitationDeadline: timestamp('invitation_deadline', { withTimezone: true, mode: 'string' }),
   eventDate: timestamp('event_date', { withTimezone: true, mode: 'string' }),
+  uploadExpiry: timestamp('upload_expiry', { withTimezone: true, mode: 'string' }),
+  photoExpiry: timestamp('photo_expiry', { withTimezone: true, mode: 'string' }),
+  isUnlimited: boolean('is_unlimited').default(false),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

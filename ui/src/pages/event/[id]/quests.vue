@@ -1,10 +1,3 @@
-<route lang="yaml">
-meta:
-  layout: blank
-  public: true
-  keepAlive: true
-</route>
-
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -827,7 +820,7 @@ onMounted(async () => {
             <section class="vault-hero">
                 <div class="vault-hero__banner">
                     <div class="vault-hero__bg"
-                        :style="{ backgroundImage: `url(${currentWedding.heroImage})`, backgroundPosition: `0 -90px` }">
+                        :style="{ backgroundImage: `url(https://photos.qrchive-events.com/static/cover-photo.jpg)` }">
                     </div>
 
                     <!-- Soft Gradients Scrim -->
@@ -1154,3 +1147,9 @@ onMounted(async () => {
             @close="isLightboxOpen = false" @like="toggleLightboxLike" />
     </div>
 </template>
+<route lang="yaml">
+meta:
+  layout: blank
+  public: true
+  keepAlive: true
+</route>

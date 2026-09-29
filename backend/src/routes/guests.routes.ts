@@ -1441,12 +1441,13 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         },
         response: {
           200: {
-            description: 'Snap guest found for this device',
+            description: 'Snap guest lookup response',
             type: 'object',
             properties: {
               exists: { type: 'boolean' },
               guest: {
                 type: 'object',
+                nullable: true,
                 properties: {
                   id: { type: 'integer' },
                   guestCode: { type: 'string' },
@@ -1457,6 +1458,15 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
                   eventCode: { type: 'string' },
                 },
               },
+              message: { type: 'string', nullable: true },
+            },
+          },
+          400: {
+            description: 'Bad request',
+            type: 'object',
+            properties: {
+              exists: { type: 'boolean' },
+              message: { type: 'string' },
             },
           },
           404: {
@@ -1490,8 +1500,9 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!event) {
-        return reply.status(404).send({
+        return reply.status(200).send({
           exists: false,
+          guest: null,
           message: 'Event not found for provided token or ID.',
         });
       }
@@ -1504,8 +1515,9 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!existingGuest) {
-        return reply.status(404).send({
+        return reply.status(200).send({
           exists: false,
+          guest: null,
           message: 'No guest registered with this device serial for this event.',
         });
       }

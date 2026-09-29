@@ -232,8 +232,7 @@ onBeforeUnmount(() => {
             <!-- Hero Cover Banner & Couple Header -->
             <section class="vault-hero">
                 <div class="vault-hero__banner">
-                    <div class="vault-hero__bg"
-                        :style="{ backgroundImage: `url(${currentWedding.heroImage})`, backgroundPosition: `0 -90px` }">
+                    <div class="vault-hero__bg" :style="{ backgroundImage: `url(${currentWedding.heroImage})` }">
                     </div>
 
                     <!-- Soft Gradients Scrim -->

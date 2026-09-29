@@ -10,7 +10,7 @@ import {
     getDemoChecklistMoments,
     clearDemoData,
 } from '@/utils/demoDb'
-import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
+const defaultImg = 'https://photos.qrchive-events.com/cdn-cgi/image/width=600,quality=80/static/cover-photo.jpg';
 
 // Known wedding data dictionary
 export const knownWeddings = {
@@ -19,21 +19,21 @@ export const knownWeddings = {
         title: 'Sophia & Alexander’s Wedding',
         initials: 'S & A',
         dateBadge: '24.10.26',
-        heroImage: keannAndJennyBg,
+        heroImage: defaultImg,
     },
     '2': {
         couple: 'Emily & James',
         title: 'Emily & James’s Wedding',
         initials: 'E & J',
         dateBadge: '15.11.26',
-        heroImage: keannAndJennyBg,
+        heroImage: defaultImg,
     },
     '3': {
         couple: 'Olivia & Liam',
         title: 'Olivia & Liam’s Wedding',
         initials: 'O & L',
         dateBadge: '10.08.26',
-        heroImage: keannAndJennyBg,
+        heroImage: defaultImg,
     },
 }
 
@@ -41,15 +41,15 @@ export function getWeddingData(id) {
     if (id && knownWeddings[id]) {
         return {
             ...knownWeddings[id],
-            heroImage: knownWeddings[id].heroImage || keannAndJennyBg,
+            heroImage: knownWeddings[id].heroImage || defaultImg,
         }
     }
     return {
-        couple: 'Keann & Jenny',
-        title: "Keann & Jenny's Wedding",
-        initials: 'K & J',
-        dateBadge: '24.10.26',
-        heroImage: keannAndJennyBg,
+        couple: 'J & J',
+        title: "J & J's Wedding",
+        initials: 'J & J',
+        dateBadge: '24.04.20',
+        heroImage: defaultImg,
     }
 }
 
@@ -74,7 +74,7 @@ export const demoCategoryMap = [
     { id: 2, category: 'first-dance', label: 'First Dance', keywords: ['first dance'] },
     { id: 3, category: 'dance-with-parents', label: 'Dance with Parents', keywords: ['parent', 'parents'] },
     { id: 4, category: 'guests-laughing', label: 'Guests Laughing', keywords: ['laughing', 'guests'] },
-    { id: 5, category: 'emcee', label: 'Emcee on Stage', keywords: ['emcee', 'mc'] },
+    { id: 5, category: 'games', label: 'Games', keywords: ['games'] },
     { id: 6, category: 'grooms-surprise', label: "Groom's Surprise", keywords: ['groom'] },
     { id: 7, category: 'brides-surprise', label: "Bride's Surprise", keywords: ['bride'] },
     { id: 8, category: 'cake-cutting', label: 'Cake Cutting', keywords: ['cake'] },

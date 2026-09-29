@@ -3,7 +3,7 @@ import { bullMqConnectionOptions } from '../config/redis';
 import { db, snapPhotos, snapGuests, snapChecklist, events } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { R2Service } from '../services/r2.service';
-import { ZipArchive } from 'archiver';
+import archiver from 'archiver';
 import fs from 'fs';
 import path from 'path';
 
@@ -138,7 +138,7 @@ export async function processZipArchive(
   return new Promise<ZipArchiveJobResult>(async (resolve, reject) => {
     try {
       const output = fs.createWriteStream(zipFilePath);
-      const archive = new ZipArchive({
+      const archive = archiver('zip', {
         zlib: { level: 6 }, // Balanced compression speed & ratio
       });
 

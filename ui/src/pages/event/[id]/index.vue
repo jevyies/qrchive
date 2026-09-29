@@ -9,7 +9,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { axiosInstance } from '@/plugins/axios'
 import { getDeviceSerial, getStoredEventSession, saveStoredEventSession } from '@/utils/device'
-import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 import AppLogo from '@core/components/AppLogo.vue'
 import GuestModal from '@/views/modals/GuestModal.vue'
 
@@ -18,13 +17,14 @@ const router = useRouter()
 
 // Current event data based on route param id or defaults
 const currentEvent = ref({
-    couple: 'Keann & Jenny',
-    title: (route.query && route.query.title) || 'Welcome to Keann & Jenny’s Wedding',
+    couple: 'J & J',
+    title: (route.query && route.query.title) || 'Welcome to J & J’s Wedding',
     date: (route.query && route.query.date) || '',
     storeName: (route.query && route.query.storeName) || null,
 })
 
 const isLoading = ref(true)
+const defaultImg = 'https://photos.qrchive-events.com/static/cover-photo.jpg';
 
 // Helper to format date nicely while preserving raw eventDate on currentEvent.date
 const formatDate = (dateStr) => {
@@ -70,8 +70,8 @@ const fetchEventData = async () => {
     // If demo-event, do not fetchEventData
     if (token === 'demo-event') {
         currentEvent.value = {
-            couple: 'Keann & Jenny',
-            title: "Welcome to Keann & Jenny's Wedding",
+            couple: 'J & J',
+            title: "Welcome to J & J's Wedding",
             quote: '“A celebration of enduring love & shared memories”',
             date: 'Dec 28, 2026',
             storeName: 'QRchive Demo Experience',
@@ -158,11 +158,10 @@ onMounted(async () => {
 
     if (route.params.id === 'demo-event') {
         currentEvent.value = {
-            couple: 'Keann & Jenny',
-            title: "Welcome to Keann & Jenny's Wedding",
-            quote: '“A celebration of enduring love & shared memories”',
-            date: 'Dec 28, 2026',
-            storeName: 'QRchive Demo Experience',
+            couple: 'J & J',
+            title: "Welcome to J & J's Wedding",
+            date: 'Apr 20, 2024',
+            storeName: 'Test Event',
         }
         isLoading.value = false
     } else {
@@ -191,7 +190,7 @@ onMounted(async () => {
 
 <template>
     <div class="event-vault-root">
-        <main class="event-viewport" :style="{ backgroundImage: `url(${keannAndJennyBg})` }">
+        <main class="event-viewport" :style="{ backgroundImage: `url(${defaultImg})` }">
             <!-- Atmospheric Editorial Overlays -->
             <div class="event-vignette-top"></div>
             <div class="event-vignette-radial"></div>

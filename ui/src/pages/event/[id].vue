@@ -11,7 +11,7 @@ import EventBoard from '@/views/EventBoard.vue'
 import AppLogo from '@core/components/AppLogo.vue'
 import LiveGallery from '@/views/LiveGallery.vue';
 import GuestModal from '@/views/modals/Guest2Modal.vue'
-import { useEventVaultStore } from '@/stores/eventVault'
+import { useEventVaultStore, resolveStorageUrl } from '@/stores/eventVault'
 import { saveDemoQuickPhoto, saveDemoChecklistMoment, getDemoPhotosCount, clearDemoData } from '@/utils/demoDb'
 import LightBox from '@/views/LightBox.vue'
 import Camera from '@/views/Camera.vue'
@@ -182,6 +182,7 @@ const resetDemo = async () => {
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('guestName')
         }
+        hasGuestAuth.value = null;
         eventBoardRef.value?.successDemoReset();
     } catch (err) {
         console.error('[Quests] Failed to reset demo data:', err)
@@ -450,9 +451,14 @@ const performQuickUpload = async (photoItem) => {
         const uploadedPhoto = response.data?.photo
         if (uploadedPhoto) {
             photoItem.id = uploadedPhoto.id
-            photoItem.url = uploadedPhoto.thumbnailUrl || uploadedPhoto.url || photoItem.dataUrl
-            photoItem.fullUrl = uploadedPhoto.fullUrl || uploadedPhoto.url || photoItem.dataUrl
-            photoItem.thumbnailUrl = uploadedPhoto.thumbnailUrl || photoItem.dataUrl
+            photoItem.storageKey = uploadedPhoto.storageKey || uploadedPhoto.storage_key || null
+            photoItem.storage_key = uploadedPhoto.storageKey || uploadedPhoto.storage_key || null
+            const photoKey = photoItem.storageKey
+            const fullUrl = resolveStorageUrl(uploadedPhoto.fullUrl || uploadedPhoto.url, photoKey)
+            const thumbUrl = resolveStorageUrl(uploadedPhoto.thumbnailUrl || uploadedPhoto.url, photoKey) || fullUrl
+            photoItem.fullUrl = fullUrl
+            photoItem.url = fullUrl || thumbUrl
+            photoItem.thumbnailUrl = thumbUrl || fullUrl
             photoItem.videoUrl = uploadedPhoto.url || photoItem.videoUrl
             photoItem.fileName = uploadedPhoto.fileName || fileName
             photoItem.guest = uploadedPhoto.uploadedBy || guestName
@@ -623,6 +629,8 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
             }
 
             if (uploadedPhoto?.url || uploadedPhoto?.thumbnailUrl) {
+                found.storageKey = uploadedPhoto.storageKey || uploadedPhoto.storage_key || null
+                found.storage_key = uploadedPhoto.storageKey || uploadedPhoto.storage_key || null
                 found.image = uploadedPhoto.thumbnailUrl || (isVideo ? localPreviewUrl : uploadedPhoto.url)
                 found.fullImage = uploadedPhoto.fullUrl || uploadedPhoto.url
                 found.videoUrl = uploadedPhoto.url
@@ -738,8 +746,7 @@ onMounted(async () => {
         eventDetails.value = {
             id: 'demo-event',
             token: 'demo-event',
-            title: 'Demo Celebration',
-            couple: 'Kevin & Sarah',
+            couple: 'Jev & Jean',
             eventDate: new Date().toISOString(),
             guestCode: 'demo-guest',
             guestName: 'You',
@@ -804,7 +811,8 @@ onMounted(async () => {
                                             <span class="vault-hero__eyebrow-text">The Wedding of</span>
                                             <span class="vault-hero__eyebrow-dot"></span>
                                         </div>
-                                        <h1 class="vault-hero__title">{{ eventDetails?.couple || eventDetails?.title || eventDetails?.name || 'Celebration' }}</h1>
+                                        <h1 class="vault-hero__title">{{ eventDetails?.couple || eventDetails?.title ||
+                                            eventDetails?.name || 'Celebration' }}</h1>
                                     </div>
                                 </template>
                             </Transition>

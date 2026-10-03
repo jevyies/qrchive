@@ -1058,7 +1058,30 @@
     width: 12rem;
     height: 12rem;
     color: #1f1b18;
+    display: block;
   }
+}
+
+.event-qr-code-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+
+  svg {
+    width: 12rem;
+    height: 12rem;
+    display: block;
+  }
+}
+
+.event-qr-loading {
+  width: 12rem;
+  height: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary, #c5a059);
 }
 
 .event-qr-placard__instruction {

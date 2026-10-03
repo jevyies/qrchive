@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import QRCode from 'qrcode'
 import { useToast } from '@/composables/useToast'
 import { axiosInstance, API_BASE_URL } from '@/plugins/axios'
 import JBtn from '@/@core/components/JBtn.vue'
@@ -204,6 +205,81 @@ const copyVaultUrl = async () => {
       color: 'primary',
     })
   }
+}
+
+// Scannable live QR Code SVG with "QRchive Events" center badge
+const qrSvg = ref('')
+const qrCodeUrl = computed(() => `${hostOrigin.value}/event/${eventCode.value}`)
+
+const generateQrSvg = async () => {
+  const url = qrCodeUrl.value
+  if (!url) return
+  try {
+    const rawSvg = await QRCode.toString(url, {
+      type: 'svg',
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      color: {
+        dark: '#1f1b18',
+        light: '#ffffff',
+      },
+    })
+
+    const match = rawSvg.match(/viewBox="0 0 (\d+) (\d+)"/)
+    if (match) {
+      const w = parseInt(match[1], 10)
+      const h = parseInt(match[2], 10)
+      const cx = w / 2
+      const cy = h / 2
+      const bw = Math.round(w * 0.36)
+      const bh = Math.round(bw * 0.48)
+      const bx = (w - bw) / 2
+      const by = (h - bh) / 2
+      const rx = 1.4
+
+      const badge = `
+        <g class="qr-center-badge">
+          <!-- White outer halo for crisp separation from QR modules -->
+          <rect x="${(bx - 0.45).toFixed(2)}" y="${(by - 0.45).toFixed(2)}" width="${(bw + 0.9).toFixed(2)}" height="${(bh + 0.9).toFixed(2)}" rx="${(rx + 0.3).toFixed(2)}" fill="#ffffff" />
+          <!-- Luxury badge background with brand gold border -->
+          <rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="${rx.toFixed(2)}" fill="#1f1b18" stroke="#c5a059" stroke-width="0.4" />
+          <!-- QRchive brand typography -->
+          <text x="${cx.toFixed(2)}" y="${(cy - 0.65).toFixed(2)}" fill="#ffffff" font-family="'Playfair Display', Georgia, serif" font-size="${(bw * 0.17).toFixed(2)}" font-weight="700" letter-spacing="0.05" text-anchor="middle" dominant-baseline="central">QRchive</text>
+          <!-- Events sub-label -->
+          <text x="${cx.toFixed(2)}" y="${(cy + 1.45).toFixed(2)}" fill="#c5a059" font-family="'Inter', -apple-system, sans-serif" font-size="${(bw * 0.095).toFixed(2)}" font-weight="700" letter-spacing="0.25" text-anchor="middle" dominant-baseline="central">EVENTS</text>
+        </g>
+      `
+      qrSvg.value = rawSvg.replace('</svg>', `${badge}</svg>`)
+    } else {
+      qrSvg.value = rawSvg
+    }
+  } catch (err) {
+    console.error('Failed to generate QR code SVG:', err)
+  }
+}
+
+watchEffect(() => {
+  if (hostOrigin.value && eventCode.value) {
+    generateQrSvg()
+  }
+})
+
+// Download high-resolution vector SVG with embedded logo
+const downloadQrCode = () => {
+  if (!qrSvg.value) {
+    handleAction('QR Code is still generating...', 'info')
+    return
+  }
+  const blob = new Blob([qrSvg.value], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `qrchive-${eventCode.value}-qr.svg`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  handleAction('High-res SVG QR code downloaded', 'success')
 }
 
 // Action notices
@@ -547,10 +623,10 @@ onUnmounted(() => {
             <span>Live Slideshow</span>
           </button>
           <button type="button" class="event-detail__action-btn event-detail__action-btn--primary"
-            :disabled="isDownloadingZip"
-            :style="isDownloadingZip ? 'opacity: 0.85; cursor: wait;' : ''"
+            :disabled="isDownloadingZip" :style="isDownloadingZip ? 'opacity: 0.85; cursor: wait;' : ''"
             @click="downloadAllFiles">
-            <span v-if="isDownloadingZip" class="material-symbols-outlined spinning" style="font-size: 1.1rem;">progress_activity</span>
+            <span v-if="isDownloadingZip" class="material-symbols-outlined spinning"
+              style="font-size: 1.1rem;">progress_activity</span>
             <span v-else class="material-symbols-outlined" style="font-size: 1.1rem;">cloud_download</span>
             <span>{{ isDownloadingZip ? zipProgressText : 'Download All (ZIP)' }}</span>
           </button>
@@ -611,7 +687,7 @@ onUnmounted(() => {
             <span class="event-detail__stat-label">Active Contributors</span>
             <div class="event-detail__stat-row">
               <span class="event-detail__stat-value event-detail__stat-value--primary">{{ totalActiveContributors
-              }}</span>
+                }}</span>
               <span class="event-detail__stat-unit">
                 {{ totalActiveContributors === 1 ? 'Beloved Guest' : 'Beloved Guests' }}
               </span>
@@ -826,42 +902,10 @@ onUnmounted(() => {
 
               <!-- Central QR Code -->
               <div class="event-qr-placard__svg-wrap">
-                <svg viewBox="0 0 100 100" fill="currentColor">
-                  <!-- QR Finder Top Left -->
-                  <rect x="10" y="10" width="24" height="24" rx="2" fill="none" stroke="currentColor" stroke-width="4">
-                  </rect>
-                  <rect x="17" y="17" width="10" height="10" fill="currentColor"></rect>
-                  <!-- QR Finder Top Right -->
-                  <rect x="66" y="10" width="24" height="24" rx="2" fill="none" stroke="currentColor" stroke-width="4">
-                  </rect>
-                  <rect x="73" y="17" width="10" height="10" fill="currentColor"></rect>
-                  <!-- QR Finder Bottom Left -->
-                  <rect x="10" y="66" width="24" height="24" rx="2" fill="none" stroke="currentColor" stroke-width="4">
-                  </rect>
-                  <rect x="17" y="73" width="10" height="10" fill="currentColor"></rect>
-                  <!-- Data Dots & Patterns -->
-                  <rect x="42" y="12" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="52" y="12" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="42" y="24" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="48" y="30" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="12" y="42" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="22" y="48" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="30" y="42" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="42" y="42" width="16" height="16" rx="2" fill="#775a19"></rect>
-                  <!-- Monogram Inside QR Center -->
-                  <text x="50" y="54" fill="#ffffff" font-family="'Playfair Display', serif" font-size="10"
-                    font-style="italic" text-anchor="middle">K&amp;J</text>
-                  <rect x="64" y="42" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="74" y="48" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="82" y="42" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="42" y="66" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="52" y="74" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="66" y="66" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="76" y="72" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="66" y="82" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="82" y="82" width="6" height="6" fill="currentColor"></rect>
-                  <rect x="50" y="84" width="6" height="6" fill="currentColor"></rect>
-                </svg>
+                <div v-if="qrSvg" class="event-qr-code-display" v-html="qrSvg"></div>
+                <div v-else class="event-qr-loading">
+                  <span class="material-symbols-outlined spinning">progress_activity</span>
+                </div>
               </div>
 
               <p class="event-qr-placard__instruction">
@@ -886,7 +930,7 @@ onUnmounted(() => {
           <!-- Action Button -->
           <div>
             <button type="button" class="event-detail__action-btn event-detail__action-btn--primary"
-              style="padding: 0.75rem 1.5rem;" @click="handleAction('High-res SVG QR code downloaded', 'success')">
+              style="padding: 0.75rem 1.5rem;" @click="downloadQrCode">
               <span class="material-symbols-outlined" style="font-size: 1.15rem;">download</span>
               <span>Download QR Code</span>
             </button>
@@ -1133,6 +1177,7 @@ onUnmounted(() => {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { db, snapPhotos, snapGuests, snapChecklist, photos, events, snapPhotoLikes, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
-import { R2Service } from '../services/r2.service';
+import { R2Service, R2_PUBLIC_DOMAIN } from '../services/r2.service';
 import { BatchUploadService } from '../services/batchUpload.service';
 import { photoUploadQueue } from '../queues/photoUpload.queue';
 import { enqueueZipArchiveJob, getZipArchiveJobStatus, ZIP_STORAGE_DIR } from '../queues/zipArchive.queue';
@@ -13,28 +13,22 @@ import { wsManager } from '../services/websocket.service';
 
 /**
  * Formats a photo URL with Cloudflare Image Resizing parameters
+ * When using a direct R2 public domain without CF Image Resizing, returns the direct public URL.
  */
-export function formatThumbnailUrl(fullUrl: string, options: string = 'width=500,quality=80,format=auto'): string {
+export function formatThumbnailUrl(fullUrl: string, _options: string = 'width=500,quality=80,format=auto'): string {
   if (!fullUrl) return '';
-  if (fullUrl.includes('image/width=')) return fullUrl;
-
-  try {
-    const parsed = new URL(fullUrl);
-    return `${parsed.origin}/cdn-cgi/image/${options}${parsed.pathname}${parsed.search}`;
-  } catch {
-    const clean = fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`;
-    return `/cdn-cgi/image/${options}${clean}`;
-  }
+  return fullUrl;
 }
 
 /**
  * Formats a photo record into the simplified response structure:
- * { id, thumbnailUrl, fullUrl, uploadedBy, createdAt, likesCount, isLiked }
+ * { id, thumbnailUrl, fullUrl, uploadedBy, createdAt, likesCount, isLiked, url, storageKey, storage_key }
  */
 export function formatSimplifiedPhoto(photo: {
   id: number;
   url: string;
   storageKey?: string | null;
+  storage_key?: string | null;
   uploadedBy?: string | null;
   createdAt: string | Date;
   likesCount?: number;
@@ -44,10 +38,10 @@ export function formatSimplifiedPhoto(photo: {
   mimeType?: string | null;
   thumbnailUrl?: string | null;
 }) {
-  let fullUrl = photo.url;
-  if (!fullUrl || fullUrl.includes('r2.cloudflarestorage.com')) {
-    fullUrl = R2Service.getPublicUrl(photo.storageKey || '', photo.id);
-  }
+  const rawKey = photo.storageKey || (photo as any).storage_key || photo.url || '';
+  const cleanKey = R2Service.cleanStorageKey(rawKey);
+  const domain = R2_PUBLIC_DOMAIN || 'https://photos.qrchive-events.com';
+  const fullUrl = cleanKey ? `${domain}/${cleanKey}` : (photo.url && !photo.url.includes('/api/photos/') ? photo.url : '');
 
   const isVideo = Boolean(
     photo.mimeType?.startsWith('video/') ||
@@ -57,16 +51,14 @@ export function formatSimplifiedPhoto(photo: {
     fullUrl.endsWith('.webm')
   );
 
-  let thumbnailUrl = photo.thumbnailUrl || '';
-  if (!thumbnailUrl) {
-    if (isVideo && photo.storageKey) {
-      const thumbKey = photo.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
-      thumbnailUrl = R2Service.getPublicUrl(thumbKey);
-    } else if (isVideo) {
-      thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
-    } else {
-      thumbnailUrl = formatThumbnailUrl(fullUrl);
-    }
+  let thumbnailUrl = '';
+  if (isVideo && cleanKey) {
+    const thumbKey = cleanKey.replace(/\.[^.]+$/, '_thumb.jpg');
+    thumbnailUrl = `${domain}/${thumbKey}`;
+  } else if (isVideo) {
+    thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
+  } else {
+    thumbnailUrl = fullUrl;
   }
 
   const uploadedByName = photo.uploadedBy || 'Guest';
@@ -88,6 +80,8 @@ export function formatSimplifiedPhoto(photo: {
     isLiked: Boolean(photo.isLiked || false),
     // Retained for backward-compatibility with quests.vue & live-vault.vue
     url: fullUrl,
+    storageKey: cleanKey || photo.storageKey || null,
+    storage_key: cleanKey || photo.storageKey || null,
     checklistId: photo.checklistId || null,
     fileName: photo.fileName || null,
     mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
@@ -98,12 +92,13 @@ export function formatSimplifiedPhoto(photo: {
 
 /**
  * Formats a photo record without like stats (for guest-specific photo list):
- * { id, thumbnailUrl, fullUrl, uploadedBy, createdAt, url, checklistId, fileName, mimeType, isVideo, type }
+ * { id, thumbnailUrl, fullUrl, uploadedBy, createdAt, url, storageKey, storage_key, checklistId, fileName, mimeType, isVideo, type }
  */
 export function formatSimplifiedGuestPhoto(photo: {
   id: number;
   url: string;
   storageKey?: string | null;
+  storage_key?: string | null;
   uploadedBy?: string | null;
   createdAt: string | Date;
   checklistId?: number | null;
@@ -111,10 +106,10 @@ export function formatSimplifiedGuestPhoto(photo: {
   mimeType?: string | null;
   thumbnailUrl?: string | null;
 }) {
-  let fullUrl = photo.url;
-  if (!fullUrl || fullUrl.includes('r2.cloudflarestorage.com')) {
-    fullUrl = R2Service.getPublicUrl(photo.storageKey || '', photo.id);
-  }
+  const rawKey = photo.storageKey || (photo as any).storage_key || photo.url || '';
+  const cleanKey = R2Service.cleanStorageKey(rawKey);
+  const domain = R2_PUBLIC_DOMAIN || 'https://photos.qrchive-events.com';
+  const fullUrl = cleanKey ? `${domain}/${cleanKey}` : (photo.url && !photo.url.includes('/api/photos/') ? photo.url : '');
 
   const isVideo = Boolean(
     photo.mimeType?.startsWith('video/') ||
@@ -124,16 +119,14 @@ export function formatSimplifiedGuestPhoto(photo: {
     fullUrl.endsWith('.webm')
   );
 
-  let thumbnailUrl = photo.thumbnailUrl || '';
-  if (!thumbnailUrl) {
-    if (isVideo && photo.storageKey) {
-      const thumbKey = photo.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
-      thumbnailUrl = R2Service.getPublicUrl(thumbKey);
-    } else if (isVideo) {
-      thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
-    } else {
-      thumbnailUrl = formatThumbnailUrl(fullUrl);
-    }
+  let thumbnailUrl = '';
+  if (isVideo && cleanKey) {
+    const thumbKey = cleanKey.replace(/\.[^.]+$/, '_thumb.jpg');
+    thumbnailUrl = `${domain}/${thumbKey}`;
+  } else if (isVideo) {
+    thumbnailUrl = fullUrl.replace(/\.[^.]+$/, '_thumb.jpg');
+  } else {
+    thumbnailUrl = fullUrl;
   }
 
   const uploadedByName = photo.uploadedBy || 'Guest';
@@ -151,6 +144,8 @@ export function formatSimplifiedGuestPhoto(photo: {
     uploadedBy: uploadedByName,
     createdAt: createdAtStr,
     url: fullUrl,
+    storageKey: cleanKey || photo.storageKey || null,
+    storage_key: cleanKey || photo.storageKey || null,
     checklistId: photo.checklistId || null,
     fileName: photo.fileName || null,
     mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
@@ -1585,6 +1580,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           url: formattedPhoto?.fullUrl || formattedPhoto?.url || null,
           thumbnailUrl: formattedPhoto?.thumbnailUrl || null,
           fullUrl: formattedPhoto?.fullUrl || null,
+          storageKey: formattedPhoto?.storageKey || g.topPhoto?.storageKey || null,
+          storage_key: formattedPhoto?.storage_key || g.topPhoto?.storageKey || null,
           uploadedBy: formattedPhoto?.uploadedBy ?? null,
           createdAt: formattedPhoto?.createdAt ?? null,
           likesCount: formattedPhoto?.likesCount ?? 0,
@@ -1698,19 +1695,25 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      let url = photo.url;
-      if (!url || url.includes('r2.cloudflarestorage.com')) {
-        url = R2Service.getPublicUrl(photo.storageKey || '', photo.id);
-      }
+      const formatted = formatSimplifiedPhoto({
+        id: photo.id,
+        url: photo.url,
+        storageKey: photo.storageKey,
+        uploadedBy: (photo as any).guest?.name || 'Guest',
+        createdAt: photo.createdAt,
+        checklistId: photo.checklistId,
+        fileName: photo.fileName,
+        mimeType: photo.mimeType,
+      });
 
       const guestInfo = (photo as any).guest;
       return reply.send({
         ...photo,
+        ...formatted,
         eventId: guestInfo?.eventId || null,
         uploadedBy: guestInfo?.name || 'Guest',
         event: guestInfo?.event || null,
         guest: guestInfo || null,
-        url,
       });
     }
   );
@@ -1749,9 +1752,14 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
+      const cleanKey = R2Service.cleanStorageKey(photo.storageKey);
+      if (R2_PUBLIC_DOMAIN && !R2_PUBLIC_DOMAIN.includes('r2.cloudflarestorage.com')) {
+        return reply.redirect(`${R2_PUBLIC_DOMAIN}/${cleanKey}`, 301);
+      }
+
       try {
         const { buffer, contentType, contentLength, eTag } =
-          await R2Service.getObjectBuffer(photo.storageKey);
+          await R2Service.getObjectBuffer(cleanKey);
 
         reply.header('Content-Type', contentType || photo.mimeType || 'image/jpeg');
         if (contentLength) {
@@ -1786,12 +1794,17 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const storageKey = (request.params as any)['*'];
-      if (!storageKey) {
+      const rawStorageKey = (request.params as any)['*'];
+      if (!rawStorageKey) {
         return reply.status(400).send({
           error: 'Bad Request',
           message: 'Missing storageKey in path.',
         });
+      }
+
+      const storageKey = R2Service.cleanStorageKey(rawStorageKey);
+      if (R2_PUBLIC_DOMAIN && !R2_PUBLIC_DOMAIN.includes('r2.cloudflarestorage.com')) {
+        return reply.redirect(`${R2_PUBLIC_DOMAIN}/${storageKey}`, 301);
       }
 
       try {

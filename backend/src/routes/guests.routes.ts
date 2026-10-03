@@ -531,21 +531,21 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         tableId: g.tableId,
         table: g.table
           ? {
-              id: g.table.id,
-              name: g.table.name,
-              description: g.table.description,
-            }
+            id: g.table.id,
+            name: g.table.name,
+            description: g.table.description,
+          }
           : null,
         event: g.event,
         wedding: g.event
           ? {
-              id: g.event.id,
-              brideFirstname: g.event.brideFirstname,
-              brideLastname: g.event.brideLastname,
-              groomFirstname: g.event.groomFirstname,
-              groomLastname: g.event.groomLastname,
-              weddingDate: g.event.eventDate,
-            }
+            id: g.event.id,
+            brideFirstname: g.event.brideFirstname,
+            brideLastname: g.event.brideLastname,
+            groomFirstname: g.event.groomFirstname,
+            groomLastname: g.event.groomLastname,
+            weddingDate: g.event.eventDate,
+          }
           : null,
       }));
 
@@ -730,8 +730,8 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         status === 'attending'
           ? `Thank you ${guest.firstname}! Your attendance has been confirmed.`
           : status === 'declined'
-          ? `Thank you for letting us know, ${guest.firstname}. We will miss you!`
-          : `RSVP status updated to ${status}.`;
+            ? `Thank you for letting us know, ${guest.firstname}. We will miss you!`
+            : `RSVP status updated to ${status}.`;
 
       return reply.send({
         message,
@@ -1353,11 +1353,10 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         description: 'Creates a new snap guest for an event using Redis queue for concurrency. Returns guest id and generated guest_code.',
         body: {
           type: 'object',
+          required: ['guestName', 'eventToken'],
           properties: {
-            name: { type: 'string' },
             guestName: { type: 'string' },
             eventToken: { type: 'string' },
-            eventId: { type: ['integer', 'string'] },
             deviceSerial: { type: 'string' },
             deviceName: { type: 'string' },
           },
@@ -1365,30 +1364,20 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         response: {
           201: {
             description: 'Snap guest created successfully',
-            type: 'object',
-            properties: {
-              id: { type: 'integer' },
-              guest_code: { type: 'string' },
-              guestCode: { type: 'string' },
-              name: { type: 'string' },
-              eventId: { type: 'integer' },
-            },
+            type: 'string',
           },
         },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = (request.body as any) || {};
-      const guestName = (body.name || body.guestName || 'Guest').trim() || 'Guest';
-      const rawTokenOrId = body.eventToken || body.eventId;
+      const guestName = (body.guestName).trim()
+      const rawToken = body.eventToken;
 
       let resolvedEventId: number | null = null;
-      if (rawTokenOrId) {
-        const isNumeric = /^\d+$/.test(String(rawTokenOrId));
+      if (rawToken) {
         const event = await db.query.events.findFirst({
-          where: isNumeric
-            ? or(eq(events.token, String(rawTokenOrId)), eq(events.id, Number(rawTokenOrId)))
-            : eq(events.token, String(rawTokenOrId)),
+          where: eq(events.token, String(rawToken)),
         });
         if (event) {
           resolvedEventId = event.id;
@@ -1396,9 +1385,9 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
       }
 
       if (!resolvedEventId) {
-        return reply.status(404).send({
-          error: 'Not Found',
-          message: 'Event not found for provided token or ID.',
+        return reply.status(200).send({
+          error: true,
+          message: 'Event not found for provided token.',
         });
       }
 
@@ -1408,14 +1397,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         deviceSerial: body.deviceSerial || null,
         deviceName: body.deviceName || null,
       });
-
-      return reply.status(201).send({
-        id: result.id,
-        guest_code: result.guest_code,
-        guestCode: result.guest_code,
-        name: result.name,
-        eventId: result.eventId,
-      });
+      return reply.status(201).send(result.guest_code);
     }
   );
 
@@ -1451,11 +1433,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
                 properties: {
                   id: { type: 'integer' },
                   guestCode: { type: 'string' },
-                  guest_code: { type: 'string' },
-                  name: { type: 'string' },
                   guestName: { type: 'string' },
-                  eventId: { type: 'integer' },
-                  eventCode: { type: 'string' },
                 },
               },
               message: { type: 'string', nullable: true },

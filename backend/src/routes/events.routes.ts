@@ -307,9 +307,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!event) {
-        return reply.status(404).send({
-          error: 'Not Found',
-          message: `Event with token '${token}' not found.`,
+        return reply.status(200).send({
+          error: true,
+          message: 'Event not found',
         });
       }
 

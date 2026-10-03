@@ -1,0 +1,236 @@
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
+import { useIntersectionObserver } from '@vueuse/core'
+import { useEventVaultStore, extractPhotoCategoryKey } from '@/stores/eventVault'
+
+const props = defineProps({
+    eventDetails: {
+        type: Object,
+        default: () => ({})
+    },
+    isDemo: {
+        type: Boolean,
+        default: false
+    }
+})
+
+const emit = defineEmits(['open-lightbox'])
+
+const route = useRoute()
+const eventVaultStore = useEventVaultStore()
+
+// State from centralized store
+const isDemo = computed(() => props.isDemo || eventVaultStore.isDemo || route.params?.id === 'demo-event')
+const categories = computed(() => eventVaultStore.categories)
+const totalMomentsCount = computed(() => eventVaultStore.totalMomentsCount)
+
+// UI Filter & Sort
+const selectedCategory = ref('all')
+const sortBy = ref('recent') // 'recent' | 'loved'
+
+// Filtered and sorted media stream from centralized store
+const filteredMedia = computed(() => {
+    let list = eventVaultStore.mediaItems
+
+    if (selectedCategory.value !== 'all') {
+        if (isDemo.value) {
+            if (selectedCategory.value === 'quick-capture') {
+                list = list.filter((item) => item.category === 'quick-capture' || item.category === 'quick-snaps')
+            } else {
+                list = list.filter((item) => item.category === selectedCategory.value)
+            }
+        } else if (selectedCategory.value === 'quick-capture') {
+            list = list.filter((item) => {
+                const seg = extractPhotoCategoryKey(item)
+                return (
+                    seg === 'quick-snaps' ||
+                    (item.thumbnailUrl && item.thumbnailUrl.includes('quick-snaps')) ||
+                    (item.fullUrl && item.fullUrl.includes('quick-snaps')) ||
+                    (item.url && item.url.includes('quick-snaps'))
+                )
+            })
+        } else {
+            const targetId = String(selectedCategory.value)
+            list = list.filter((item) => {
+                const seg = extractPhotoCategoryKey(item)
+                if (seg && String(seg) === targetId) return true
+                if (item.checklistId !== null && item.checklistId !== undefined && String(item.checklistId) === targetId) {
+                    return true
+                }
+                const inThumb = item.thumbnailUrl && item.thumbnailUrl.includes(`/${targetId}/`)
+                const inFull = item.fullUrl && item.fullUrl.includes(`/${targetId}/`)
+                const inUrl = item.url && item.url.includes(`/${targetId}/`)
+                return inThumb || inFull || inUrl
+            })
+        }
+    }
+
+    if (sortBy.value === 'loved') {
+        return [...list].sort((a, b) => b.likes - a.likes)
+    }
+    return list
+})
+
+const toggleSort = () => {
+    sortBy.value = sortBy.value === 'recent' ? 'loved' : 'recent'
+}
+
+// Open Lightbox via emit to parent [id].vue
+const openLightbox = (item) => {
+    const idx = filteredMedia.value.findIndex((m) => m.id === item.id)
+    emit('open-lightbox', {
+        item,
+        items: filteredMedia.value,
+        index: idx !== -1 ? idx : 0,
+    })
+}
+
+// -----------------------------------------------------------------------------
+// Infinite Scroll Implementation (replaces 'Load More Moments' button)
+// -----------------------------------------------------------------------------
+const scrollSentinel = ref(null)
+
+// Primary: IntersectionObserver with 350px anticipation
+useIntersectionObserver(
+    scrollSentinel,
+    ([{ isIntersecting }]) => {
+        if (
+            isIntersecting &&
+            eventVaultStore.hasMore &&
+            !eventVaultStore.isLoadingMore &&
+            !eventVaultStore.isLoadingPhotos
+        ) {
+            eventVaultStore.loadMorePhotos()
+        }
+    },
+    { rootMargin: '350px' },
+)
+
+// Fallback: Window scroll listener for browsers / elastic bounces
+const handleWindowScroll = () => {
+    if (
+        !eventVaultStore.hasMore ||
+        eventVaultStore.isLoadingMore ||
+        eventVaultStore.isLoadingPhotos ||
+        isDemo.value
+    ) {
+        return
+    }
+    const scrollY = window.scrollY || document.documentElement.scrollTop
+    const windowHeight = window.innerHeight
+    const documentHeight = document.documentElement.scrollHeight
+    if (documentHeight - (scrollY + windowHeight) < 400) {
+        eventVaultStore.loadMorePhotos()
+    }
+}
+
+onMounted(() => {
+    const eventId = props.eventDetails?.token || props.eventDetails?.id || route.params?.id || 'demo-event'
+
+    // Initialize or load event data via centralized store
+    eventVaultStore.fetchInitialData(eventId)
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('scroll', handleWindowScroll, { passive: true })
+    }
+})
+
+onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('scroll', handleWindowScroll)
+    }
+})
+</script>
+
+<template>
+    <!-- Content Sheet Overlay (Slides over sticky hero) -->
+    <div class="vault-content">
+        <!-- Filter & Sort Navigation with "All" as first tab -->
+        <section class="vault-filter-section">
+            <div class="vault-filter-header">
+                <span class="vault-filter-count"></span>
+                <button id="sortToggleBtn" class="vault-sort-toggle" type="button" @click="toggleSort">
+                    <span class="material-symbols-outlined">sort</span>
+                    <span>{{ sortBy === 'recent' ? 'Recent' : 'Most Loved' }}</span>
+                </button>
+            </div>
+
+            <div class="vault-filter-scroll">
+                <button v-for="cat in categories" :key="cat.id" class="vault-filter-chip"
+                    :class="selectedCategory === cat.id ? 'vault-filter-chip--active' : 'vault-filter-chip--inactive'"
+                    type="button" @click="selectedCategory = cat.id">
+                    {{ cat.id === 'all' ? `All (${totalMomentsCount})` : cat.label }}
+                </button>
+            </div>
+        </section>
+
+        <!-- Guest Media Feed Grid -->
+        <section class="vault-feed-section">
+            <div v-if="filteredMedia.length > 0" class="vault-grid">
+                <div v-for="item in filteredMedia" :key="item.id" class="vault-card"
+                    @click="openLightbox(item)">
+                    <!-- Fallback video frame if video has no image thumbnail or thumbnail is a video URL -->
+                    <video
+                        v-if="item.type === 'video' && (!item.thumbnailUrl || item.thumbnailUrl.endsWith('.mp4') || item.thumbnailUrl.endsWith('.webm'))"
+                        class="vault-card__image vault-card__video-preview" :src="item.videoUrl || item.fullUrl"
+                        muted playsinline preload="metadata">
+                    </video>
+
+                    <!-- Media Image Thumbnail (100% full bleed, zero padding) -->
+                    <img v-else :alt="item.title" class="vault-card__image" loading="lazy"
+                        :src="item.thumbnailUrl || item.url"
+                        @error="(e) => { if (item.fullUrl && !item.fullUrl.endsWith('.mp4') && e.target.src !== item.fullUrl) e.target.src = item.fullUrl }">
+
+                    <!-- Gradient Scrim -->
+                    <div class="vault-card__scrim"></div>
+
+                    <!-- Video Duration / Play Badge -->
+                    <div v-if="item.type === 'video'" class="vault-card__video-badge">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        <span class="vault-card__video-duration">{{ item.duration || '0:30' }}</span>
+                    </div>
+
+                    <!-- Like Button -->
+                    <button aria-label="Like moment" class="vault-card__like-btn"
+                        :class="{ 'is-liked': item.isLiked }" type="button"
+                        @click.stop="eventVaultStore.toggleLike(item, $event)">
+                        <span class="material-symbols-outlined vault-card__like-icon">favorite</span>
+                        <span class="vault-card__like-count">{{ item.likes }}</span>
+                    </button>
+
+                    <!-- Guest Name Overlay Badge -->
+                    <div class="vault-card__guest-badge">
+                        <span class="vault-card__guest-dot"></span>
+                        <span class="vault-card__guest-name">{{ item.guest }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State if no moments match filter -->
+            <div v-else class="vault-empty">
+                <span class="material-symbols-outlined vault-empty__icon">photo_library</span>
+                <h2 class="vault-empty__title">No moments in this category yet</h2>
+            </div>
+
+            <!-- Infinite Scroll Loading Indicator (shown only when actively loading) -->
+            <div v-if="eventVaultStore.isLoadingMore" class="vault-loading-container">
+                <div class="vault-loading-indicator">
+                    <span class="material-symbols-outlined vault-spinner">progress_activity</span>
+                    <span>Loading more moments...</span>
+                </div>
+            </div>
+
+            <!-- Invisible Scroll Sentinel for IntersectionObserver (zero height when idle) -->
+            <div v-if="!isDemo" ref="scrollSentinel" class="vault-scroll-sentinel" aria-hidden="true"></div>
+        </section>
+    </div>
+</template>
+
+<style scoped>
+.vault-content {
+    margin-left: auto;
+    margin-right: auto;
+    padding-bottom: 5.5rem;
+}
+</style>

@@ -2,14 +2,9 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { getDemoPhotosCount } from '@/utils/demoDb'
-import { useEventVaultStore } from '@/stores/eventVault'
 
 const props = defineProps({
     isOpen: {
-        type: Boolean,
-        default: false,
-    },
-    modelValue: {
         type: Boolean,
         default: false,
     },
@@ -17,17 +12,13 @@ const props = defineProps({
         type: Object,
         default: null,
     },
-    wedding: {
-        type: Object,
-        default: () => ({
-            initials: 'K & J',
-            dateBadge: '24.10.26',
-        }),
+    eventDetails: {
+        type: [Object, null],
+        default: null,
     },
     galleryImage: {
         type: String,
-        default:
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuC_b45E9YjZPsE9FZqujCSRNTm6TpITBwM_TaJFgapEZqnACNNwtSVVLegXCWrGpfncDgbRxwks7l8wtobmCfqQkFQv34yOtgKuuNCrqjBvvgccMhT42aq0aHWZnTM-_kf98W7MIzPhbJg7cCIGS2Qy3CEH8ggjzWg0aUNB4Le6KuNEtqtn-DZAcxxNxm62OShpMnoE5uH6Kye6WAxV9WCfQwoP8bbVduYvD1BF5SQjqaIMfsDR8GxI',
+        default: '',
     },
     galleryCount: {
         type: Number,
@@ -45,15 +36,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    pendingQuickPhotos: {
-        type: Array,
-        default: () => [],
-    },
+    isUnlimited: {
+        type: Boolean,
+        default: false
+    }
 })
 
 const emit = defineEmits([
     'update:isOpen',
-    'update:modelValue',
     'close',
     'capture',
     'open-gallery',
@@ -82,26 +72,19 @@ const displayGalleryCount = computed(() => {
     return localDemoCount.value
 })
 
-const isVisible = computed(() => Boolean(props.isOpen || props.modelValue))
+const isVisible = computed(() => Boolean(props.isOpen))
 
 const isQuickExperience = computed(() => {
     return String(props.captureExperience || '').toLowerCase().trim() === 'quick'
 })
-
-const eventVaultStore = useEventVaultStore()
 const sessionCaptureCount = ref(0)
 
 const isCaptureLimitReached = computed(() => {
     if (isQuickExperience.value) {
-        if (props.quickPhotosLeft <= 0) return true
-        const uploaded = (props.uploadedQuickPhotos && props.uploadedQuickPhotos.length > 0)
-            ? props.uploadedQuickPhotos.length
-            : (eventVaultStore.uploadedQuickPhotos?.length || 0)
-        const pending = props.pendingQuickPhotos?.length || 0
-        const total = uploaded + Math.max(pending, sessionCaptureCount.value)
-        return total >= props.quickPhotosLeft
+        if (props.isUnlimited) return false;
+        if (props.quickPhotosLeft <= 0) return true;
+        return (props.uploadedQuickPhotos || []).length >= props.quickPhotosLeft;
     } else {
-        // When not in quick mode (e.g. checklist mode), limit only by 1 capture
         return sessionCaptureCount.value >= 1
     }
 })
@@ -313,71 +296,80 @@ const toggleTimer = () => {
     timerModeIndex.value = (timerModeIndex.value + 1) % timerModes.length
 }
 
+let isCapturingPhoto = false
+
 // Execute single photo capture
 const executeCapture = async () => {
-    if (isCaptureLimitReached.value) return
+    if (isCaptureLimitReached.value || isCapturingPhoto) return
+    isCapturingPhoto = true
 
-    isFlashActive.value = true
-    isViewfinderScaled.value = true
+    try {
+        isFlashActive.value = true
+        isViewfinderScaled.value = true
 
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate([30, 20, 50])
-    }
-
-    let capturedUrl =
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuAtugc2oDwyayarlJO8IfY0KvJE1t-Txs0OEHZIUXi0H29kBMKoVaHtrvXCg_u6ZTSk4htGJYBiWIv9oXQHWmHhBObhhwNp8IiGEZFLrWIjQAN6Dbjg4lq2CknxKewu2RidFIQaLD83ZtDjl8GOmewe9pBnqX_XoFRUNj0nEFWV3atRIeQroa2FQ44na1TzF-KDKTxmI_e-FdlJla9GpGDqzMj7G52Y8JjxXo1RK5-WSqdqhEhPAd7w'
-
-    let capturedBlob = null
-
-    // Capture real frame from video element with digital zoom cropping if zoomed in
-    if (hasCameraFeed.value && videoElement.value) {
-        try {
-            const canvas = document.createElement('canvas')
-            const vWidth = videoElement.value.videoWidth || 1080
-            const vHeight = videoElement.value.videoHeight || 1920
-            canvas.width = vWidth
-            canvas.height = vHeight
-            const ctx = canvas.getContext('2d')
-
-            if (cameraFacingMode.value === 'user') {
-                ctx.translate(canvas.width, 0)
-                ctx.scale(-1, 1)
-            }
-
-            // Apply digital zoom crop if zoom > 1
-            if (currentZoom.value > 1.0) {
-                const z = currentZoom.value
-                const sWidth = vWidth / z
-                const sHeight = vHeight / z
-                const sx = (vWidth - sWidth) / 2
-                const sy = (vHeight - sHeight) / 2
-                ctx.drawImage(videoElement.value, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height)
-            } else {
-                ctx.drawImage(videoElement.value, 0, 0, canvas.width, canvas.height)
-            }
-
-            capturedUrl = canvas.toDataURL('image/jpeg', 0.85)
-            capturedBlob = await new Promise((resolve) => {
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85)
-            })
-        } catch (err) {
-            console.warn('[Camera] Failed to capture canvas frame:', err)
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([30, 20, 50])
         }
+
+        let capturedUrl =
+            'https://lh3.googleusercontent.com/aida-public/AB6AXuAtugc2oDwyayarlJO8IfY0KvJE1t-Txs0OEHZIUXi0H29kBMKoVaHtrvXCg_u6ZTSk4htGJYBiWIv9oXQHWmHhBObhhwNp8IiGEZFLrWIjQAN6Dbjg4lq2CknxKewu2RidFIQaLD83ZtDjl8GOmewe9pBnqX_XoFRUNj0nEFWV3atRIeQroa2FQ44na1TzF-KDKTxmI_e-FdlJla9GpGDqzMj7G52Y8JjxXo1RK5-WSqdqhEhPAd7w'
+
+        let capturedBlob = null
+
+        // Capture real frame from video element with digital zoom cropping if zoomed in
+        if (hasCameraFeed.value && videoElement.value) {
+            try {
+                const canvas = document.createElement('canvas')
+                const vWidth = videoElement.value.videoWidth || 1080
+                const vHeight = videoElement.value.videoHeight || 1920
+                canvas.width = vWidth
+                canvas.height = vHeight
+                const ctx = canvas.getContext('2d')
+
+                if (cameraFacingMode.value === 'user') {
+                    ctx.translate(canvas.width, 0)
+                    ctx.scale(-1, 1)
+                }
+
+                // Apply digital zoom crop if zoom > 1
+                if (currentZoom.value > 1.0) {
+                    const z = currentZoom.value
+                    const sWidth = vWidth / z
+                    const sHeight = vHeight / z
+                    const sx = (vWidth - sWidth) / 2
+                    const sy = (vHeight - sHeight) / 2
+                    ctx.drawImage(videoElement.value, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height)
+                } else {
+                    ctx.drawImage(videoElement.value, 0, 0, canvas.width, canvas.height)
+                }
+
+                capturedUrl = canvas.toDataURL('image/jpeg', 0.85)
+                capturedBlob = await new Promise((resolve) => {
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85)
+                })
+            } catch (err) {
+                console.warn('[Camera] Failed to capture canvas frame:', err)
+            }
+        }
+
+        setTimeout(() => {
+            isFlashActive.value = false
+            isViewfinderScaled.value = false
+        }, 120)
+
+        sessionCaptureCount.value++
+        emit('capture', {
+            type: 'photo',
+            isVideo: false,
+            dataUrl: capturedUrl,
+            blob: capturedBlob,
+            moment: props.activeMoment,
+        })
+    } finally {
+        setTimeout(() => {
+            isCapturingPhoto = false
+        }, 300)
     }
-
-    setTimeout(() => {
-        isFlashActive.value = false
-        isViewfinderScaled.value = false
-    }, 120)
-
-    sessionCaptureCount.value++
-    emit('capture', {
-        type: 'photo',
-        isVideo: false,
-        dataUrl: capturedUrl,
-        blob: capturedBlob,
-        moment: props.activeMoment,
-    })
 }
 
 // Fallback frame renderer if camera feed is not supported on environment
@@ -656,7 +648,6 @@ const handleClose = () => {
     countdownSeconds.value = null
     stopCameraStream()
     emit('update:isOpen', false)
-    emit('update:modelValue', false)
     emit('close')
 }
 
@@ -784,21 +775,15 @@ onBeforeUnmount(() => {
     <teleport to="body">
         <div v-if="isVisible" class="camera-modal">
             <!-- Live Camera Viewfinder Layer with touch swipe & pinch handlers -->
-            <div class="camera-viewfinder-layer"
-                @touchstart="onTouchStart"
-                @touchmove="onTouchMove"
-                @touchend="onTouchEnd"
-                @touchcancel="onTouchEnd"
-                @mousedown="onMouseDown"
-                @mouseup="onMouseUp">
+            <div class="camera-viewfinder-layer" @touchstart="onTouchStart" @touchmove="onTouchMove"
+                @touchend="onTouchEnd" @touchcancel="onTouchEnd" @mousedown="onMouseDown" @mouseup="onMouseUp">
 
                 <!-- Real HTML5 Video Camera Stream Layer -->
                 <video v-show="hasCameraFeed" ref="videoElement" autoplay playsinline muted class="camera-stream-video"
                     :style="viewfinderTransform"></video>
 
                 <!-- Background Frame Fallback: Wedding Reception Viewfinder -->
-                <div v-show="!hasCameraFeed" id="cameraFeed" class="camera-stream-fallback"
-                    :style="fallbackTransform"
+                <div v-show="!hasCameraFeed" id="cameraFeed" class="camera-stream-fallback" :style="fallbackTransform"
                     style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA-EbfHxr0P6GL_iucEctw5mslqfrga9bIbAjvrYlYwBOFkBiHyF3G79f3rP3hPZ14Za8yR7ORgzGVH1-rH8hKNANpgBe0B_f6wTVwkC3rMXsMrciWu08_cZFAdCJcQSz-A_UgWcaqR-QYT5CetkjIIxOZstdE0fsfDrnaQnU6n_S0TnVpmSrApRCTJvyjK2M2bFkBeqFMhugW9d8ULHxxHe-Z3NBgKKypAgRK-MyDRMblqZDIgWr8i');">
                     <div class="camera-vignette-scrim"></div>
                     <div class="camera-radial-scrim"></div>
@@ -907,15 +892,18 @@ onBeforeUnmount(() => {
                 <footer class="camera-bottom-cockpit">
                     <!-- Lens Zoom Switcher: .5x, 1x, 2x (plus Pinch-to-Zoom feedback) -->
                     <div class="camera-zoom-row">
-                        <button class="camera-zoom-btn" :class="{ 'is-active': selectedZoom === '.5' || currentZoom === 0.5 }" type="button"
+                        <button class="camera-zoom-btn"
+                            :class="{ 'is-active': selectedZoom === '.5' || currentZoom === 0.5 }" type="button"
                             @click="setZoom(0.5)">
                             .5x
                         </button>
-                        <button class="camera-zoom-btn" :class="{ 'is-active': selectedZoom === '1×' || currentZoom === 1.0 }" type="button"
+                        <button class="camera-zoom-btn"
+                            :class="{ 'is-active': selectedZoom === '1×' || currentZoom === 1.0 }" type="button"
                             @click="setZoom(1.0)">
                             1x
                         </button>
-                        <button class="camera-zoom-btn" :class="{ 'is-active': selectedZoom === '2' || currentZoom === 2.0 }" type="button"
+                        <button class="camera-zoom-btn"
+                            :class="{ 'is-active': selectedZoom === '2' || currentZoom === 2.0 }" type="button"
                             @click="setZoom(2.0)">
                             2x
                         </button>
@@ -940,40 +928,36 @@ onBeforeUnmount(() => {
                     <!-- Limit Notice if reached -->
                     <div v-if="isCaptureLimitReached && !isRecording" class="camera-limit-badge">
                         <span class="material-symbols-outlined camera-limit-icon">lock</span>
-                        <span>{{ isQuickExperience ? `Limit reached (${quickPhotosLeft}/${quickPhotosLeft} Snaps)` : 'Limit reached: 1 capture per moment' }}</span>
+                        <span>{{ isQuickExperience ? `Limit reached (${quickPhotosLeft}/${quickPhotosLeft} Snaps)` :
+                            'Limit reached: 1 capture per moment' }}</span>
                     </div>
 
                     <!-- Shutter Row & Triggers -->
                     <div class="camera-controls-row">
                         <!-- Flip Camera -->
                         <button id="lensFlipBtn" aria-label="Switch Camera Lens" class="camera-flip-btn" type="button"
-                            :disabled="isRecording"
-                            @click="flipCamera">
+                            :disabled="isRecording" @click="flipCamera">
                             <span class="material-symbols-outlined">flip_camera_ios</span>
                         </button>
 
                         <!-- Circular Shutter Button Wrapper -->
                         <div class="camera-shutter-wrap">
                             <!-- Circular SVG progress ring from snippet when capturing video -->
-                            <svg v-if="activeCameraMode === 'VIDEO' && isRecording"
-                                class="video-recording-svg"
-                                height="86"
-                                viewBox="0 0 100 100"
-                                width="86">
-                                <circle cx="50" cy="50" fill="none" r="42" stroke="rgba(255, 255, 255, 0.2)" stroke-width="4" />
-                                <circle class="video-recording-ring" cx="50" cy="50" fill="none" r="42" stroke="#ef4444" stroke-linecap="round" stroke-width="4" />
+                            <svg v-if="activeCameraMode === 'VIDEO' && isRecording" class="video-recording-svg"
+                                height="86" viewBox="0 0 100 100" width="86">
+                                <circle cx="50" cy="50" fill="none" r="42" stroke="rgba(255, 255, 255, 0.2)"
+                                    stroke-width="4" />
+                                <circle class="video-recording-ring" cx="50" cy="50" fill="none" r="42" stroke="#ef4444"
+                                    stroke-linecap="round" stroke-width="4" />
                             </svg>
 
                             <button id="shutterBtn"
                                 :aria-label="activeCameraMode === 'VIDEO' ? (isRecording ? 'Stop Recording' : 'Start Video Recording') : 'Take Wedding Photo'"
-                                class="camera-shutter-btn"
-                                :class="{
+                                class="camera-shutter-btn" :class="{
                                     'is-video-mode': activeCameraMode === 'VIDEO',
                                     'is-recording': isRecording,
                                     'is-disabled': isCaptureLimitReached && !isRecording,
-                                }"
-                                :disabled="isCaptureLimitReached && !isRecording"
-                                type="button"
+                                }" :disabled="isCaptureLimitReached && !isRecording" type="button"
                                 @click="triggerShutter">
                                 <span class="camera-shutter-core" :class="{
                                     'core-video': activeCameraMode === 'VIDEO' && !isRecording,
@@ -986,8 +970,8 @@ onBeforeUnmount(() => {
                         </div>
 
                         <!-- Gallery Picker Preview (Hidden when recording, and hidden when captureExperience === 'quick') -->
-                        <button v-if="!isRecording && !isQuickExperience" aria-label="View QRchive Reception Gallery" class="camera-gallery-btn" type="button"
-                            @click="openGallery">
+                        <button v-if="!isRecording && !isQuickExperience" aria-label="View QRchive Reception Gallery"
+                            class="camera-gallery-btn" type="button" @click="openGallery">
                             <div class="camera-gallery-frame">
                                 <img alt="Recent candid guest moment" class="camera-gallery-img" :src="galleryImage" />
                                 <div class="camera-gallery-badge">
@@ -998,8 +982,8 @@ onBeforeUnmount(() => {
                         </button>
 
                         <!-- Stop Button (Replaces Gallery button when recording) -->
-                        <button v-else-if="isRecording" aria-label="Stop Video Recording" class="camera-stop-btn" type="button"
-                            @click="stopVideoRecording">
+                        <button v-else-if="isRecording" aria-label="Stop Video Recording" class="camera-stop-btn"
+                            type="button" @click="stopVideoRecording">
                             <div class="camera-stop-frame">
                                 <span class="material-symbols-outlined camera-stop-icon">stop</span>
                             </div>
@@ -1065,6 +1049,7 @@ onBeforeUnmount(() => {
     from {
         stroke-dashoffset: 264;
     }
+
     to {
         stroke-dashoffset: 0;
     }

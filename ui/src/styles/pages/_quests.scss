@@ -649,15 +649,19 @@
   flex: 0 0 115px;
   width: 115px;
   height: 145px;
-  border-radius: 12px;
-  overflow: hidden;
+  border-radius: 14px;
   position: relative;
   cursor: pointer;
   scroll-snap-align: start;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
-  border: 1.5px solid #e2e8f0;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   background-color: #0f172a;
+  box-sizing: border-box;
+
+  &:not(.is-uploading):not(.is-success) {
+    border: 1.5px solid #e2e8f0;
+    overflow: hidden;
+  }
 
   &:hover {
     transform: translateY(-2px);
@@ -667,12 +671,52 @@
   &.is-newly-added {
     animation: popInNew 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   }
+
+  // When uploading: electric blue conic gradient border filling according to --upload-pct / --count
+  &.is-uploading {
+    padding: 3.5px;
+    border: none;
+    overflow: visible;
+    background: conic-gradient(from 0deg,
+        #2563eb 0%,
+        #3b82f6 var(--count, var(--upload-pct, 0%)),
+        #93c5fd var(--count, var(--upload-pct, 0%)),
+        rgba(37, 99, 235, 0.15) var(--count, var(--upload-pct, 0%)),
+        rgba(37, 99, 235, 0.15) 100%);
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.55), 0 4px 12px rgba(0, 0, 0, 0.16);
+    animation: pulseBlueAura 2s infinite ease-in-out;
+
+    .quick-uploaded-inner {
+      border: none;
+    }
+  }
+
+  // When upload succeeds: full solid electric blue border
+  &.is-success {
+    padding: 3.5px;
+    border: none;
+    overflow: visible;
+    background: #2563eb;
+    box-shadow: 0 0 22px rgba(37, 99, 235, 0.7), 0 4px 14px rgba(0, 0, 0, 0.18);
+
+    .quick-uploaded-inner {
+      border: none;
+    }
+  }
+}
+
+.quick-uploaded-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  background-color: #0f172a;
 }
 
 @keyframes popInNew {
   0% {
     transform: scale(0.6) translateY(24px);
-    opacity: 0;
   }
 
   100% {
@@ -688,6 +732,52 @@
   display: block;
 }
 
+// Center circular SVG progress ring while uploading
+.quick-uploading-center-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 5;
+  border-radius: inherit;
+}
+
+.quick-progress-ring {
+  width: 44px;
+  height: 44px;
+  transform: rotate(-90deg);
+
+  circle {
+    fill: none;
+    stroke-width: 3.5;
+  }
+
+  &__bg {
+    stroke: rgba(255, 255, 255, 0.2);
+  }
+
+  &__circle {
+    stroke: #3b82f6;
+    stroke-linecap: round;
+    stroke-dasharray: 113.1;
+    transition: stroke-dashoffset 0.15s ease;
+    filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
+  }
+}
+
+.quick-progress-pct {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
 .quick-uploaded-overlay {
   position: absolute;
   bottom: 0;
@@ -699,6 +789,28 @@
   align-items: center;
   justify-content: space-between;
   color: #ffffff;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  z-index: 2;
+
+  &.quick-uploading-overlay {
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, transparent 100%);
+    padding: 16px 8px 6px;
+    font-size: 10px;
+    font-weight: 600;
+
+    .quick-uploading-label {
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .quick-uploading-pct {
+      color: #ffffff;
+      font-weight: 700;
+    }
+  }
 }
 
 .quick-uploaded-check {

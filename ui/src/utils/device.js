@@ -53,26 +53,26 @@ export const getDeviceSerial = () => {
     // Persist to localStorage
     try {
       localStorage.setItem('qrchive_device_serial', serial)
-    } catch (e) {}
+    } catch (e) { }
 
     // Persist to Cookie (1 year duration)
     try {
       if (typeof document !== 'undefined') {
         document.cookie = `qrchive_device_serial=${encodeURIComponent(serial)}; path=/; max-age=31536000; SameSite=Lax`
       }
-    } catch (e) {}
+    } catch (e) { }
   } else {
     // If present in one storage but absent in the other, sync them
     try {
       if (!localStorage.getItem('qrchive_device_serial')) {
         localStorage.setItem('qrchive_device_serial', serial)
       }
-    } catch (e) {}
+    } catch (e) { }
     try {
       if (typeof document !== 'undefined' && !document.cookie.includes('qrchive_device_serial=')) {
         document.cookie = `qrchive_device_serial=${encodeURIComponent(serial)}; path=/; max-age=31536000; SameSite=Lax`
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return serial
@@ -107,20 +107,7 @@ export const getDeviceName = () => {
 export const getStoredEventSession = (eventCode) => {
   if (typeof localStorage === 'undefined' || !eventCode) return null
   const codeStr = String(eventCode)
-  if (codeStr === 'demo-event') return null
 
-  // 1. Check currentEvent if matching
-  try {
-    const rawCurrent = localStorage.getItem('currentEvent')
-    if (rawCurrent) {
-      const parsed = JSON.parse(rawCurrent)
-      if (parsed && String(parsed.eventCode) === codeStr) {
-        return parsed
-      }
-    }
-  } catch (e) {}
-
-  // 2. Check multi-event dictionary
   try {
     const rawSessions = localStorage.getItem('qrchive_event_sessions')
     if (rawSessions) {
@@ -129,7 +116,7 @@ export const getStoredEventSession = (eventCode) => {
         return sessions[codeStr]
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   return null
 }
@@ -142,33 +129,15 @@ export const getStoredEventSession = (eventCode) => {
  */
 export const saveStoredEventSession = (eventCode, sessionData) => {
   if (typeof localStorage === 'undefined' || !sessionData) return
-  const codeStr = String(eventCode || sessionData.eventCode || '')
-
-  try {
-    localStorage.setItem('currentEvent', JSON.stringify(sessionData))
-  } catch (e) {}
-
-  // Never store demo-event into the persistent multi-event sessions dictionary
-  if (codeStr === 'demo-event') {
-    try {
-      const rawSessions = localStorage.getItem('qrchive_event_sessions')
-      if (rawSessions) {
-        const sessions = JSON.parse(rawSessions)
-        if (sessions && sessions['demo-event']) {
-          delete sessions['demo-event']
-          localStorage.setItem('qrchive_event_sessions', JSON.stringify(sessions))
-        }
-      }
-    } catch (e) {}
-    return
-  }
-
+  const codeStr = String(eventCode)
+  if (codeStr === 'demo-event') return;
   if (codeStr) {
     try {
       const rawSessions = localStorage.getItem('qrchive_event_sessions')
       const sessions = rawSessions ? JSON.parse(rawSessions) : {}
       sessions[codeStr] = sessionData
       localStorage.setItem('qrchive_event_sessions', JSON.stringify(sessions))
-    } catch (e) {}
+      localStorage.setItem('guestName', sessionData.guestName || '')
+    } catch (e) { }
   }
 }

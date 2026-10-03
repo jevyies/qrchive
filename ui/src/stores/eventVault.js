@@ -964,10 +964,23 @@ export const useEventVaultStore = defineStore('eventVault', () => {
             totalPhotos.value += 1
         }
 
-        // If quick capture, prepend to uploadedQuickPhotos
+        // If quick capture, prepend or update in uploadedQuickPhotos
         if (!isChecklist && !checklistId) {
-            const existsInQuick = uploadedQuickPhotos.value.some((q) => q.id === photo.id)
-            if (!existsInQuick) {
+            const existingIndex = uploadedQuickPhotos.value.findIndex(
+                (q) =>
+                    (photo.id && (q.id === photo.id || String(q.id) === String(photo.id))) ||
+                    (photo.fileName && q.fileName && q.fileName === photo.fileName) ||
+                    (photo.url && (q.url === photo.url || q.fullUrl === photo.url || q.dataUrl === photo.url))
+            )
+            if (existingIndex !== -1) {
+                const existing = uploadedQuickPhotos.value[existingIndex]
+                existing.id = photo.id
+                if (photo.thumbnailUrl) existing.thumbnailUrl = photo.thumbnailUrl
+                if (photo.url) existing.url = photo.thumbnailUrl || photo.url
+                if (photo.fullUrl || photo.url) existing.fullUrl = photo.fullUrl || photo.url
+                if (photo.uploadedBy) existing.guest = photo.uploadedBy
+                if (photo.fileName) existing.fileName = photo.fileName
+            } else {
                 uploadedQuickPhotos.value.unshift({
                     id: photo.id,
                     url: photo.thumbnailUrl || photo.url,

@@ -152,6 +152,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "camera",
+    "category": "Action",
+    "tags": [
+      "camera",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "camera-plus",
     "category": "Action",
     "tags": [
@@ -492,6 +501,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "gallery",
+    "category": "Action",
+    "tags": [
+      "gallery",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "gear",
     "category": "Navigation",
     "tags": [
@@ -538,6 +556,15 @@ export const allIcons = [
       "main",
       "dashboard",
       "root"
+    ]
+  },
+  {
+    "name": "home copy",
+    "category": "Action",
+    "tags": [
+      "home copy",
+      "action",
+      "control"
     ]
   },
   {

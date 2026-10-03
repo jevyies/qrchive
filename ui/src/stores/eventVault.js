@@ -962,9 +962,6 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 mediaItems.value = mapped
             }
 
-            // Sync with quests checklist and uploaded snaps
-            syncPhotosToQuests(photosList)
-
             currentPage.value = page
             totalPhotos.value = data?.total ?? mediaItems.value.length
             hasMore.value = Boolean(data?.hasMore ?? (currentPage.value * limit < totalPhotos.value))
@@ -1077,6 +1074,28 @@ export const useEventVaultStore = defineStore('eventVault', () => {
     const fetchGuestInitialData = fetchInitialGuestData
     const fetchInitialDataByGuest = fetchInitialGuestData
 
+    const isCurrentGuestPhoto = (photo) => {
+        if (!photo) return false
+        const currentName = (typeof localStorage !== 'undefined' ? localStorage.getItem('guestName') : '') || ''
+        let storedSessionName = ''
+        let storedSessionCode = ''
+        if (typeof localStorage !== 'undefined') {
+            try {
+                const ev = JSON.parse(localStorage.getItem('currentEvent') || '{}')
+                storedSessionName = ev?.guestName || ''
+                storedSessionCode = ev?.guestCode || ''
+            } catch {}
+        }
+        const myCode = currentGuestCode.value || storedSessionCode || (typeof localStorage !== 'undefined' ? (localStorage.getItem('guestCode') || localStorage.getItem('qrchive_guest_code')) : '')
+        
+        if (photo.guestCode && myCode && String(photo.guestCode) === String(myCode)) return true
+        const uploader = photo.uploadedBy || photo.guest
+        if (uploader === 'You') return true
+        if (currentName && uploader === currentName) return true
+        if (storedSessionName && uploader === storedSessionName) return true
+        return false
+    }
+
     // Add newly uploaded photo immediately to store
     const addUploadedPhoto = (photo, { isChecklist = false, checklistId = null } = {}) => {
         if (!photo) return
@@ -1129,7 +1148,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 if (photo.fileName) existing.fileName = photo.fileName
                 existing.storageKey = photoKey
                 existing.storage_key = photoKey
-            } else {
+            } else if (isCurrentGuestPhoto(photo)) {
                 uploadedQuickPhotos.value.unshift({
                     id: photo.id,
                     url: resolvedFull || resolvedThumb,
@@ -1154,7 +1173,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         if (isChecklist || checklistId) {
             const cId = checklistId || photo.checklistId
             const foundMoment = moments.value.find((m) => Number(m.id) === Number(cId))
-            if (foundMoment) {
+            if (foundMoment && isCurrentGuestPhoto(photo)) {
                 const photoKey = photo.storageKey || photo.storage_key || null
                 const resolvedThumb = resolveStorageUrl(photo.thumbnailUrl || photo.url, photoKey)
                 const resolvedFull = resolveStorageUrl(photo.fullUrl || photo.url, photoKey)

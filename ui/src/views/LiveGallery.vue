@@ -146,6 +146,9 @@ onBeforeUnmount(() => {
 <template>
     <!-- Content Sheet Overlay (Slides over sticky hero) -->
     <div class="vault-content">
+        <div class="checklist-drawer-handle-bar" aria-hidden="true">
+            <span class="checklist-drawer-handle"></span>
+        </div>
         <!-- Filter & Sort Navigation with "All" as first tab -->
         <section class="vault-filter-section">
             <div class="vault-filter-header">
@@ -168,13 +171,12 @@ onBeforeUnmount(() => {
         <!-- Guest Media Feed Grid -->
         <section class="vault-feed-section">
             <div v-if="filteredMedia.length > 0" class="vault-grid">
-                <div v-for="item in filteredMedia" :key="item.id" class="vault-card"
-                    @click="openLightbox(item)">
+                <div v-for="item in filteredMedia" :key="item.id" class="vault-card" @click="openLightbox(item)">
                     <!-- Fallback video frame if video has no image thumbnail or thumbnail is a video URL -->
                     <video
                         v-if="item.type === 'video' && (!item.thumbnailUrl || item.thumbnailUrl.endsWith('.mp4') || item.thumbnailUrl.endsWith('.webm'))"
-                        class="vault-card__image vault-card__video-preview" :src="item.videoUrl || item.fullUrl"
-                        muted playsinline preload="metadata">
+                        class="vault-card__image vault-card__video-preview" :src="item.videoUrl || item.fullUrl" muted
+                        playsinline preload="metadata">
                     </video>
 
                     <!-- Media Image Thumbnail (100% full bleed, zero padding) -->
@@ -192,9 +194,8 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Like Button -->
-                    <button aria-label="Like moment" class="vault-card__like-btn"
-                        :class="{ 'is-liked': item.isLiked }" type="button"
-                        @click.stop="eventVaultStore.toggleLike(item, $event)">
+                    <button aria-label="Like moment" class="vault-card__like-btn" :class="{ 'is-liked': item.isLiked }"
+                        type="button" @click.stop="eventVaultStore.toggleLike(item, $event)">
                         <span class="material-symbols-outlined vault-card__like-icon">favorite</span>
                         <span class="vault-card__like-count">{{ item.likes }}</span>
                     </button>

@@ -13,7 +13,7 @@
   font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  overflow-x: hidden;
+  overflow-x: clip;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -29,6 +29,14 @@
   overflow: hidden;
   background-size: cover;
   background-position: center;
+
+  &.has-guest-auth {
+    overflow: visible;
+    overflow-x: clip;
+    justify-content: flex-start;
+    min-height: 100dvh;
+    height: auto;
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -45,7 +53,11 @@
 
   &.active {
     height: 22rem;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    overflow: hidden;
+    will-change: transform;
     transition-delay: 0.3s;
   }
 }

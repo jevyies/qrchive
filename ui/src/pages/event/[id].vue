@@ -4,6 +4,8 @@ import { storeToRefs } from 'pinia'
 import { reactive, ref, computed, onMounted } from 'vue'
 import { axiosInstance } from '@/plugins/axios'
 import { getDeviceSerial, getDeviceName, saveStoredEventSession, getStoredEventSession } from '@/utils/device';
+import { saveDemoQuickPhoto, saveDemoChecklistMoment, getDemoPhotosCount, clearDemoData } from '@/utils/demoDb'
+import { useEventVaultStore, resolveStorageUrl } from '@/stores/eventVault'
 import BaseError from '@/views/BaseError.vue'
 import LoadingEvent from '@/views/LoadingEvent.vue'
 import EventWelcomePage from '@/views/EventWelcomePage.vue'
@@ -11,8 +13,6 @@ import EventBoard from '@/views/EventBoard.vue'
 import AppLogo from '@core/components/AppLogo.vue'
 import LiveGallery from '@/views/LiveGallery.vue';
 import GuestModal from '@/views/modals/Guest2Modal.vue'
-import { useEventVaultStore, resolveStorageUrl } from '@/stores/eventVault'
-import { saveDemoQuickPhoto, saveDemoChecklistMoment, getDemoPhotosCount, clearDemoData } from '@/utils/demoDb'
 import LightBox from '@/views/LightBox.vue'
 import Camera from '@/views/Camera.vue'
 import EventTab from '@/views/EventTab.vue'
@@ -742,7 +742,6 @@ const handleFileChange = (e) => {
 }
 onMounted(async () => {
     if (isDemo.value) {
-        hasGuestAuth.value = true
         eventDetails.value = {
             id: 'demo-event',
             token: 'demo-event',
@@ -754,6 +753,7 @@ onMounted(async () => {
         }
         await eventVaultStore.fetchInitialGuestData('demo-event', 'demo-guest')
         await updateDemoGalleryCount()
+        hasGuestAuth.value = false;
         loading.value = false
         return
     }
@@ -788,7 +788,7 @@ onMounted(async () => {
             <BaseError type="error" v-else-if="eventError" @homepage="goToHomePage" />
             <template v-else>
                 <div class="event-vault-root">
-                    <main class="event-viewport">
+                    <main class="event-viewport" :class="{ 'has-guest-auth': hasGuestAuth }">
                         <!-- Atmospheric Editorial Overlays -->
                         <div class="event-hero-image" :style="{ backgroundImage: `url(${bannerImage})` }"
                             :class="{ active: hasGuestAuth }">

@@ -71,6 +71,9 @@ defineExpose({
 </script>
 <template>
     <div class="checklist-content">
+        <div class="checklist-drawer-handle-bar" aria-hidden="true">
+            <span class="checklist-drawer-handle"></span>
+        </div>
         <div class="checklist-container">
             <!-- Hero Header Progress Card: Experience Switcher -->
             <div class="checklist-experience-switcher">

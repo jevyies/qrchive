@@ -10,7 +10,9 @@ import {
     getDemoChecklistMoments,
     clearDemoData,
 } from '@/utils/demoDb'
-const defaultImg = 'https://photos.qrchive-events.com/cdn-cgi/image/width=600,quality=80/static/cover-photo.jpg';
+
+const storageDomain = (import.meta.env.VITE_STORAGE_URL || 'https://photos.qrchive-events.com').replace(/\/+$/, '')
+const defaultImg = `${storageDomain}/static/cover-photo.jpg`
 
 // Known wedding data dictionary
 export const knownWeddings = {
@@ -295,7 +297,7 @@ export function formatRelativeTime(dateInput) {
 export function extractPhotoCategoryKey(item) {
     if (!item) return null
 
-    const urls = [item.thumbnailUrl, item.fullUrl, item.url].filter(Boolean)
+    const urls = [item.storageKey, item.storage_key, item.thumbnailUrl, item.fullUrl, item.url].filter(Boolean)
 
     for (const rawUrl of urls) {
         if (typeof rawUrl !== 'string') continue
@@ -327,10 +329,136 @@ export function extractPhotoCategoryKey(item) {
     return null
 }
 
+// Helper: Resolve any image URL or key directly to the R2 public domain: PUBLIC_DOMAIN + '/' + storage_key
+export function resolveStorageUrl(urlOrKey, explicitStorageKey = null) {
+    if (!urlOrKey && !explicitStorageKey) return ''
+    const storageDomain = (import.meta.env.VITE_STORAGE_URL || 'https://photos.qrchive-events.com').replace(/\/+$/, '')
+
+    let candidateKey = explicitStorageKey
+    let rawUrl = ''
+    if (typeof urlOrKey === 'object' && urlOrKey !== null) {
+        candidateKey = candidateKey || urlOrKey.storageKey || urlOrKey.storage_key || null
+        rawUrl = urlOrKey.fullUrl || urlOrKey.thumbnailUrl || urlOrKey.url || ''
+    } else if (typeof urlOrKey === 'string') {
+        rawUrl = urlOrKey.trim()
+    }
+
+    // 1. If candidate storageKey is available and valid, ALWAYS use PUBLIC_DOMAIN + '/' + storage_key
+    if (candidateKey && typeof candidateKey === 'string') {
+        let cleanCandidate = candidateKey.trim()
+        if (!cleanCandidate.includes('/api/photos/') && !cleanCandidate.startsWith('api/photos/')) {
+            cleanCandidate = cleanCandidate.replace(/^\/+/, '')
+            if (cleanCandidate.startsWith('http://') || cleanCandidate.startsWith('https://')) {
+                return cleanCandidate
+            }
+            return `${storageDomain}/${cleanCandidate}`
+        }
+    }
+
+    if (!rawUrl) return ''
+
+    // 2. Keep local blobs and data URIs untouched
+    if (rawUrl.startsWith('blob:') || rawUrl.startsWith('data:')) {
+        return rawUrl
+    }
+
+    let clean = rawUrl
+
+    // 3. Remove backend legacy proxy routes like /api/photos/view/<key>
+    if (clean.includes('/api/photos/view/')) {
+        clean = clean.split('/api/photos/view/')[1] || clean
+    } else if (clean.includes('api/photos/view/')) {
+        clean = clean.split('api/photos/view/')[1] || clean
+    }
+
+    // 4. Remove /cdn-cgi/image/<options>/ prefix if present
+    if (clean.includes('/cdn-cgi/image/')) {
+        const match = clean.match(/\/cdn-cgi\/image\/[^/]+\/(.+)$/)
+        if (match && match[1]) {
+            clean = match[1]
+            if (clean.includes('/api/photos/view/')) {
+                clean = clean.split('/api/photos/view/')[1] || clean
+            }
+        }
+    }
+
+    // 5. If it's a full URL
+    if (/^https?:\/\//i.test(clean)) {
+        // If it was mistakenly prefixed to storageDomain with an API route (e.g. https://photos.qrchive-events.com/api/photos/208/file)
+        if (clean.includes('/api/photos/') && (clean.includes('photos.qrchive-events.com') || clean.includes(storageDomain))) {
+            const apiBase = (import.meta.env.VITE_API_BASE_URL || API_BASE_URL || 'http://localhost:3001').replace(/\/+$/, '')
+            try {
+                const parsed = new URL(clean)
+                return `${apiBase}${parsed.pathname}`
+            } catch {
+                return clean
+            }
+        }
+
+        if (clean.includes('r2.cloudflarestorage.com') || clean.includes('localhost:') || clean.includes('127.0.0.1:')) {
+            try {
+                const parsed = new URL(clean)
+                clean = parsed.pathname
+                if (clean.includes('/api/photos/view/')) {
+                    clean = clean.split('/api/photos/view/')[1] || clean
+                } else if (clean.includes('/api/photos/') && clean.endsWith('/file')) {
+                    const apiBase = (import.meta.env.VITE_API_BASE_URL || API_BASE_URL || 'http://localhost:3001').replace(/\/+$/, '')
+                    return `${apiBase}${clean}`
+                }
+            } catch {
+                // Ignore
+            }
+        } else {
+            return clean
+        }
+    }
+
+    // 6. If clean is an api/photos route without view, DO NOT prepend storageDomain!
+    if (clean.startsWith('/api/photos/') || clean.startsWith('api/photos/')) {
+        const apiBase = (import.meta.env.VITE_API_BASE_URL || API_BASE_URL || 'http://localhost:3001').replace(/\/+$/, '')
+        const normalized = clean.startsWith('/') ? clean : `/${clean}`
+        return `${apiBase}${normalized}`
+    }
+
+    clean = clean.replace(/^\/+/, '')
+    return clean ? `${storageDomain}/${clean}` : ''
+}
+
+// Helper: Construct Cloudflare Image Resizing URL (/cdn-cgi/image/width=600,quality=80/<storage_key>)
+export function getResizedStorageUrl(urlOrKey, explicitStorageKey = null, { width = 600, quality = 80 } = {}) {
+    if (!urlOrKey && !explicitStorageKey) return ''
+    const storageDomain = (import.meta.env.VITE_STORAGE_URL || 'https://photos.qrchive-events.com').replace(/\/+$/, '')
+
+    let candidateKey = explicitStorageKey
+    if (!candidateKey && typeof urlOrKey === 'object' && urlOrKey !== null) {
+        candidateKey = urlOrKey.storageKey || urlOrKey.storage_key || null
+    }
+
+    if (typeof urlOrKey === 'string' && (urlOrKey.startsWith('blob:') || urlOrKey.startsWith('data:'))) {
+        return urlOrKey
+    }
+
+    const fullUrl = resolveStorageUrl(urlOrKey, candidateKey)
+    if (!candidateKey && typeof fullUrl === 'string' && fullUrl.startsWith(storageDomain)) {
+        candidateKey = fullUrl.replace(storageDomain, '').replace(/^\/+/, '')
+    }
+
+    if (candidateKey && typeof candidateKey === 'string') {
+        let clean = candidateKey.trim()
+        if (!clean.includes('/api/photos/') && !clean.startsWith('api/photos/')) {
+            clean = clean.replace(/^\/+/, '').replace(/^cdn-cgi\/image\/[^/]+\//, '')
+            return `${storageDomain}/cdn-cgi/image/width=${width},quality=${quality}/${clean}`
+        }
+    }
+
+    return fullUrl
+}
+
 // Helper: Transform API / WebSocket photo to media item
 export function mapPhotoToMediaItem(photo, checklistList = []) {
-    const rawThumb = photo.thumbnailUrl || photo.url || ''
-    const rawFull = photo.fullUrl || photo.url || ''
+    const photoKey = photo?.storageKey || photo?.storage_key || null
+    const rawThumb = resolveStorageUrl(photo.thumbnailUrl || photo.url || '', photoKey)
+    const rawFull = resolveStorageUrl(photo.fullUrl || photo.url || '', photoKey)
     const likesCount = Number(photo.likesCount ?? photo.likes ?? 0)
 
     const isVideo = Boolean(
@@ -343,10 +471,18 @@ export function mapPhotoToMediaItem(photo, checklistList = []) {
         rawFull.endsWith('.webm'),
     )
 
+    let finalThumb = rawThumb
+    if (isVideo && photoKey && (!finalThumb || finalThumb.endsWith('.mp4') || finalThumb.endsWith('.webm'))) {
+        const thumbKey = photoKey.replace(/\.[^.]+$/, '_thumb.jpg')
+        finalThumb = `${storageDomain}/${thumbKey}`
+    }
+
     const catKey = extractPhotoCategoryKey({
-        thumbnailUrl: rawThumb,
+        storageKey: photoKey,
+        storage_key: photoKey,
+        thumbnailUrl: finalThumb,
         fullUrl: rawFull,
-        url: rawThumb || rawFull,
+        url: finalThumb || rawFull,
         checklistId: photo.checklistId ?? null,
     })
 
@@ -370,9 +506,11 @@ export function mapPhotoToMediaItem(photo, checklistList = []) {
         id: photo.id,
         type: isVideo ? 'video' : 'photo',
         isVideo: isVideo,
-        thumbnailUrl: rawThumb,
+        thumbnailUrl: finalThumb,
         fullUrl: rawFull,
-        url: rawThumb || rawFull,
+        url: finalThumb || rawFull,
+        storageKey: photoKey,
+        storage_key: photoKey,
         videoUrl: isVideo ? (photo.videoUrl || rawFull) : null,
         videoBlob: photo.videoBlob || photo.blob || null,
         duration: photo.duration || (isVideo ? '0:30' : undefined),
@@ -723,11 +861,12 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                         p.url?.endsWith('.mp4') ||
                         p.url?.endsWith('.webm'),
                     )
+                    const pKey = p.storageKey || p.storage_key || null
                     matched.captured = true
-                    matched.image = p.thumbnailUrl || p.url
-                    matched.fullImage = p.fullUrl || p.url
+                    matched.image = resolveStorageUrl(p.thumbnailUrl || p.url, pKey)
+                    matched.fullImage = resolveStorageUrl(p.fullUrl || p.url, pKey)
                     matched.isVideo = isVid
-                    matched.videoUrl = isVid ? (p.fullUrl || p.url) : null
+                    matched.videoUrl = isVid ? resolveStorageUrl(p.fullUrl || p.url, pKey) : null
                     matched.guest = p.uploadedBy || 'You'
                     matched.time = p.uploadedAt || p.createdAt
                         ? new Date(p.uploadedAt || p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -751,13 +890,18 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                     p.url?.endsWith('.mp4') ||
                     p.url?.endsWith('.webm'),
                 )
+                const pKey = p.storageKey || p.storage_key || null
+                const resolvedFull = resolveStorageUrl(p.fullUrl || p.url, pKey)
+                const resolvedThumb = resolveStorageUrl(p.thumbnailUrl || p.url, pKey) || resolvedFull
                 return {
                     id: p.id,
-                    url: p.thumbnailUrl || p.url,
-                    fullUrl: p.fullUrl || p.url,
-                    thumbnailUrl: p.thumbnailUrl,
+                    url: resolvedFull || resolvedThumb,
+                    fullUrl: resolvedFull || resolvedThumb,
+                    thumbnailUrl: resolvedThumb || resolvedFull,
+                    storageKey: pKey,
+                    storage_key: pKey,
                     isVideo: isVid,
-                    videoUrl: isVid ? (p.fullUrl || p.url) : null,
+                    videoUrl: isVid ? (p.videoUrl || resolvedFull) : null,
                     fileName: p.fileName || (isVid ? 'Video Clip' : 'Snapshot'),
                     uploadedAt: p.uploadedAt || p.createdAt
                         ? new Date(p.uploadedAt || p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -972,22 +1116,29 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                     (photo.fileName && q.fileName && q.fileName === photo.fileName) ||
                     (photo.url && (q.url === photo.url || q.fullUrl === photo.url || q.dataUrl === photo.url))
             )
+            const photoKey = photo.storageKey || photo.storage_key || null
+            const resolvedFull = resolveStorageUrl(photo.fullUrl || photo.url, photoKey)
+            const resolvedThumb = resolveStorageUrl(photo.thumbnailUrl || photo.url, photoKey) || resolvedFull
             if (existingIndex !== -1) {
                 const existing = uploadedQuickPhotos.value[existingIndex]
                 existing.id = photo.id
-                if (photo.thumbnailUrl) existing.thumbnailUrl = photo.thumbnailUrl
-                if (photo.url) existing.url = photo.thumbnailUrl || photo.url
-                if (photo.fullUrl || photo.url) existing.fullUrl = photo.fullUrl || photo.url
+                existing.thumbnailUrl = resolvedThumb
+                existing.url = resolvedFull || resolvedThumb
+                existing.fullUrl = resolvedFull || resolvedThumb
                 if (photo.uploadedBy) existing.guest = photo.uploadedBy
                 if (photo.fileName) existing.fileName = photo.fileName
+                existing.storageKey = photoKey
+                existing.storage_key = photoKey
             } else {
                 uploadedQuickPhotos.value.unshift({
                     id: photo.id,
-                    url: photo.thumbnailUrl || photo.url,
-                    fullUrl: photo.fullUrl || photo.url,
-                    thumbnailUrl: photo.thumbnailUrl,
+                    url: resolvedFull || resolvedThumb,
+                    fullUrl: resolvedFull || resolvedThumb,
+                    thumbnailUrl: resolvedThumb || resolvedFull,
+                    storageKey: photoKey,
+                    storage_key: photoKey,
                     isVideo: isVid,
-                    videoUrl: isVid ? (photo.videoUrl || photo.fullUrl || photo.url) : null,
+                    videoUrl: isVid ? (photo.videoUrl || resolvedFull) : null,
                     videoBlob: photo.videoBlob || photo.blob || null,
                     fileName: photo.fileName || (isVid ? 'Video Clip' : 'Snapshot'),
                     uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1004,11 +1155,16 @@ export const useEventVaultStore = defineStore('eventVault', () => {
             const cId = checklistId || photo.checklistId
             const foundMoment = moments.value.find((m) => Number(m.id) === Number(cId))
             if (foundMoment) {
+                const photoKey = photo.storageKey || photo.storage_key || null
+                const resolvedThumb = resolveStorageUrl(photo.thumbnailUrl || photo.url, photoKey)
+                const resolvedFull = resolveStorageUrl(photo.fullUrl || photo.url, photoKey)
                 foundMoment.captured = true
-                foundMoment.image = photo.thumbnailUrl || photo.url
-                foundMoment.fullImage = photo.fullUrl || photo.url
+                foundMoment.image = resolvedThumb
+                foundMoment.fullImage = resolvedFull
+                foundMoment.storageKey = photoKey
+                foundMoment.storage_key = photoKey
                 foundMoment.isVideo = isVid
-                foundMoment.videoUrl = photo.videoUrl || (isVid ? (photo.fullUrl || photo.url) : null)
+                foundMoment.videoUrl = photo.videoUrl || (isVid ? resolvedFull : null)
                 foundMoment.videoBlob = photo.videoBlob || photo.blob || null
                 foundMoment.guest = photo.uploadedBy || 'You'
             }

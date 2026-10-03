@@ -285,17 +285,6 @@ const flipCamera = async () => {
     await startCameraStream()
 }
 
-// Toggle flash mode
-const toggleFlash = () => {
-    flashModeIndex.value = (flashModeIndex.value + 1) % flashModes.length
-}
-
-// Toggle timer mode
-const toggleTimer = () => {
-    if (isRecording.value) return
-    timerModeIndex.value = (timerModeIndex.value + 1) % timerModes.length
-}
-
 let isCapturingPhoto = false
 
 // Execute single photo capture
@@ -799,32 +788,12 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- TOP HUD BAR -->
-                <header class="camera-top-hud">
+                <header class="camera-top-hud mt-2">
                     <div class="camera-top-controls">
                         <!-- Close Pill -->
                         <button aria-label="Return to Wedding Checklist" class="camera-hud-btn" type="button"
                             @click="handleClose">
                             <span class="material-symbols-outlined">close</span>
-                        </button>
-
-                        <!-- Flash Mode Pill -->
-                        <button aria-label="Toggle Flash Mode" class="camera-hud-btn" type="button"
-                            @click="toggleFlash">
-                            <span class="material-symbols-outlined">{{ flashMode }}</span>
-                        </button>
-
-                        <!-- Timer Toggle -->
-                        <button aria-label="Toggle Camera Timer" class="camera-hud-btn" type="button"
-                            @click="toggleTimer">
-                            <span class="material-symbols-outlined">
-                                {{
-                                    currentTimer === 3
-                                        ? 'timer_3'
-                                        : currentTimer === 10
-                                            ? 'timer_10'
-                                            : 'timer_off'
-                                }}
-                            </span>
                         </button>
                     </div>
 

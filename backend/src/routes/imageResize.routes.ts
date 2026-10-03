@@ -1,7 +1,7 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { db, snapPhotos } from '../db';
-import { R2Service } from '../services/r2.service';
+import { R2Service, R2_PUBLIC_DOMAIN } from '../services/r2.service';
 
 export const imageResizeRoutes: FastifyPluginAsync = async (app) => {
   const handleImageResize = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -35,15 +35,20 @@ export const imageResizeRoutes: FastifyPluginAsync = async (app) => {
     }
 
     if (storageKey) {
+      const cleanKey = R2Service.cleanStorageKey(storageKey);
+      if (R2_PUBLIC_DOMAIN && !R2_PUBLIC_DOMAIN.includes('r2.cloudflarestorage.com')) {
+        return reply.redirect(`${R2_PUBLIC_DOMAIN}/${cleanKey}`, 301);
+      }
+
       try {
-        const { buffer, contentType, eTag } = await R2Service.getObjectBuffer(storageKey);
+        const { buffer, contentType, eTag } = await R2Service.getObjectBuffer(cleanKey);
         reply.header('Content-Type', contentType || 'image/jpeg');
         if (eTag) reply.header('ETag', eTag);
         reply.header('Cache-Control', 'public, max-age=31536000, immutable');
         return reply.send(buffer);
       } catch (err: any) {
         request.log.warn(
-          { err: err.message, storageKey, rawPath },
+          { err: err.message, storageKey: cleanKey, rawPath },
           '[ImageResize] R2 buffer fetch failed, redirecting to raw path'
         );
       }

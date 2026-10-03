@@ -25,7 +25,11 @@ export const R2_BUCKET_NAME = (process.env.R2_BUCKET_NAME || 'qrchive-2026')
 export const R2_ROOT_FOLDER = (process.env.R2_ROOT_FOLDER || 'dev')
   .replace(/["']/g, '')
   .trim();
-export const R2_PUBLIC_DOMAIN = (process.env.R2_PUBLIC_DOMAIN || '')
+export const R2_PUBLIC_DOMAIN = (
+  process.env.R2_PUBLIC_DOMAIN && !process.env.R2_PUBLIC_DOMAIN.includes('r2.cloudflarestorage.com')
+    ? process.env.R2_PUBLIC_DOMAIN
+    : (process.env.VITE_STORAGE_URL || 'https://photos.qrchive-events.com')
+)
   .replace(/["']/g, '')
   .trim()
   .replace(/\/+$/, '');
@@ -95,20 +99,59 @@ export class R2Service {
   }
 
   /**
-   * Computes the URL of the uploaded photo.
-   * If R2_PUBLIC_DOMAIN is configured with a real public CDN/r2.dev domain, uses that.
-   * If R2_PUBLIC_DOMAIN points to the private S3 API (r2.cloudflarestorage.com) or is empty,
-   * falls back to the backend proxy endpoint so images load properly in browsers without Authorization XML errors!
+   * Sanitizes and extracts the pure R2 storageKey from any raw key, full URL, or legacy proxy path.
    */
-  static getPublicUrl(storageKey: string, photoId?: number | string): string {
-    if (R2_PUBLIC_DOMAIN && !R2_PUBLIC_DOMAIN.includes('r2.cloudflarestorage.com')) {
-      return `${R2_PUBLIC_DOMAIN}/${storageKey}`;
+  static cleanStorageKey(keyOrUrl: string): string {
+    if (!keyOrUrl || typeof keyOrUrl !== 'string') return '';
+    let clean = keyOrUrl.trim();
+
+    // If it's an API route without view (e.g. /api/photos/208/file), it cannot be an R2 key directly
+    if (clean.includes('/api/photos/') && !clean.includes('/api/photos/view/')) {
+      return '';
     }
-    const backendUrl = process.env.BACKEND_PUBLIC_URL || 'http://localhost:3001';
-    if (photoId) {
-      return `${backendUrl}/api/photos/${photoId}/file`;
+
+    if (clean.includes('/api/photos/view/')) {
+      clean = clean.split('/api/photos/view/')[1] || clean;
+    } else if (clean.includes('api/photos/view/')) {
+      clean = clean.split('api/photos/view/')[1] || clean;
     }
-    return `${backendUrl}/api/photos/view/${storageKey}`;
+
+    if (clean.includes('/cdn-cgi/image/')) {
+      const match = clean.match(/\/cdn-cgi\/image\/[^/]+\/(.+)$/);
+      if (match && match[1]) {
+        clean = match[1];
+        if (clean.includes('/api/photos/view/')) {
+          clean = clean.split('/api/photos/view/')[1] || clean;
+        }
+      }
+    }
+
+    // If it's a full URL, extract the path part
+    if (/^https?:\/\//i.test(clean)) {
+      try {
+        const parsed = new URL(clean);
+        clean = parsed.pathname;
+        if (clean.includes('/api/photos/view/')) {
+          clean = clean.split('/api/photos/view/')[1] || clean;
+        } else if (clean.includes('/api/photos/')) {
+          return '';
+        }
+      } catch {
+        // Not a standard URL
+      }
+    }
+
+    return clean.replace(/^\/+/, '');
+  }
+
+  /**
+   * Computes the URL of the photo directly on the public domain:
+   * PUBLIC_DOMAIN + '/' + storage_key
+   */
+  static getPublicUrl(storageKey: string, _photoId?: number | string): string {
+    const cleanKey = this.cleanStorageKey(storageKey);
+    const domain = R2_PUBLIC_DOMAIN || 'https://photos.qrchive-events.com';
+    return cleanKey ? `${domain}/${cleanKey}` : '';
   }
 
   /**

@@ -22,6 +22,10 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    loop: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 const emit = defineEmits([
@@ -35,10 +39,33 @@ const emit = defineEmits([
 const isVisible = computed(() => Boolean(props.isOpen || props.modelValue))
 const currentIndex = ref(props.initialIndex || 0)
 
+const canGoNext = computed(() => {
+    if (!props.items || props.items.length <= 1) return false
+    if (props.loop) return true
+    return currentIndex.value < props.items.length - 1
+})
+
+const canGoPrev = computed(() => {
+    if (!props.items || props.items.length <= 1) return false
+    if (props.loop) return true
+    return currentIndex.value > 0
+})
+
 watch(
     () => props.initialIndex,
     (newVal) => {
         currentIndex.value = Math.max(0, Math.min(newVal || 0, Math.max(0, props.items.length - 1)))
+    }
+)
+
+watch(
+    () => props.items?.length,
+    (len) => {
+        if (!len) {
+            currentIndex.value = 0
+        } else if (currentIndex.value >= len) {
+            currentIndex.value = len - 1
+        }
     }
 )
 
@@ -124,14 +151,30 @@ const closeLightbox = () => {
 
 const nextPhoto = () => {
     if (!props.items || props.items.length <= 1) return
-    currentIndex.value = (currentIndex.value + 1) % props.items.length
+    if (!canGoNext.value) {
+        dragOffset.value = 0
+        return
+    }
+    if (currentIndex.value >= props.items.length - 1) {
+        currentIndex.value = 0
+    } else {
+        currentIndex.value++
+    }
     dragOffset.value = 0
     emit('change', currentIndex.value, props.items[currentIndex.value])
 }
 
 const prevPhoto = () => {
     if (!props.items || props.items.length <= 1) return
-    currentIndex.value = (currentIndex.value - 1 + props.items.length) % props.items.length
+    if (!canGoPrev.value) {
+        dragOffset.value = 0
+        return
+    }
+    if (currentIndex.value <= 0) {
+        currentIndex.value = props.items.length - 1
+    } else {
+        currentIndex.value--
+    }
     dragOffset.value = 0
     emit('change', currentIndex.value, props.items[currentIndex.value])
 }
@@ -186,7 +229,11 @@ const onTouchMove = (e) => {
     const deltaY = touchEndY - touchStartY
 
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        dragOffset.value = Math.max(-120, Math.min(120, deltaX))
+        let offset = Math.max(-120, Math.min(120, deltaX))
+        if ((deltaX < 0 && !canGoNext.value) || (deltaX > 0 && !canGoPrev.value)) {
+            offset = Math.max(-35, Math.min(35, deltaX * 0.2))
+        }
+        dragOffset.value = offset
     }
 }
 
@@ -219,7 +266,11 @@ const onMouseDown = (e) => {
 const onMouseMove = (e) => {
     if (!isMouseDown) return
     const deltaX = e.clientX - mouseStartX
-    dragOffset.value = Math.max(-120, Math.min(120, deltaX))
+    let offset = Math.max(-120, Math.min(120, deltaX))
+    if ((deltaX < 0 && !canGoNext.value) || (deltaX > 0 && !canGoPrev.value)) {
+        offset = Math.max(-35, Math.min(35, deltaX * 0.2))
+    }
+    dragOffset.value = offset
 }
 
 const onMouseUp = (e) => {

@@ -48,6 +48,7 @@ const successResetDemo = () => {
     resetSuccess.value = true
     setTimeout(() => {
         resetSuccess.value = false
+        isResettingDemo.value = false;
     }, 2200)
 }
 defineExpose({
@@ -68,7 +69,7 @@ defineExpose({
             <div class="quick-uploaded-stream-header">
                 <div class="quick-uploaded-stream-title-group">
                     <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
-                    <span class="quick-uploaded-stream-title">Uploaded Snaps</span>
+                    <span class="quick-uploaded-stream-title">Uploaded Captures</span>
                 </div>
                 <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/{{
                     quickPhotosLeft }}</span>
@@ -126,7 +127,7 @@ defineExpose({
             </template>
             <template v-else>
                 <div class="py-10 text-center">
-                    <p>You're quick snaps will appear here.</p>
+                    <p>Your photos will appear here.</p>
                     <a class="text-underlined" href="javascript:void(0);" @click="handleOpenCamera">Snap now!</a>
                 </div>
             </template>
@@ -136,7 +137,7 @@ defineExpose({
         <div v-if="isDemo" class="demo-reset-wrapper">
             <button class="demo-reset-btn" :class="{ 'is-success': resetSuccess }" type="button"
                 :disabled="isResettingDemo" @click="handleResetDemo">
-                <span class="material-symbols-outlined" :class="{ 'demo-spin': isResettingDemo }">
+                <span class="material-symbols-outlined" :class="{ 'demo-spin': isResettingDemo && !resetSuccess }">
                     {{ resetSuccess ? 'check_circle' : (isResettingDemo ? 'sync' : 'restart_alt') }}
                 </span>
                 <span>{{ resetSuccess ? 'Demo Reset Complete' : (isResettingDemo ? 'Resetting...' :

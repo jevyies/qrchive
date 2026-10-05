@@ -1,8 +1,11 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { eq, ilike, or, and, sql } from 'drizzle-orm';
 import crypto from 'crypto';
-import { db, events, users, guests, snapGuests, snapPhotos, snapChecklist, storeUsers, stores, Event, NewEvent } from '../db';
+import fs from 'fs';
+import path from 'path';
+import { db, events, users, guests, snapGuests, snapPhotos, snapChecklist, eventPhotos, storeUsers, stores, Event, NewEvent } from '../db';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
+import { R2Service, R2_ROOT_FOLDER, R2_PUBLIC_DOMAIN } from '../services/r2.service';
 
 export const eventRoutes: FastifyPluginAsync = async (app) => {
   // ==========================================
@@ -327,15 +330,33 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+      // Return the photos of the event
+      const photos = await db.query.eventPhotos.findMany({
+        where: eq(eventPhotos.eventId, event.id),
+      });
+
       return reply.send({
         id: event.id,
         name: event.name,
         token: event.token,
         eventDate: event.eventDate,
+        weddingDate: event.eventDate,
         uploadExpiry: event.uploadExpiry,
         photoExpiry: event.photoExpiry,
         isUnlimited: event.isUnlimited,
+        brideFirstname: event.brideFirstname,
+        brideLastname: event.brideLastname,
+        groomFirstname: event.groomFirstname,
+        groomLastname: event.groomLastname,
+        invitationDeadline: event.invitationDeadline,
+        maxGuest: event.maxGuest,
+        price: event.price,
         storeName,
+        photos: photos.map((p) => ({
+          url: p.url,
+          type: p.type,
+          cropData: p.cropData,
+        })),
       });
     }
   );
@@ -419,6 +440,14 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       totalGigabytes = rawGb < 0.01 ? Number(rawGb.toFixed(4)) : Number(rawGb.toFixed(2));
     }
 
+    // Fetch backgrounds from event_photos
+    const backgroundRows = await db.query.eventPhotos.findMany({
+      where: eq(eventPhotos.eventId, event.id),
+      orderBy: (ep, { desc }) => [desc(ep.createdAt)],
+    });
+    const deskCropped = backgroundRows.find((b) => b.type === 'desktop_cropped');
+    const mobCropped = backgroundRows.find((b) => b.type === 'mobile_cropped');
+
     return reply.send({
       id: event.id,
       name: event.name,
@@ -431,12 +460,23 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       totalVideos,
       totalGigabytes,
       totalUsers,
+      desktopCroppedUrl: deskCropped?.url || null,
+      mobileCroppedUrl: mobCropped?.url || null,
+      backgrounds: backgroundRows,
       // camelCase aliases for convenience
       eventDate: event.eventDate,
+      weddingDate: event.eventDate,
       uploadExpiry: event.uploadExpiry,
       photoExpiry: event.photoExpiry,
       totalUploaders: totalUsers,
       totalBytes,
+      brideFirstname: event.brideFirstname,
+      brideLastname: event.brideLastname,
+      groomFirstname: event.groomFirstname,
+      groomLastname: event.groomLastname,
+      invitationDeadline: event.invitationDeadline,
+      maxGuest: event.maxGuest,
+      price: event.price,
     });
   };
 
@@ -545,6 +585,250 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     handleGetEventChecklist
+  );
+
+  // ==========================================
+  // Checklists CRUD (Add, Update, Delete)
+  // ==========================================
+  app.post(
+    '/:id/checklist',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as any;
+      const isNumeric = /^\d+$/.test(String(id));
+      const event = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(id)), eq(events.id, Number(id)))
+          : eq(events.token, String(id)),
+      });
+
+      if (!event) {
+        return reply.status(404).send({ error: 'Not Found', message: `Event '${id}' not found` });
+      }
+
+      const body = request.body as any;
+      const name = body?.name?.trim();
+      if (!name) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Checklist item name is required' });
+      }
+
+      const [item] = await db
+        .insert(snapChecklist)
+        .values({
+          eventId: event.id,
+          name,
+          description: body.description ? body.description.trim() : null,
+        })
+        .returning();
+
+      return reply.status(201).send(item);
+    }
+  );
+
+  app.put(
+    '/:id/checklist/:checklistId',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { checklistId } = request.params as any;
+      const numId = Number(checklistId);
+      if (isNaN(numId)) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Invalid checklist ID' });
+      }
+
+      const body = request.body as any;
+      const updateData: any = {};
+      if (body.name !== undefined) updateData.name = body.name.trim();
+      if (body.description !== undefined) updateData.description = body.description ? body.description.trim() : null;
+
+      const [updated] = await db
+        .update(snapChecklist)
+        .set(updateData)
+        .where(eq(snapChecklist.id, numId))
+        .returning();
+
+      if (!updated) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Checklist item not found' });
+      }
+
+      return reply.send(updated);
+    }
+  );
+
+  app.delete(
+    '/:id/checklist/:checklistId',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { checklistId } = request.params as any;
+      const numId = Number(checklistId);
+      if (isNaN(numId)) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Invalid checklist ID' });
+      }
+
+      await db.delete(snapChecklist).where(eq(snapChecklist.id, numId));
+      return reply.send({ success: true, message: 'Checklist item deleted successfully' });
+    }
+  );
+
+  // ==========================================
+  // Event Background Photos (GET & POST)
+  // ==========================================
+  app.get(
+    '/:id/backgrounds',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as any;
+      const isNumeric = /^\d+$/.test(String(id));
+      const event = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(id)), eq(events.id, Number(id)))
+          : eq(events.token, String(id)),
+      });
+
+      if (!event) {
+        return reply.status(404).send({ error: 'Not Found', message: `Event '${id}' not found` });
+      }
+
+      const photos = await db.query.eventPhotos.findMany({
+        where: eq(eventPhotos.eventId, event.id),
+        orderBy: (ep, { desc }) => [desc(ep.createdAt)],
+      });
+
+      return reply.send({ backgrounds: photos });
+    }
+  );
+
+  app.post(
+    '/:id/backgrounds',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as any;
+      const isNumeric = /^\d+$/.test(String(id));
+      const event = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(id)), eq(events.id, Number(id)))
+          : eq(events.token, String(id)),
+      });
+
+      if (!event) {
+        return reply.status(404).send({ error: 'Not Found', message: `Event '${id}' not found` });
+      }
+
+      const body = request.body as any;
+      const itemsToProcess: Array<{
+        type: string;
+        dataUrl?: string;
+        url?: string;
+        fileName?: string;
+        cropData?: any;
+      }> = [];
+
+      if (Array.isArray(body?.items)) {
+        itemsToProcess.push(...body.items);
+      } else {
+        if (body?.mobileOriginal) itemsToProcess.push({ type: 'mobile_original', ...body.mobileOriginal });
+        if (body?.mobileCropped) itemsToProcess.push({ type: 'mobile_cropped', ...body.mobileCropped });
+        if (body?.desktopOriginal) itemsToProcess.push({ type: 'desktop_original', ...body.desktopOriginal });
+        if (body?.desktopCropped) itemsToProcess.push({ type: 'desktop_cropped', ...body.desktopCropped });
+      }
+
+      const savedResults: any[] = [];
+
+      for (const item of itemsToProcess) {
+        if (!item.type) continue;
+
+        let finalUrl = item.url || '';
+        let storageKey = '';
+        let mimeType = 'image/jpeg';
+        let fileSize = 0;
+
+        if (item.dataUrl && item.dataUrl.startsWith('data:')) {
+          const match = item.dataUrl.match(/^data:([A-Za-z0-9\/\-+.]+);base64,(.+)$/);
+          if (match) {
+            mimeType = match[1];
+            const base64Data = match[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            fileSize = buffer.length;
+
+            const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+            const cleanName = (item.fileName || `${item.type}.${ext}`).replace(/[^a-zA-Z0-9.-]/g, '_');
+            const uniqueKey = `${R2_ROOT_FOLDER}/events/${event.token || event.id}/backgrounds/${Date.now()}_${item.type}_${cleanName}`;
+            storageKey = uniqueKey;
+
+            try {
+              finalUrl = await R2Service.putObject(uniqueKey, buffer, mimeType);
+            } catch (r2Err: any) {
+              request.log.error({ err: r2Err.message }, 'Failed to upload event photo to R2 storage');
+              return reply.status(500).send({
+                error: 'R2StorageError',
+                message: `Failed to upload ${item.type} background photo to R2 storage: ${r2Err.message}`,
+              });
+            }
+          }
+        }
+
+        const existing = await db.query.eventPhotos.findFirst({
+          where: and(
+            eq(eventPhotos.eventId, event.id),
+            eq(eventPhotos.type, item.type)
+          ),
+        });
+
+        if (existing) {
+          // If replacing with a new image and existing had an R2 key, delete the old R2 object
+          if (existing.storageKey && storageKey && existing.storageKey !== storageKey) {
+            try {
+              await R2Service.deleteObject(existing.storageKey);
+            } catch (delErr) {
+              request.log.warn({ err: delErr }, `Failed to delete old R2 background object: ${existing.storageKey}`);
+            }
+          }
+
+          const [updated] = await db
+            .update(eventPhotos)
+            .set({
+              url: finalUrl || existing.url,
+              storageKey: storageKey || existing.storageKey,
+              fileName: item.fileName || existing.fileName,
+              fileSize: fileSize || existing.fileSize,
+              mimeType: mimeType || existing.mimeType,
+              cropData: item.cropData !== undefined ? item.cropData : existing.cropData,
+            })
+            .where(eq(eventPhotos.id, existing.id))
+            .returning();
+          savedResults.push(updated);
+        } else {
+          const [created] = await db
+            .insert(eventPhotos)
+            .values({
+              eventId: event.id,
+              url: finalUrl,
+              storageKey,
+              fileName: item.fileName || `${item.type}.jpg`,
+              fileSize,
+              mimeType,
+              type: item.type,
+              cropData: item.cropData || null,
+            })
+            .returning();
+          savedResults.push(created);
+        }
+      }
+
+      return reply.send({
+        message: 'Event background photos saved successfully to R2 storage',
+        backgrounds: savedResults,
+      });
+    }
+  );
+
+  app.get(
+    '/photos/local/:fileName',
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      return reply.status(410).send({
+        error: 'Gone',
+        message: 'Local background photo storage has been retired. Photos are stored in Cloudflare R2 storage.',
+      });
+    }
   );
 
   app.get(
@@ -749,7 +1033,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           type: 'object',
           required: ['id'],
           properties: {
-            id: { type: 'integer' },
+            id: { type: ['integer', 'string'] },
           },
         },
         body: {
@@ -774,19 +1058,23 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as any;
-      const eventId = Number(id);
+      const isNumeric = /^\d+$/.test(String(id));
       const body = request.body as any;
 
       const existing = await db.query.events.findFirst({
-        where: eq(events.id, eventId),
+        where: isNumeric
+          ? or(eq(events.id, Number(id)), eq(events.token, String(id)))
+          : eq(events.token, String(id)),
       });
 
       if (!existing) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: `Event with ID ${eventId} not found.`,
+          message: `Event with ID or token '${id}' not found.`,
         });
       }
+
+      const eventId = existing.id;
 
       const updatePayload: Partial<NewEvent> = {};
       if (body.name !== undefined) updatePayload.name = body.name;
@@ -866,6 +1154,20 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           error: 'Not Found',
           message: `Event with ID ${eventId} not found.`,
         });
+      }
+
+      // Clean up event_photos from R2 storage before deleting event
+      try {
+        const bgPhotos = await db.query.eventPhotos.findMany({
+          where: eq(eventPhotos.eventId, eventId),
+        });
+        for (const p of bgPhotos) {
+          if (p.storageKey) {
+            await R2Service.deleteObject(p.storageKey).catch(() => {});
+          }
+        }
+      } catch (r2Err) {
+        request.log.warn({ err: r2Err }, `Failed to clean up event ${eventId} background photos from R2`);
       }
 
       await db.delete(events).where(eq(events.id, eventId));

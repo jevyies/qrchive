@@ -29,43 +29,20 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: () => import('@/pages/dasboard/index.vue'),
+      component: () => import('@/pages/dashboard/index.vue'),
     },
     {
       path: '/dashboard/event/:id',
       name: 'dashboard-event-detail',
-      component: () => import('@/pages/dasboard/event/[id].vue'),
+      component: () => import('@/pages/dashboard/event/[id].vue'),
     },
     {
-      path: '/dasboard',
+      path: '/dashboard',
       redirect: '/dashboard',
     },
     {
-      path: '/dasboard/event/:id',
+      path: '/dashboard/event/:id',
       redirect: (to) => `/dashboard/event/${to.params.id}`,
-    },
-    {
-      path: '/quests',
-      name: 'quests-shortcut',
-      redirect: () => {
-        let eventId = 'demo-event'
-        if (typeof localStorage !== 'undefined') {
-          const currentEventStr = localStorage.getItem('currentEvent')
-          if (currentEventStr) {
-            try {
-              const parsed = JSON.parse(currentEventStr)
-              if (parsed.eventCode) eventId = parsed.eventCode
-            } catch (e) { }
-          }
-          if (eventId === 'demo-event') {
-            eventId =
-              localStorage.getItem('qrchive_current_event_id') ||
-              localStorage.getItem('qrchive_event_id') ||
-              'demo-event'
-          }
-        }
-        return `/event/${eventId}/quests`
-      },
     },
     {
       path: '/404',

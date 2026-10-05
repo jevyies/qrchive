@@ -71,6 +71,26 @@ export async function initDbTables() {
     await client`
       ALTER TABLE snap_guests ADD COLUMN IF NOT EXISTS guest_code VARCHAR(255);
     `;
+    await client`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'event_photos' AND column_name = 'status'
+        ) THEN
+          ALTER TABLE event_photos RENAME COLUMN status TO type;
+        END IF;
+      END $$;
+    `;
+    await client`
+      ALTER TABLE event_photos ADD COLUMN IF NOT EXISTS crop_data JSONB;
+    `;
+    await client`
+      ALTER TABLE event_photos ALTER COLUMN type DROP DEFAULT;
+    `;
+    await client`
+      ALTER TABLE event_photos ALTER COLUMN type DROP NOT NULL;
+    `;
 
     // Seed default pricing packages if table is currently empty
     const pricingCountResult = await client`

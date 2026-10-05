@@ -3,7 +3,8 @@ import { eq, desc, and, or, sql } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { db, snapPhotos, snapGuests, snapChecklist, photos, events, snapPhotoLikes, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
+import os from 'os';
+import { db, snapPhotos, snapGuests, snapChecklist, photos, events, snapPhotoLikes, eventPhotos, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
 import { R2Service, R2_PUBLIC_DOMAIN } from '../services/r2.service';
 import { BatchUploadService } from '../services/batchUpload.service';
 import { photoUploadQueue } from '../queues/photoUpload.queue';
@@ -154,7 +155,7 @@ export function formatSimplifiedGuestPhoto(photo: {
   };
 }
 
-const TEMP_CHUNKS_DIR = path.join(__dirname, '../../uploads/temp_chunks');
+const TEMP_CHUNKS_DIR = path.join(os.tmpdir(), 'qrchive_temp_chunks');
 
 // Ensure temporary staging directory exists
 if (!fs.existsSync(TEMP_CHUNKS_DIR)) {
@@ -1030,6 +1031,94 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         guestCode
       );
 
+      // If this is a checklist moment capture/replacement, remove existing entry from snap_photos and R2
+      const deletedPhotoIds: number[] = [];
+      const eventToken = event?.token || String(eventId);
+      const replacePhotoIdRaw = fields.replacePhotoId?.value || (request.headers['x-replace-photo-id'] as string);
+      const replacePhotoId = replacePhotoIdRaw ? Number(replacePhotoIdRaw) : null;
+
+      if (checkListId && guestId) {
+        let oldChecklistPhotos: any[] = [];
+        if (replacePhotoId) {
+          oldChecklistPhotos = await db
+            .select()
+            .from(snapPhotos)
+            .where(
+              and(
+                eq(snapPhotos.id, replacePhotoId),
+                eq(snapPhotos.uploadedBy, guestId)
+              )
+            );
+        }
+        if (oldChecklistPhotos.length === 0) {
+          oldChecklistPhotos = await db
+            .select()
+            .from(snapPhotos)
+            .where(
+              and(
+                eq(snapPhotos.uploadedBy, guestId),
+                eq(snapPhotos.checklistId, Number(checkListId))
+              )
+            );
+        }
+
+        for (const oldPhoto of oldChecklistPhotos) {
+          deletedPhotoIds.push(oldPhoto.id);
+
+          // 1. Delete old photo object from Cloudflare R2
+          if (oldPhoto.storageKey) {
+            try {
+              await R2Service.deleteObject(oldPhoto.storageKey);
+              const isOldVid = Boolean(
+                oldPhoto.mimeType?.startsWith('video/') ||
+                oldPhoto.fileName?.endsWith('.mp4') ||
+                oldPhoto.fileName?.endsWith('.webm')
+              );
+              if (isOldVid) {
+                const thumbKey = oldPhoto.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+                await R2Service.deleteObject(thumbKey).catch(() => {});
+              }
+            } catch (r2Err: any) {
+              request.log.warn(r2Err, `[Photos] Failed to delete old R2 object: ${oldPhoto.storageKey}`);
+            }
+          }
+
+          // 2. Delete likes associated with old photo
+          try {
+            await db.delete(snapPhotoLikes).where(eq(snapPhotoLikes.photoId, oldPhoto.id));
+          } catch (likeErr: any) {
+            request.log.warn(likeErr, `[Photos] Failed to delete likes for replaced photo ${oldPhoto.id}`);
+          }
+
+          // 3. Delete old photo from snapPhotos table
+          try {
+            await db.delete(snapPhotos).where(eq(snapPhotos.id, oldPhoto.id));
+          } catch (dbErr: any) {
+            request.log.warn(dbErr, `[Photos] Failed to delete replaced snap photo ${oldPhoto.id}`);
+          }
+
+          // 4. Broadcast photo_deleted to all subscribers in the event room so LiveGallery updates
+          wsManager.broadcastToEvent(eventId, {
+            type: 'photo_deleted',
+            data: {
+              photoId: oldPhoto.id,
+              checklistId: oldPhoto.checklistId,
+              eventId,
+            },
+          });
+          if (eventToken && eventToken !== String(eventId)) {
+            wsManager.broadcastToEvent(eventToken, {
+              type: 'photo_deleted',
+              data: {
+                photoId: oldPhoto.id,
+                checklistId: oldPhoto.checklistId,
+                eventId,
+              },
+            });
+          }
+        }
+      }
+
       const [newPhoto] = await db
         .insert(snapPhotos)
         .values({
@@ -1059,7 +1148,6 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         thumbnailUrl: thumbUrl || undefined,
       });
 
-      const eventToken = event?.token || String(eventId);
       wsManager.broadcastToEvent(eventId, {
         type: 'new_photo',
         photo: simplifiedPhoto,
@@ -1096,6 +1184,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           uploadedBy: uploader,
           guestId,
         },
+        replacedPhotoId: deletedPhotoIds[0] || null,
+        deletedPhotoIds,
         batch: batchProgress,
       });
     }
@@ -1654,6 +1744,47 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
   app.get('/events/:eventId/checklists', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
   app.get('/events/:eventId/albums', { preHandler: [optionalAuthenticate] }, getEventChecklistPhotosHandler);
 
+  // Background photos aliases (from event_photos table stored in R2)
+  app.get(
+    '/events/:eventId/backgrounds',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { eventId } = request.params as any;
+      const isNumeric = /^\d+$/.test(String(eventId));
+      const ev = await db.query.events.findFirst({
+        where: isNumeric
+          ? or(eq(events.token, String(eventId)), eq(events.id, Number(eventId)))
+          : eq(events.token, String(eventId)),
+      });
+      if (!ev) {
+        return reply.status(404).send({ error: 'Not Found', message: `Event '${eventId}' not found` });
+      }
+      const bgPhotos = await db.query.eventPhotos.findMany({
+        where: eq(eventPhotos.eventId, ev.id),
+        orderBy: (ep, { desc }) => [desc(ep.createdAt)],
+      });
+      return reply.send({ backgrounds: bgPhotos });
+    }
+  );
+  app.get(
+    '/token/:token/backgrounds',
+    { preHandler: [optionalAuthenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { token } = request.params as any;
+      const ev = await db.query.events.findFirst({
+        where: or(eq(events.token, String(token)), eq(events.id, Number(token) || 0)),
+      });
+      if (!ev) {
+        return reply.status(404).send({ error: 'Not Found', message: `Event '${token}' not found` });
+      }
+      const bgPhotos = await db.query.eventPhotos.findMany({
+        where: eq(eventPhotos.eventId, ev.id),
+        orderBy: (ep, { desc }) => [desc(ep.createdAt)],
+      });
+      return reply.send({ backgrounds: bgPhotos });
+    }
+  );
+
   // =========================================================================
   // 7. GET SINGLE PHOTO METADATA (GET /:id)
   // =========================================================================
@@ -1878,6 +2009,27 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
 
       // Delete from database
       await db.delete(photos).where(eq(photos.id, photoId));
+
+      // Broadcast photo deletion via WebSocket
+      if (photo.uploadedBy) {
+        const guest = await db.query.snapGuests.findFirst({
+          where: eq(snapGuests.id, photo.uploadedBy),
+          with: { event: true },
+        });
+        if (guest) {
+          wsManager.broadcastToEvent(guest.eventId, {
+            type: 'photo_deleted',
+            data: { photoId: photo.id, checklistId: photo.checklistId },
+          });
+          const evToken = (guest as any).event?.token;
+          if (evToken && evToken !== String(guest.eventId)) {
+            wsManager.broadcastToEvent(evToken, {
+              type: 'photo_deleted',
+              data: { photoId: photo.id, checklistId: photo.checklistId },
+            });
+          }
+        }
+      }
 
       return reply.send({
         message: 'Photo deleted successfully',

@@ -52,3 +52,10 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 .eslintcache
+
+# Uploads & Storage directories
+uploads/
+storage/
+backend/uploads/
+backend/storage/
+

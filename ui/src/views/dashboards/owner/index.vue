@@ -142,10 +142,10 @@ const navigateTo = (path) => {
       </div>
       <div class="pt-1 flex justify-end">
         <button type="button"
-          class="inline-flex items-center justify-center gap-1.5 px-space-md py-2.5 rounded-xl bg-gradient-to-r from-primary-container via-primary to-primary text-on-primary font-label-md text-label-md uppercase tracking-widest font-semibold shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border-none"
+          class="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-primary-container via-primary to-primary text-on-primary text-xs uppercase tracking-wider font-semibold shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border-none"
           @click="openAccountInfoModal">
-          <span class="">Complete Final Step</span>
-          <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+          <span>Complete Final Step</span>
+          <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
         </button>
       </div>
     </JCard>
@@ -178,7 +178,7 @@ const navigateTo = (path) => {
 }
 
 .bg-surface-container-lowest {
-  background-color: var(--bg-surface, #201b18) !important;
+  background-color: var(--bg-surface, #ffffff) !important;
 }
 
 .p-space-lg {
@@ -321,15 +321,15 @@ const navigateTo = (path) => {
 }
 
 .text-on-surface {
-  color: var(--text-primary, #fdfbf7) !important;
+  color: var(--text-primary, #1f1b18) !important;
 }
 
 .text-on-surface-variant {
-  color: var(--text-secondary, #d9cfc4) !important;
+  color: var(--text-secondary, #4e4639) !important;
 }
 
 .text-outline {
-  color: var(--text-muted, #9c9285) !important;
+  color: var(--text-muted, #7f7667) !important;
 }
 
 .text-primary {
@@ -341,7 +341,7 @@ const navigateTo = (path) => {
 }
 
 .text-on-primary {
-  color: #ffffff !important;
+  color: var(--primary-text, #ffffff) !important;
 }
 
 .bg-surface-container-high {

@@ -234,7 +234,8 @@ export const eventPhotos = pgTable('event_photos', {
   mimeType: varchar('mime_type', { length: 100 }),
   storageKey: text('storage_key'),
   totalChunks: bigint('total_chunks', { mode: 'number' }).default(1),
-  status: varchar('status', { length: 50 }).default('pending').notNull(),
+  type: varchar('type', { length: 50 }),
+  cropData: jsonb('crop_data'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

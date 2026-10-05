@@ -44,6 +44,80 @@ const handleOpenCamera = () => {
 const handlePhotoClick = (index) => {
     emit('open-lightbox', index)
 }
+const isVideoUrl = (url) => {
+    if (!url || typeof url !== 'string') return false
+    const cleanUrl = url.split('?')[0].toLowerCase()
+    return cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov') || cleanUrl.includes('/video/')
+}
+
+const getPhotoThumbnail = (photo) => {
+    if (!photo) return ''
+
+    const urlIsVideo = isVideoUrl(photo.url)
+    const isVid = Boolean(photo.isVideo || photo.type === 'video' || urlIsVideo)
+
+    if (isVid) {
+        // 1. If thumbnailUrl is available and not a video file, use it
+        if (photo.thumbnailUrl && !isVideoUrl(photo.thumbnailUrl)) {
+            return photo.thumbnailUrl
+        }
+        // 2. If dataUrl (camera canvas preview frame) is available and not a video file, use it
+        if (photo.dataUrl && !isVideoUrl(photo.dataUrl)) {
+            return photo.dataUrl
+        }
+        // 3. If image is available and not a video file, use it
+        if (photo.image && !isVideoUrl(photo.image)) {
+            return photo.image
+        }
+        // 4. Derive _thumb.jpg from url or fullUrl if it is a video file
+        const targetUrl = photo.url || photo.fullUrl || ''
+        if (targetUrl && isVideoUrl(targetUrl)) {
+            return targetUrl.replace(/\.(mp4|webm|mov)($|\?)/i, '_thumb.jpg$2')
+        }
+    }
+
+    if (photo.url && !isVideoUrl(photo.url)) {
+        return photo.url
+    }
+
+    if (photo.thumbnailUrl && !isVideoUrl(photo.thumbnailUrl)) {
+        return photo.thumbnailUrl
+    }
+
+    if (photo.dataUrl && !isVideoUrl(photo.dataUrl)) {
+        return photo.dataUrl
+    }
+
+    return photo.url || photo.fullUrl || ''
+}
+
+const handleImageError = (photo, event) => {
+    if (!photo || !event?.target) return
+    const currentSrc = event.target.src || ''
+
+    if (photo.thumbnailUrl && currentSrc !== photo.thumbnailUrl && !isVideoUrl(photo.thumbnailUrl)) {
+        event.target.src = photo.thumbnailUrl
+        return
+    }
+
+    if (photo.dataUrl && currentSrc !== photo.dataUrl && !isVideoUrl(photo.dataUrl)) {
+        event.target.src = photo.dataUrl
+        return
+    }
+
+    if (isVideoUrl(currentSrc)) {
+        const derived = currentSrc.replace(/\.(mp4|webm|mov)($|\?)/i, '_thumb.jpg$2')
+        if (derived !== currentSrc) {
+            event.target.src = derived
+            return
+        }
+    }
+
+    if (photo.fullUrl && currentSrc !== photo.fullUrl && !isVideoUrl(photo.fullUrl)) {
+        event.target.src = photo.fullUrl
+        return
+    }
+}
 const successResetDemo = () => {
     resetSuccess.value = true
     setTimeout(() => {
@@ -69,7 +143,7 @@ defineExpose({
             <div class="quick-uploaded-stream-header">
                 <div class="quick-uploaded-stream-title-group">
                     <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
-                    <span class="quick-uploaded-stream-title">Uploaded Captures</span>
+                    <span class="quick-uploaded-stream-title">Uploaded Quick Captures</span>
                 </div>
                 <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/{{
                     quickPhotosLeft }}</span>
@@ -86,8 +160,15 @@ defineExpose({
                             '--upload-pct': `${photo.uploadPercent || 0}%`,
                         }" @click="!photo.isUploading && handlePhotoClick(index)">
                         <div class="quick-uploaded-inner">
-                            <img :src="photo.url" alt="Uploaded moment" class="quick-uploaded-img"
-                                @error="(e) => { if (photo.fullUrl && e.target.src !== photo.fullUrl) e.target.src = photo.fullUrl }" />
+                            <!-- Fallback video frame if video has no image thumbnail -->
+                            <video v-if="photo.isVideo && isVideoUrl(getPhotoThumbnail(photo))"
+                                class="quick-uploaded-img" :src="photo.videoUrl || photo.fullUrl || photo.url" muted
+                                playsinline preload="metadata">
+                            </video>
+
+                            <!-- Media Image Thumbnail -->
+                            <img v-else :src="getPhotoThumbnail(photo)" alt="Uploaded moment" class="quick-uploaded-img"
+                                @error="handleImageError(photo, $event)" />
 
                             <!-- Video Play Badge if Video -->
                             <div v-if="photo.isVideo && !photo.isUploading && !photo.showSuccessCheck"

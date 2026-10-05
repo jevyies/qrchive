@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
 
 export interface WebSocketEventMessage {
-  type: 'new_photo' | 'photo_liked' | 'connection_ack' | 'ping' | 'pong';
+  type: 'new_photo' | 'photo_liked' | 'photo_deleted' | 'delete_photo' | 'connection_ack' | 'ping' | 'pong';
   data?: any;
   photo?: any;
 }

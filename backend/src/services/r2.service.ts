@@ -308,9 +308,10 @@ export class R2Service {
    * Deletes an object from R2
    */
   static async deleteObject(storageKey: string): Promise<void> {
+    const cleanKey = this.cleanStorageKey(storageKey) || storageKey;
     const command = new DeleteObjectCommand({
       Bucket: R2_BUCKET_NAME,
-      Key: storageKey,
+      Key: cleanKey,
     });
     await r2Client.send(command);
   }

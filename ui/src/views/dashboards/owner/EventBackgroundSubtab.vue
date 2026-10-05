@@ -547,7 +547,7 @@ const generateCroppedDataUrl = async (imgSrc, pos, viewport, targetW, targetH) =
       ctx.drawImage(img, -baseW / 2, -baseH / 2, baseW, baseH)
       ctx.restore()
 
-      resolve(canvas.toDataURL('image/jpeg', 0.92))
+      resolve(canvas.toDataURL('image/jpeg', 0.88))
     }
     img.onerror = (err) => reject(err)
     img.src = imgSrc
@@ -637,9 +637,15 @@ const saveBackgroundChanges = async () => {
       return
     }
 
-    await axiosInstance.post(`/api/events/${eventId}/backgrounds`, {
-      items: payloadItems,
-    })
+    await axiosInstance.post(
+      `/api/events/${eventId}/backgrounds`,
+      {
+        items: payloadItems,
+      },
+      {
+        timeout: 120000, // Allow up to 2 minutes for multi-image high-res upload to R2
+      }
+    )
 
     toast.show({
       message: 'Event background pictures and crop positions saved successfully!',

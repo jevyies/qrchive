@@ -699,7 +699,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/:id/backgrounds',
-    { preHandler: [optionalAuthenticate] },
+    {
+      bodyLimit: 100 * 1024 * 1024, // 100MB for multi-image high-res background uploads
+      preHandler: [optionalAuthenticate],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as any;
       const isNumeric = /^\d+$/.test(String(id));

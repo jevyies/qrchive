@@ -28,6 +28,7 @@ export const buildApp = async () => {
   await initDbTables();
 
   const app = Fastify({
+    bodyLimit: 100 * 1024 * 1024, // 100MB payload limit for high-res photo uploads and base64 backgrounds
     logger: {
       level:
         process.env.LOG_LEVEL ||
@@ -60,8 +61,8 @@ export const buildApp = async () => {
   // 3. Register Multipart Form Support (Photo Chunks & Direct Uploads)
   await app.register(fastifyMultipart, {
     limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB chunk or file limit
-      fieldSize: 10 * 1024 * 1024, // 10MB limit for text fields (including thumbnailBase64)
+      fileSize: 100 * 1024 * 1024, // 100MB chunk or file limit
+      fieldSize: 100 * 1024 * 1024, // 100MB limit for text fields (including thumbnailBase64)
     },
   });
 

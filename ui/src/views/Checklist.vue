@@ -19,8 +19,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['open-camera', 'open-lightbox'])
 
-const openCamera = (item) => {
-    emit('open-camera', item)
+const openCamera = (item, isReplace = false) => {
+    emit('open-camera', { ...item, isReplace: Boolean(isReplace || item.captured) })
 }
 
 const openMomentLightbox = (item) => {
@@ -113,12 +113,12 @@ const openMomentLightbox = (item) => {
 
                 <!-- Button Actions -->
                 <button v-if="item.captured" class="moment-item__btn moment-item__btn--replace" type="button"
-                    @click="openCamera(item)">
+                    @click="openCamera(item, true)">
                     <span class="material-symbols-outlined">sync</span>
                     <span>REPLACE ENTRY</span>
                 </button>
 
-                <button v-else class="moment-item__btn moment-item__btn--add" type="button" @click="openCamera(item)">
+                <button v-else class="moment-item__btn moment-item__btn--add" type="button" @click="openCamera(item, false)">
                     <span class="material-symbols-outlined"
                         style="font-variation-settings: 'FILL' 1;">photo_camera</span>
                     <span>ADD ENTRY</span>

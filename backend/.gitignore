@@ -45,3 +45,7 @@ pnpm-debug.log*
 # System
 .DS_Store
 Thumbs.db
+
+# Uploads & Storage directories
+uploads/
+storage/

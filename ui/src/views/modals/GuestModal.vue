@@ -48,10 +48,7 @@ watch(
           } catch (e) { }
         }
         if (!guestName.value) {
-          guestName.value =
-            localStorage.getItem('qrchive_guest_name') ||
-            localStorage.getItem('guestName') ||
-            ''
+          guestName.value = localStorage.getItem('guestName') || ''
         }
       }
       nextTick(() => {
@@ -93,7 +90,6 @@ const handleEnterCelebration = async () => {
 
     if (typeof localStorage !== 'undefined') {
       saveStoredEventSession('demo-event', currentEventData)
-      localStorage.setItem('qrchive_guest_name', enteredName)
       localStorage.setItem('guestName', enteredName)
       localStorage.setItem('qrchive_current_event_id', 'demo-event')
       localStorage.setItem('qrchive_guest_id', String(randomId))
@@ -139,7 +135,6 @@ const handleEnterCelebration = async () => {
       saveStoredEventSession(route.params.id || activeEventToken, currentEventData)
 
       // Keep legacy keys for backward compatibility
-      localStorage.setItem('qrchive_guest_name', enteredName)
       localStorage.setItem('guestName', enteredName)
       localStorage.setItem('qrchive_current_event_id', route.params.id || activeEventToken)
       if (guestId) localStorage.setItem('qrchive_guest_id', String(guestId))
@@ -165,7 +160,7 @@ const handleEnterCelebration = async () => {
         guestName: enteredName,
       }
       saveStoredEventSession(route.params.id || activeEventToken, fallbackData)
-      localStorage.setItem('qrchive_guest_name', enteredName)
+      localStorage.setItem('guestName', enteredName)
       localStorage.setItem('qrchive_current_event_id', route.params.id || activeEventToken)
     }
 

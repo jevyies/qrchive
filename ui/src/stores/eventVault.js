@@ -255,9 +255,64 @@ export const demoMediaItems = [
     },
 ]
 
-// Helper: Guest identifier for like tracking
-export function getGuestIdentifier() {
-    if (typeof localStorage === 'undefined') return 'anonymous'
+// Helper: Guest identifier resolved from qrchive_event_sessions -> event -> guestCode
+export function getGuestIdentifier(eventId = null) {
+    if (typeof localStorage === 'undefined') return 'guest'
+
+    // Clean up any deprecated qrchive_device_id
+    try {
+        localStorage.removeItem('qrchive_device_id')
+    } catch { }
+
+    // 1. Resolve from qrchive_event_sessions -> event -> guestCode
+    try {
+        const rawSessions = localStorage.getItem('qrchive_event_sessions')
+        if (rawSessions) {
+            const sessions = JSON.parse(rawSessions)
+            if (sessions && typeof sessions === 'object') {
+                // If specific eventId is provided, look it up directly
+                if (eventId && sessions[String(eventId)]) {
+                    const sess = sessions[String(eventId)]
+                    const code = sess?.guestCode || sess?.guest_code
+                    if (code) return String(typeof code === 'object' ? code?.guestCode || code : code)
+                }
+
+                // Check eventId/token from currentEvent in localStorage
+                const storedCurrent = localStorage.getItem('currentEvent')
+                if (storedCurrent) {
+                    try {
+                        const parsed = JSON.parse(storedCurrent)
+                        const evKey = parsed?.id || parsed?.eventId || parsed?.eventCode || parsed?.token
+                        if (evKey && sessions[String(evKey)]) {
+                            const sess = sessions[String(evKey)]
+                            const code = sess?.guestCode || sess?.guest_code
+                            if (code) return String(typeof code === 'object' ? code?.guestCode || code : code)
+                        }
+                    } catch { }
+                }
+
+                // Check URL path for event ID or token
+                if (typeof window !== 'undefined' && window.location?.pathname) {
+                    const match = window.location.pathname.match(/\/(?:event|vaultsss|dashboard\/event)\/([^/]+)/)
+                    if (match && match[1] && sessions[match[1]]) {
+                        const sess = sessions[match[1]]
+                        const code = sess?.guestCode || sess?.guest_code
+                        if (code) return String(typeof code === 'object' ? code?.guestCode || code : code)
+                    }
+                }
+
+                // Fallback: Check all sessions in qrchive_event_sessions
+                const sessionValues = Object.values(sessions)
+                for (let i = sessionValues.length - 1; i >= 0; i--) {
+                    const sess = sessionValues[i]
+                    const code = sess?.guestCode || sess?.guest_code
+                    if (code) return String(typeof code === 'object' ? code?.guestCode || code : code)
+                }
+            }
+        }
+    } catch { }
+
+    // 2. Check currentEvent directly
     const stored = localStorage.getItem('currentEvent')
     if (stored) {
         try {
@@ -266,15 +321,12 @@ export function getGuestIdentifier() {
             if (parsed?.guestId) return String(parsed.guestId)
         } catch { }
     }
-    const directCode = localStorage.getItem('qrchive_guest_code')
+
+    // 3. Check direct guest code storage
+    const directCode = localStorage.getItem('qrchive_guest_code') || localStorage.getItem('guestCode')
     if (directCode) return String(directCode)
 
-    let deviceId = localStorage.getItem('qrchive_device_id')
-    if (!deviceId) {
-        deviceId = 'dev_' + Math.random().toString(36).substring(2, 12)
-        localStorage.setItem('qrchive_device_id', deviceId)
-    }
-    return deviceId
+    return 'guest'
 }
 
 // Helper: Format relative timestamp
@@ -786,6 +838,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                         if (m.isVideo && blob instanceof Blob) {
                             vUrl = URL.createObjectURL(blob)
                         }
+                        matched.photoId = m.id
                         matched.captured = true
                         matched.image = m.thumbnailUrl || m.image || m.url
                         matched.fullImage = m.fullUrl || m.fullImage || m.image || m.url
@@ -862,6 +915,9 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                         p.url?.endsWith('.webm'),
                     )
                     const pKey = p.storageKey || p.storage_key || null
+                    matched.photoId = p.id
+                    matched.storageKey = pKey
+                    matched.storage_key = pKey
                     matched.captured = true
                     matched.image = resolveStorageUrl(p.thumbnailUrl || p.url, pKey)
                     matched.fullImage = resolveStorageUrl(p.fullUrl || p.url, pKey)
@@ -895,7 +951,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 const resolvedThumb = resolveStorageUrl(p.thumbnailUrl || p.url, pKey) || resolvedFull
                 return {
                     id: p.id,
-                    url: resolvedFull || resolvedThumb,
+                    url: isVid ? (resolvedThumb || resolvedFull) : (resolvedFull || resolvedThumb),
                     fullUrl: resolvedFull || resolvedThumb,
                     thumbnailUrl: resolvedThumb || resolvedFull,
                     storageKey: pKey,
@@ -942,12 +998,10 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         }
 
         try {
-            const userIdentifier = getGuestIdentifier()
             const { data } = await axiosInstance.get(`/api/photos/events/${targetId}`, {
                 params: {
                     page,
                     limit,
-                    userIdentifier,
                 },
             })
 
@@ -1005,7 +1059,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         const targetId = eventId || currentEventId.value || 'demo-event'
         setEventId(targetId)
 
-        const targetGuestCode = guestCode || getGuestIdentifier() || 'guest'
+        const targetGuestCode = guestCode || getGuestIdentifier(targetId) || 'guest'
         const isGuestChanged = currentGuestCode.value !== String(targetGuestCode)
         currentGuestCode.value = String(targetGuestCode)
 
@@ -1058,7 +1112,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
             await fetchChecklist(targetId)
         }
 
-        const effectiveGuestCode = guestCode || getGuestIdentifier() || 'guest'
+        const effectiveGuestCode = guestCode || getGuestIdentifier(targetId) || 'guest'
         const isGuestChanged = currentGuestCode.value !== String(effectiveGuestCode)
 
         if (!isGuestInitialLoaded.value || isChanged || isGuestChanged) {
@@ -1084,10 +1138,10 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 const ev = JSON.parse(localStorage.getItem('currentEvent') || '{}')
                 storedSessionName = ev?.guestName || ''
                 storedSessionCode = ev?.guestCode || ''
-            } catch {}
+            } catch { }
         }
-        const myCode = currentGuestCode.value || storedSessionCode || (typeof localStorage !== 'undefined' ? (localStorage.getItem('guestCode') || localStorage.getItem('qrchive_guest_code')) : '')
-        
+        const myCode = currentGuestCode.value || storedSessionCode || getGuestIdentifier(currentEventId.value) || (typeof localStorage !== 'undefined' ? (localStorage.getItem('guestCode') || localStorage.getItem('qrchive_guest_code')) : '')
+
         if (photo.guestCode && myCode && String(photo.guestCode) === String(myCode)) return true
         const uploader = photo.uploadedBy || photo.guest
         if (uploader === 'You') return true
@@ -1096,9 +1150,36 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         return false
     }
 
+    // Remove a photo from mediaItems and local store by id
+    const removePhotoById = (photoId) => {
+        if (!photoId) return
+        const idStr = String(photoId)
+
+        // Remove from mediaItems (which feeds LiveGallery)
+        const mediaIdx = mediaItems.value.findIndex((m) => String(m.id) === idStr)
+        if (mediaIdx !== -1) {
+            mediaItems.value.splice(mediaIdx, 1)
+            totalPhotos.value = Math.max(0, totalPhotos.value - 1)
+        }
+
+        // Remove from uploadedQuickPhotos if present
+        const quickIdx = uploadedQuickPhotos.value.findIndex((q) => String(q.id) === idStr)
+        if (quickIdx !== -1) {
+            uploadedQuickPhotos.value.splice(quickIdx, 1)
+        }
+    }
+
     // Add newly uploaded photo immediately to store
-    const addUploadedPhoto = (photo, { isChecklist = false, checklistId = null } = {}) => {
+    const addUploadedPhoto = (photo, { isChecklist = false, checklistId = null, isReplace = false, replacedPhotoId = null, deletedPhotoIds = [] } = {}) => {
         if (!photo) return
+
+        // 1. Remove any explicitly deleted or replaced photos
+        if (Array.isArray(deletedPhotoIds)) {
+            deletedPhotoIds.forEach((id) => removePhotoById(id))
+        }
+        if (replacedPhotoId) {
+            removePhotoById(replacedPhotoId)
+        }
 
         const isVid = Boolean(
             photo.isVideo ||
@@ -1111,17 +1192,30 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         )
 
         const mappedMedia = mapPhotoToMediaItem(photo, dynamicChecklist.value)
-        if (checklistId) {
-            mappedMedia.checklistId = checklistId
-            const matchedChecklist = dynamicChecklist.value.find((c) => Number(c.id) === Number(checklistId))
+        const cId = checklistId || photo.checklistId
+        if (cId) {
+            mappedMedia.checklistId = cId
+            const matchedChecklist = dynamicChecklist.value.find((c) => Number(c.id) === Number(cId))
             if (matchedChecklist) {
-                mappedMedia.category = String(checklistId)
+                mappedMedia.category = String(cId)
                 mappedMedia.categoryLabel = matchedChecklist.name
+            }
+
+            // If this is a checklist moment, remove any PREVIOUS media item for this same checklist moment by this guest
+            const prevIndex = mediaItems.value.findIndex(
+                (m) =>
+                    String(m.id) !== String(photo.id) &&
+                    Number(m.checklistId) === Number(cId) &&
+                    isCurrentGuestPhoto(m)
+            )
+            if (prevIndex !== -1) {
+                mediaItems.value.splice(prevIndex, 1)
+                totalPhotos.value = Math.max(0, totalPhotos.value - 1)
             }
         }
 
         // Prepend to mediaItems for Live Vault
-        const existsInMedia = mediaItems.value.some((m) => m.id === photo.id)
+        const existsInMedia = mediaItems.value.some((m) => String(m.id) === String(photo.id))
         if (!existsInMedia) {
             mediaItems.value.unshift(mappedMedia)
             totalPhotos.value += 1
@@ -1142,7 +1236,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 const existing = uploadedQuickPhotos.value[existingIndex]
                 existing.id = photo.id
                 existing.thumbnailUrl = resolvedThumb
-                existing.url = resolvedFull || resolvedThumb
+                existing.url = isVid ? (resolvedThumb || resolvedFull) : (resolvedFull || resolvedThumb)
                 existing.fullUrl = resolvedFull || resolvedThumb
                 if (photo.uploadedBy) existing.guest = photo.uploadedBy
                 if (photo.fileName) existing.fileName = photo.fileName
@@ -1151,7 +1245,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
             } else if (isCurrentGuestPhoto(photo)) {
                 uploadedQuickPhotos.value.unshift({
                     id: photo.id,
-                    url: resolvedFull || resolvedThumb,
+                    url: isVid ? (resolvedThumb || resolvedFull) : (resolvedFull || resolvedThumb),
                     fullUrl: resolvedFull || resolvedThumb,
                     thumbnailUrl: resolvedThumb || resolvedFull,
                     storageKey: photoKey,
@@ -1171,12 +1265,12 @@ export const useEventVaultStore = defineStore('eventVault', () => {
 
         // If checklist, update moment
         if (isChecklist || checklistId) {
-            const cId = checklistId || photo.checklistId
             const foundMoment = moments.value.find((m) => Number(m.id) === Number(cId))
             if (foundMoment && isCurrentGuestPhoto(photo)) {
                 const photoKey = photo.storageKey || photo.storage_key || null
                 const resolvedThumb = resolveStorageUrl(photo.thumbnailUrl || photo.url, photoKey)
                 const resolvedFull = resolveStorageUrl(photo.fullUrl || photo.url, photoKey)
+                foundMoment.photoId = photo.id
                 foundMoment.captured = true
                 foundMoment.image = resolvedThumb
                 foundMoment.fullImage = resolvedFull
@@ -1242,7 +1336,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         }
 
         try {
-            const userIdentifier = getGuestIdentifier()
+            const userIdentifier = getGuestIdentifier(item.eventId || currentEventId.value)
             const { data } = await axiosInstance.post(`/api/photos/${item.id}/like`, {
                 userIdentifier,
             })
@@ -1296,6 +1390,11 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                     isChecklist: Boolean(message.photo.checklistId),
                     checklistId: message.photo.checklistId,
                 })
+            } else if ((message.type === 'photo_deleted' || message.type === 'delete_photo') && message.data) {
+                const pid = message.data.photoId || message.data.id
+                if (pid) {
+                    removePhotoById(pid)
+                }
             } else if (message.type === 'photo_liked' && message.data) {
                 const { photoId, likesCount } = message.data
                 syncLikeState(photoId, likesCount, undefined)
@@ -1419,6 +1518,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         fetchGuestInitialData,
         fetchInitialDataByGuest,
         addUploadedPhoto,
+        removePhotoById,
         toggleLike,
         syncLikeState,
         handleWebSocketMessage,

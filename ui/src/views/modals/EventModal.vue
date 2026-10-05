@@ -811,9 +811,9 @@ const handleStep2Submit = () => {
   padding: 0.75rem 1rem;
   margin-bottom: 1.25rem;
   border-radius: 10px;
-  background-color: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.25);
-  color: #b91c1c;
+  background-color: var(--danger-tonal, rgba(244, 63, 94, 0.1));
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  color: var(--danger, #f43f5e);
   font-size: 12px;
   font-weight: 600;
 
@@ -845,7 +845,7 @@ const handleStep2Submit = () => {
   border-radius: 20px;
   padding: 1.5rem;
   border: 1.5px solid var(--border-color-subtle, #e8dfd5);
-  box-shadow: 0 4px 20px rgba(119, 90, 25, 0.05);
+  box-shadow: var(--shadow-sm, 0 4px 20px rgba(119, 90, 25, 0.05));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -853,26 +853,26 @@ const handleStep2Submit = () => {
   transition: all 0.25s ease;
 
   &:hover {
-    border-color: var(--primary, #775a19);
+    border-color: var(--primary, #c5a059);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(119, 90, 25, 0.12);
+    box-shadow: var(--shadow-md, 0 8px 24px rgba(119, 90, 25, 0.12));
   }
 
   &.is-selected-card {
-    border-color: var(--primary, #775a19);
-    box-shadow: 0 0 0 3px rgba(119, 90, 25, 0.25), 0 8px 24px rgba(119, 90, 25, 0.12);
+    border-color: var(--primary, #c5a059);
+    box-shadow: 0 0 0 3px var(--ring-color, rgba(197, 160, 89, 0.25)), var(--shadow-md);
     background: var(--bg-surface, #ffffff);
   }
 }
 
 .featured-pricing-card {
-  border: 2px solid #c5a059;
+  border: 2px solid var(--primary, #c5a059);
   background: var(--bg-surface, #ffffff);
-  box-shadow: 0 12px 36px -8px rgba(197, 160, 89, 0.25);
+  box-shadow: var(--shadow-lg, 0 12px 36px -8px rgba(197, 160, 89, 0.25));
 
   &.is-selected-card {
-    border-color: var(--primary, #775a19);
-    box-shadow: 0 0 0 3px rgba(119, 90, 25, 0.3), 0 12px 36px -8px rgba(197, 160, 89, 0.35);
+    border-color: var(--primary, #c5a059);
+    box-shadow: 0 0 0 3px var(--ring-color, rgba(197, 160, 89, 0.3)), var(--shadow-lg);
   }
 }
 
@@ -881,8 +881,8 @@ const handleStep2Submit = () => {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--primary, #775a19);
-  color: #ffffff;
+  background: var(--primary, #c5a059);
+  color: var(--primary-text, #ffffff);
   padding: 0.25rem 0.85rem;
   border-radius: 9999px;
   font-size: 0.625rem;
@@ -892,7 +892,7 @@ const handleStep2Submit = () => {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  box-shadow: 0 4px 12px rgba(119, 90, 25, 0.25);
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25);
   white-space: nowrap;
 }
 
@@ -926,7 +926,7 @@ const handleStep2Submit = () => {
 
 .gold-badge {
   background: rgba(197, 160, 89, 0.2);
-  color: var(--primary, #775a19);
+  color: var(--primary, #c5a059);
   font-weight: 700;
 }
 
@@ -971,13 +971,13 @@ const handleStep2Submit = () => {
   align-items: center;
 
   &:hover {
-    border-color: var(--primary, #775a19);
+    border-color: var(--primary, #c5a059);
   }
 
   &.active {
-    border-color: var(--primary, #775a19);
+    border-color: var(--primary, #c5a059);
     background: rgba(197, 160, 89, 0.18);
-    box-shadow: 0 0 0 1px var(--primary, #775a19);
+    box-shadow: 0 0 0 1px var(--primary, #c5a059);
   }
 }
 
@@ -993,7 +993,7 @@ const handleStep2Submit = () => {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: var(--primary, #775a19);
+  color: var(--primary, #c5a059);
   margin-top: 0.2rem;
 }
 
@@ -1018,27 +1018,27 @@ const handleStep2Submit = () => {
 
 .perk-icon {
   font-size: 0.9375rem;
-  color: var(--primary, #775a19);
+  color: var(--primary, #c5a059);
   margin-top: 0.05rem;
   flex-shrink: 0;
 
   &.text-accent {
-    color: #b8860b;
+    color: var(--accent, #c5a059);
   }
 }
 
 /* Tier Selection Buttons */
 .btn-tier-select {
   width: 100%;
-  padding: 0.65rem 1rem;
-  border-radius: 12px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
   font-family: 'Manrope', sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
@@ -1051,27 +1051,27 @@ const handleStep2Submit = () => {
   border: 1px solid var(--border-color-subtle, #e0d5cb);
 
   &:hover {
-    background: var(--primary, #775a19);
-    color: #ffffff;
-    border-color: var(--primary, #775a19);
+    background: var(--primary, #c5a059);
+    color: var(--primary-text, #ffffff);
+    border-color: var(--primary, #c5a059);
   }
 }
 
 .btn-tier-selected {
-  background: var(--primary, #775a19);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(119, 90, 25, 0.25);
+  background: var(--primary, #c5a059);
+  color: var(--primary-text, #ffffff);
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25);
 }
 
 .btn-tier-primary {
-  background: linear-gradient(135deg, #8a6a24 0%, #b8860b 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(184, 134, 11, 0.28);
+  background: linear-gradient(135deg, var(--primary, #c5a059) 0%, var(--primary-hover, #b8860b) 100%);
+  color: var(--primary-text, #ffffff);
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.28);
 
   &:hover {
-    background: linear-gradient(135deg, #775a19 0%, #a47608 100%);
+    background: linear-gradient(135deg, var(--primary-hover, #b58f48) 0%, var(--primary, #a47608) 100%);
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(184, 134, 11, 0.35);
+    box-shadow: 0 6px 18px rgba(197, 160, 89, 0.35);
   }
 }
 
@@ -1103,7 +1103,7 @@ const handleStep2Submit = () => {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--primary, #775a19);
+    color: var(--primary, #c5a059);
     background: rgba(197, 160, 89, 0.2);
     padding: 0.2rem 0.6rem;
     border-radius: 9999px;
@@ -1117,7 +1117,7 @@ const handleStep2Submit = () => {
   .tier-change-btn {
     font-size: 11px;
     font-weight: 700;
-    color: var(--primary, #775a19);
+    color: var(--primary, #c5a059);
     background: none;
     border: none;
     text-decoration: underline;
@@ -1125,7 +1125,7 @@ const handleStep2Submit = () => {
     padding: 0.2rem 0.5rem;
 
     &:hover {
-      color: #996515;
+      color: var(--primary-hover, #d8b46d);
     }
   }
 }
@@ -1177,7 +1177,7 @@ const handleStep2Submit = () => {
   font-size: 13px;
 
   .required-star {
-    color: #dc2626;
+    color: var(--danger, #f43f5e);
   }
 }
 
@@ -1218,13 +1218,13 @@ const handleStep2Submit = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
   background-color: var(--bg-surface-tonal, #fcf2ec);
   border: 1px solid var(--border-color-subtle, #ebe0db);
   font-family: 'Manrope', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary, #4e4639);
   cursor: pointer;
@@ -1242,24 +1242,24 @@ const handleStep2Submit = () => {
 }
 
 .submit-profile-btn {
-  background: linear-gradient(135deg, #775a19 0%, #a47608 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--primary, #c5a059) 0%, var(--primary-hover, #a47608) 100%) !important;
+  color: var(--primary-text, #ffffff) !important;
   border: none !important;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
   font-family: 'Manrope', sans-serif !important;
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
   letter-spacing: 0.02em !important;
-  padding: 0.8rem 1.5rem !important;
+  padding: 0.5rem 1.15rem !important;
   box-shadow: 0 4px 14px rgba(119, 90, 25, 0.28) !important;
   transition: all 0.25s ease !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.5rem !important;
+  gap: 0.45rem !important;
 
   &:hover {
-    background: linear-gradient(135deg, #644a13 0%, #8e6605 100%) !important;
+    background: linear-gradient(135deg, var(--primary-hover, #b58f48) 0%, var(--primary, #8e6605) 100%) !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 6px 18px rgba(119, 90, 25, 0.35) !important;
   }
@@ -1289,7 +1289,7 @@ const handleStep2Submit = () => {
 
   .lock-icon {
     font-size: 14px;
-    color: var(--primary, #775a19);
+    color: var(--primary, #c5a059);
   }
 }
 </style>

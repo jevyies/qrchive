@@ -1417,7 +1417,6 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
           required: ['deviceSerial'],
           properties: {
             eventToken: { type: 'string' },
-            eventId: { type: ['integer', 'string'] },
             deviceSerial: { type: 'string' },
           },
         },
@@ -1426,24 +1425,18 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
             description: 'Snap guest lookup response',
             type: 'object',
             properties: {
-              exists: { type: 'boolean' },
-              guest: {
-                type: 'object',
-                nullable: true,
-                properties: {
-                  id: { type: 'integer' },
-                  guestCode: { type: 'string' },
-                  guestName: { type: 'string' },
-                },
-              },
-              message: { type: 'string', nullable: true },
+              id: { type: 'integer' },
+              guestCode: { type: 'string' },
+              guestName: { type: 'string' },
+              error: { type: 'boolean' },
+              message: { type: 'string' },
             },
           },
           400: {
             description: 'Bad request',
             type: 'object',
             properties: {
-              exists: { type: 'boolean' },
+              error: { type: 'boolean' },
               message: { type: 'string' },
             },
           },
@@ -1451,7 +1444,7 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
             description: 'Guest or event not found',
             type: 'object',
             properties: {
-              exists: { type: 'boolean' },
+              error: { type: 'boolean' },
               message: { type: 'string' },
             },
           },
@@ -1460,27 +1453,22 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const query = (request.query as any) || {};
-      const rawTokenOrId = query.eventToken || query.eventId;
+      const rawToken = query.eventToken;
       const deviceSerial = query.deviceSerial;
-
-      if (!rawTokenOrId || !deviceSerial) {
+      if (!rawToken || !deviceSerial) {
         return reply.status(400).send({
-          exists: false,
+          error: true,
           message: 'Both eventToken/eventId and deviceSerial are required.',
         });
       }
 
-      const isNumeric = /^\d+$/.test(String(rawTokenOrId));
       const event = await db.query.events.findFirst({
-        where: isNumeric
-          ? or(eq(events.token, String(rawTokenOrId)), eq(events.id, Number(rawTokenOrId)))
-          : eq(events.token, String(rawTokenOrId)),
+        where: eq(events.token, String(rawToken)),
       });
 
       if (!event) {
         return reply.status(200).send({
-          exists: false,
-          guest: null,
+          error: true,
           message: 'Event not found for provided token or ID.',
         });
       }
@@ -1491,26 +1479,16 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
           eq(snapGuests.deviceSerial, String(deviceSerial).trim())
         ),
       });
-
       if (!existingGuest) {
         return reply.status(200).send({
-          exists: false,
-          guest: null,
+          error: true,
           message: 'No guest registered with this device serial for this event.',
         });
       }
-
       return reply.status(200).send({
-        exists: true,
-        guest: {
-          id: existingGuest.id,
-          guestCode: existingGuest.guestCode,
-          guest_code: existingGuest.guestCode,
-          name: existingGuest.name,
-          guestName: existingGuest.name,
-          eventId: existingGuest.eventId,
-          eventCode: event.token || String(event.id),
-        },
+        id: existingGuest.id,
+        guestCode: existingGuest.guestCode,
+        guestName: existingGuest.name,
       });
     }
   );

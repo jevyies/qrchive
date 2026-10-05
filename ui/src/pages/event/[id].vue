@@ -51,7 +51,7 @@ const maxNumberOfPhotosAllowed = 30;
 
 const bannerImage = computed(() => {
     if (eventDetails.value?.photos?.length) {
-        return eventDetails.value?.photos?.find(x => x.category == 'banner');
+        return eventDetails.value?.photos?.find(x => x.type == 'mobile_cropped')?.url;
     }
     return `${storageURL}/static/cover-photo.jpg`;
 })
@@ -127,9 +127,34 @@ const getEventData = async (eventToken) => {
     }
 }
 const getUserDetails = async (eventToken) => {
-
+    const deviceSerial = getDeviceSerial()
+    try {
+        const { data: response } = await axiosInstance.get(`/api/guests/snap/lookup?eventToken=${eventToken}&deviceSerial=${deviceSerial}`)
+        if (response?.error) {
+            return;
+        }
+        hasGuestAuth.value = true;
+        saveStoredEventSession(route.params.id, { guestId: response.id, guestName: response.guestName, guestCode: response.guestCode, ...eventDetails.value });
+        eventDetails.value.guestCode = response.guestCode;
+        eventDetails.value.guestName = response.guestName;
+        alreadyLoaded.value = true;
+    } catch (error) {
+        hasGuestAuth.value = false;
+        eventDetails.value.guestCode = null;
+        eventDetails.value.guestName = null;
+        alreadyLoaded.value = true;
+    }
 }
 const submitGuest = async (guestName) => {
+    if (isDemo.value) {
+        hasGuestAuth.value = true;
+        eventDetails.value.guestCode = 'demo-guest';
+        eventDetails.value.guestName = guestName;
+        alreadyLoaded.value = true;
+        isSubmitting.value = false;
+        isGuestModalOpen.value = false;
+        return;
+    }
     const deviceSerial = getDeviceSerial()
     const deviceName = getDeviceName()
     isSubmitting.value = true;
@@ -193,6 +218,9 @@ const openCamera = (moment) => {
         updateDemoGalleryCount()
     }
     activeMoment.value = moment;
+    if (moment && moment.id && moment.id !== 'quick') {
+        captureMode.value = 'checklist'
+    }
     currentTargetTitle.value = activeMoment.value ? activeMoment.value.title : ''
     isCameraOpen.value = true
 }
@@ -235,8 +263,6 @@ const getBlobFromCapturedPhoto = async (capturedUrl) => {
     })
 }
 const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, videoUrl, duration, fileName, mimeType }) => {
-    galleryPhotos.value.push(dataUrl)
-
     const isVid = Boolean(isVideo || type === 'video')
     let finalBlob = blob
     if (!finalBlob && !isVid) {
@@ -249,6 +275,7 @@ const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, video
 
     // If quick capture mode, push directly into uploadedQuickPhotos and queue sequential upload
     if (captureMode.value === 'quick' || !currentMoment || currentMoment.id === 'quick') {
+        galleryPhotos.value.push(dataUrl)
         const defaultExt = isVid ? (mimeType?.includes('webm') ? 'webm' : 'mp4') : 'jpg'
         const photoItem = reactive({
             id: 'quick_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -278,17 +305,22 @@ const handleCameraCapture = async ({ dataUrl, blob, moment, type, isVideo, video
     } else {
         const found = moments.value.find((m) => Number(m.id) == Number(currentMoment.id))
         if (found) {
+            const isReplace = Boolean(found.captured || currentMoment?.isReplace)
+            const oldPhotoId = found.photoId || null
             found.captured = true
             found.image = dataUrl
             found.fullImage = dataUrl
             found.isVideo = isVid
             found.videoUrl = videoUrl || null
             found.videoBlob = isVid ? finalBlob : null
+            galleryPhotos.value = [dataUrl]
             uploadChecklistPhoto(found, finalBlob, dataUrl, {
                 isVideo: isVid,
                 videoUrl: videoUrl,
                 fileName: fileName,
                 mimeType: mimeType,
+                isReplace: isReplace,
+                oldPhotoId: oldPhotoId,
             })
         }
     }
@@ -457,8 +489,8 @@ const performQuickUpload = async (photoItem) => {
             const fullUrl = resolveStorageUrl(uploadedPhoto.fullUrl || uploadedPhoto.url, photoKey)
             const thumbUrl = resolveStorageUrl(uploadedPhoto.thumbnailUrl || uploadedPhoto.url, photoKey) || fullUrl
             photoItem.fullUrl = fullUrl
-            photoItem.url = fullUrl || thumbUrl
             photoItem.thumbnailUrl = thumbUrl || fullUrl
+            photoItem.url = photoItem.isVideo ? (thumbUrl || fullUrl) : (fullUrl || thumbUrl)
             photoItem.videoUrl = uploadedPhoto.url || photoItem.videoUrl
             photoItem.fileName = uploadedPhoto.fileName || fileName
             photoItem.guest = uploadedPhoto.uploadedBy || guestName
@@ -486,6 +518,8 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
     if (!momentItem || !momentItem.id) return
     const checkListId = momentItem.id
     const isVideo = Boolean(extra.isVideo || momentItem.isVideo)
+    const isReplace = Boolean(extra.isReplace || momentItem.isReplace)
+    const oldPhotoId = extra.oldPhotoId || momentItem.photoId || null
 
     const found = moments.value.find((m) => Number(m.id) === Number(checkListId))
     let progressTimer = null
@@ -541,9 +575,10 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
             found.guest = guestName || 'You'
             found.showSuccessCheck = true
 
+            const demoItemId = `demo_moment_${checkListId}`
             const demoItem = {
                 checklistId: checkListId,
-                id: `demo_moment_${checkListId}`,
+                id: demoItemId,
                 title: found.title,
                 name: found.name,
                 category: found.category || 'reception',
@@ -563,7 +598,14 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
                 isLiked: false,
             }
             await saveDemoChecklistMoment(demoItem)
-            eventVaultStore.addUploadedPhoto(demoItem, { isChecklist: true, checklistId: checkListId })
+            found.photoId = demoItemId
+
+            eventVaultStore.addUploadedPhoto(demoItem, {
+                isChecklist: true,
+                checklistId: checkListId,
+                isReplace: isReplace,
+                replacedPhotoId: oldPhotoId || demoItemId,
+            })
 
             await updateDemoGalleryCount()
 
@@ -583,6 +625,12 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
     formData.append('checklistId', String(checkListId))
     formData.append('captureMode', 'checklist')
     formData.append('uploadedBy', guestName)
+    if (isReplace) {
+        formData.append('isReplace', 'true')
+        if (oldPhotoId) {
+            formData.append('replacePhotoId', String(oldPhotoId))
+        }
+    }
     formData.append(
         'deviceName',
         typeof navigator !== 'undefined' && navigator.userAgent.includes('Mobile')
@@ -603,6 +651,8 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
                 'x-guest-code': String(guestCode),
                 'x-checklist-id': String(checkListId),
                 'x-capture-mode': 'checklist',
+                'x-is-replace': isReplace ? 'true' : 'false',
+                ...(oldPhotoId ? { 'x-replace-photo-id': String(oldPhotoId) } : {}),
             },
             onUploadProgress: (progressEvent) => {
                 if (found && progressEvent.total) {
@@ -618,8 +668,17 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
         if (progressTimer) clearInterval(progressTimer)
 
         const uploadedPhoto = response.data?.photo
+        const replacedPhotoId = response.data?.replacedPhotoId || oldPhotoId || null
+        const deletedPhotoIds = response.data?.deletedPhotoIds || []
+
         if (uploadedPhoto) {
-            eventVaultStore.addUploadedPhoto(uploadedPhoto, { isChecklist: true, checklistId: checkListId })
+            eventVaultStore.addUploadedPhoto(uploadedPhoto, {
+                isChecklist: true,
+                checklistId: checkListId,
+                isReplace: isReplace,
+                replacedPhotoId: replacedPhotoId,
+                deletedPhotoIds: deletedPhotoIds,
+            })
         }
         if (found) {
             while (currentPct < 100) {
@@ -629,6 +688,7 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
             }
 
             if (uploadedPhoto?.url || uploadedPhoto?.thumbnailUrl) {
+                found.photoId = uploadedPhoto.id
                 found.storageKey = uploadedPhoto.storageKey || uploadedPhoto.storage_key || null
                 found.storage_key = uploadedPhoto.storageKey || uploadedPhoto.storage_key || null
                 found.image = uploadedPhoto.thumbnailUrl || (isVideo ? localPreviewUrl : uploadedPhoto.url)
@@ -719,9 +779,17 @@ const handleFileChange = (e) => {
                         (m) => (activeMoment.value && Number(m.id) === Number(activeMoment.value.id))
                     )
                     if (matched) {
+                        const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
+                        const oldPhotoId = matched.photoId || null
                         matched.captured = true
                         matched.image = dataResult
-                        uploadChecklistPhoto(matched, files[0], dataResult)
+                        uploadChecklistPhoto(matched, files[0], dataResult, {
+                            isReplace,
+                            oldPhotoId,
+                            isVideo: files[0].type?.startsWith('video'),
+                            fileName: files[0].name,
+                            mimeType: files[0].type,
+                        })
                     }
                 } else {
                     handleCameraCapture({
@@ -745,7 +813,7 @@ onMounted(async () => {
         eventDetails.value = {
             id: 'demo-event',
             token: 'demo-event',
-            couple: 'Jev & Jean',
+            name: `Jev & Jean Wedding Celebration`,
             eventDate: new Date().toISOString(),
             guestCode: 'demo-guest',
             guestName: 'You',
@@ -754,6 +822,7 @@ onMounted(async () => {
         await eventVaultStore.fetchInitialGuestData('demo-event', 'demo-guest')
         await updateDemoGalleryCount()
         hasGuestAuth.value = false;
+        alreadyLoaded.value = false;
         loading.value = false
         return
     }
@@ -811,8 +880,7 @@ onMounted(async () => {
                                             <span class="vault-hero__eyebrow-text">The Wedding of</span>
                                             <span class="vault-hero__eyebrow-dot"></span>
                                         </div>
-                                        <h1 class="vault-hero__title">{{ eventDetails?.couple || eventDetails?.title ||
-                                            eventDetails?.name || 'Celebration' }}</h1>
+                                        <h1 class="vault-hero__title">{{ eventDetails?.name || 'Celebration' }}</h1>
                                     </div>
                                 </template>
                             </Transition>

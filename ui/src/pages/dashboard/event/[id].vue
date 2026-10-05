@@ -6,6 +6,9 @@ import { useToast } from '@/composables/useToast'
 import { axiosInstance, API_BASE_URL } from '@/plugins/axios'
 import JBtn from '@/@core/components/JBtn.vue'
 import JModal from '@/@core/components/JModal.vue'
+import EventPhotosTab from '@/views/dashboards/owner/EventPhotosTab.vue'
+import EventManageTab from '@/views/dashboards/owner/EventManageTab.vue'
+import EventPlacardsTab from '@/views/dashboards/owner/EventPlacardsTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -164,23 +167,8 @@ const coupleInitials = computed(() => {
   return 'K & J'
 })
 
-// Primary tab: 'tab1' (Photos) | 'tab2' (QR Access) | 'tab3' (Placards)
+// Primary tab: 'tab1' (Photos) | 'tab2' (Event Management) | 'tab3' (Placards)
 const activeTab = ref('tab1')
-
-// Album filter: 'all' or specific checklistName
-const albumFilter = ref('all')
-
-// Selected placard style: 'gold' | 'minimalist' | 'botanical' | 'romance'
-const selectedPlacard = ref('gold')
-
-// Album Preview Modal
-const isAlbumModalOpen = ref(false)
-const activeAlbum = ref(null)
-
-const openAlbumModal = (album) => {
-  activeAlbum.value = album
-  isAlbumModalOpen.value = true
-}
 
 // Dynamic host origin computed from window.location
 const hostOrigin = computed(() => {
@@ -298,101 +286,34 @@ const goBackToDashboard = () => {
 // Albums reactive state
 const albums = ref([])
 
-// Dropdown state for album filter
-const isAlbumDropdownOpen = ref(false)
-const albumDropdownRef = ref(null)
+const storageURL = import.meta.env.VITE_STORAGE_URL;
 
-const toggleAlbumDropdown = () => {
-  isAlbumDropdownOpen.value = !isAlbumDropdownOpen.value
-}
+// Default fallback hero image if no custom desktop_cropped background is set
+const defaultHeroImg = storageURL + '/static/cover-photo.jpg'
 
-const closeAlbumDropdown = () => {
-  isAlbumDropdownOpen.value = false
-}
+const desktopCroppedBackground = ref('')
 
-const selectAllAlbums = () => {
-  albumFilter.value = 'all'
-  isAlbumDropdownOpen.value = false
-}
-
-const selectAlbum = (album) => {
-  if (albumFilter.value === album.checklistName) {
-    albumFilter.value = 'all'
-  } else {
-    albumFilter.value = album.checklistName
-  }
-  isAlbumDropdownOpen.value = false
-}
-
-const isAlbumSelected = (album) => {
-  return albumFilter.value === album.checklistName || albumFilter.value === album.id
-}
-
-const selectedAlbum = computed(() => {
-  if (albumFilter.value === 'all') return null
+const heroBackgroundUrl = computed(() => {
   return (
-    albums.value.find(
-      (a) => a.checklistName === albumFilter.value || a.id === albumFilter.value
-    ) || null
+    desktopCroppedBackground.value ||
+    eventData.value?.desktopCroppedUrl ||
+    eventData.value?.backgrounds?.find((b) => b.type === 'desktop_cropped')?.url ||
+    defaultHeroImg
   )
 })
 
-const dropdownButtonLabel = computed(() => {
-  if (selectedAlbum.value) {
-    const count = selectedAlbum.value.photosCountNum ?? selectedAlbum.value.totalItems ?? 0
-    return `${selectedAlbum.value.title} (${count})`
-  }
-  return 'Other Checklists'
-})
-
-const handleDocumentClick = (e) => {
-  if (albumDropdownRef.value && !albumDropdownRef.value.contains(e.target)) {
-    isAlbumDropdownOpen.value = false
-  }
-}
-
-// Regular checklist albums
-const regularAlbums = computed(() => {
-  return albums.value.filter((a) => !a.isCandid)
-})
-
-// Dedicated Candid Album (Quick Captures)
-const candidAlbum = computed(() => {
-  return albums.value.find((a) => a.isCandid) || null
-})
-
-// Filtered regular albums
-const regularFilteredAlbums = computed(() => {
-  if (albumFilter.value === 'all') return regularAlbums.value
-  if (albumFilter.value === 'candid' || (candidAlbum.value && albumFilter.value === candidAlbum.value.checklistName)) {
-    return []
-  }
-  return regularAlbums.value.filter((a) => a.checklistName === albumFilter.value)
-})
-
-// Whether candid card is visible under current filter
-const isCandidVisible = computed(() => {
-  if (!candidAlbum.value) return false
-  if (albumFilter.value === 'all' || albumFilter.value === 'candid') return true
-  return albumFilter.value === candidAlbum.value.checklistName
-})
-
-// Helper to determine if an album cover media is a video
-const isVideoMedia = (album) => {
-  if (!album) return false
-  if (album.isVideo) return true
-  const url = album.img || album.url || ''
-  if (typeof url === 'string') {
-    return /\.(mp4|webm|mov|ogg)($|\?)/i.test(url)
-  }
-  return false
-}
-
-// Stop card preview video at 5 seconds without looping
-const handleVideoTimeUpdate = (event) => {
-  const video = event?.target
-  if (video && video.currentTime >= 5) {
-    video.pause()
+// Fetch Event Backgrounds from /api/events/:id/backgrounds (event_photos table)
+const fetchBackgrounds = async () => {
+  try {
+    const eventId = eventData.value?.id || eventCode.value
+    const { data } = await axiosInstance.get(`/api/events/${eventId}/backgrounds`)
+    const list = data?.backgrounds || []
+    const deskCrop = list.find((b) => b.type === 'desktop_cropped')
+    if (deskCrop?.url) {
+      desktopCroppedBackground.value = deskCrop.url
+    }
+  } catch (err) {
+    console.warn('[DashboardEvent] Could not fetch event backgrounds:', err?.message || err)
   }
 }
 
@@ -403,6 +324,9 @@ const fetchEventStats = async () => {
     const { data } = await axiosInstance.get(`/api/events/token/${eventCode.value}/stats`)
     if (data) {
       eventData.value = data
+      if (data.desktopCroppedUrl) {
+        desktopCroppedBackground.value = data.desktopCroppedUrl
+      }
     }
   } catch (err) {
     console.warn('[DashboardEvent] Could not fetch event stats from backend:', err?.message || err)
@@ -587,11 +511,10 @@ const downloadAllFiles = async () => {
 onMounted(() => {
   fetchEventStats()
   fetchChecklistPhotos()
-  document.addEventListener('click', handleDocumentClick)
+  fetchBackgrounds()
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleDocumentClick)
   if (downloadPollTimer) {
     clearInterval(downloadPollTimer)
     downloadPollTimer = null
@@ -639,8 +562,7 @@ onUnmounted(() => {
       <div class="event-detail__hero-card">
         <!-- Hero Cover Media -->
         <div class="event-detail__hero-media">
-          <img class="event-detail__hero-img" alt="Opulent wedding reception couple dance"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3V3b53XiISyyoAl_u3W-G-INIpTniHYGyW5OT4V5pEh2IcNn5br0vuk1SwlXYwhvp3_hhQ8x1jOoBUhws7q-v6eh8z4qi_K3-Dej-j6NoHv3JbP_1ovJGScLp2yptN8rSl-dXBjpkfq4PfifYeQbWeVKhUpi58-15Q06-ZzcXSa04xNPO4zkis0YG9ZBavmZM8ni4FBDAUSTv6bCcyTJ7kAcmI5oSN9ebUzugVO8qVo7sSMVaGLya" />
+          <img class="event-detail__hero-img" :alt="eventTitle || 'Event Background'" :src="heroBackgroundUrl" />
           <div class="event-detail__hero-scrim-vertical"></div>
           <div class="event-detail__hero-scrim-horizontal"></div>
 
@@ -718,8 +640,8 @@ onUnmounted(() => {
 
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab2' }"
           @click="activeTab = 'tab2'">
-          <span class="material-symbols-outlined tab-icon">qr_code_2</span>
-          <span>Guest QR Code &amp; Access</span>
+          <span class="material-symbols-outlined tab-icon">settings_suggest</span>
+          <span>Event Management &amp; QR Pass</span>
         </button>
 
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab3' }"
@@ -731,405 +653,19 @@ onUnmounted(() => {
     </section>
 
     <!-- TAB 1: Guest Photos & Albums -->
-    <div v-if="activeTab === 'tab1'" class="event-detail__tab-body">
-      <div class="event-albums__header">
-        <div class="event-albums__title-group">
-          <span class="event-albums__subtitle">Curated Chapters</span>
-          <h2 class="event-albums__title">Reception Program Moments</h2>
-        </div>
+    <EventPhotosTab v-if="activeTab === 'tab1'" :albums="albums" :is-loading-albums="isLoadingAlbums"
+      @action="handleAction" />
 
-        <div class="event-albums__filters" v-if="albums.length">
-          <!-- All Albums Button -->
-          <button type="button" class="event-albums__filter-pill" :class="{ 'is-active': albumFilter === 'all' }"
-            @click="selectAllAlbums">
-            All Checklists ({{ albums.length }})
-          </button>
-
-          <!-- Other Albums Dropdown -->
-          <div ref="albumDropdownRef" class="event-albums__filter-dropdown">
-            <button type="button" class="event-albums__filter-pill event-albums__filter-pill--dropdown"
-              :class="{ 'is-active': albumFilter !== 'all' }" @click.stop="toggleAlbumDropdown"
-              :aria-expanded="isAlbumDropdownOpen"
-              :title="selectedAlbum ? `Filtered by ${selectedAlbum.title}` : 'Filter by other albums'">
-              <span class="dropdown-pill-text">{{ dropdownButtonLabel }}</span>
-              <span v-if="albumFilter !== 'all'" class="dropdown-pill-clear" title="Clear filter"
-                @click.stop="selectAllAlbums">
-                <span class="material-symbols-outlined clear-icon">close</span>
-              </span>
-              <span class="material-symbols-outlined dropdown-pill-arrow"
-                :class="{ 'is-flipped': isAlbumDropdownOpen }">
-                keyboard_arrow_down
-              </span>
-            </button>
-
-            <!-- Dropdown Menu -->
-            <div :class="['event-albums__dropdown-menu', { show: isAlbumDropdownOpen }]">
-              <div class="event-albums__dropdown-header">Filter by Specific Album</div>
-
-              <button type="button" :class="['event-albums__dropdown-item', { 'is-selected': albumFilter === 'all' }]"
-                @click="selectAllAlbums">
-                <div class="dropdown-item-left">
-                  <span class="album-dot"></span>
-                  <span class="album-title">All Albums</span>
-                </div>
-                <div class="dropdown-item-right">
-                  <span class="album-badge">{{ albums.length }}</span>
-                  <span v-if="albumFilter === 'all'" class="material-symbols-outlined check-icon">check</span>
-                </div>
-              </button>
-
-              <div class="event-albums__dropdown-divider"></div>
-
-              <button v-for="album in albums" :key="album.id" type="button"
-                :class="['event-albums__dropdown-item', { 'is-selected': isAlbumSelected(album) }]"
-                @click="selectAlbum(album)">
-                <div class="dropdown-item-left">
-                  <span class="album-dot" :class="{ 'album-dot--candid': album.isCandid }"></span>
-                  <span class="album-title">{{ album.title }}</span>
-                </div>
-                <div class="dropdown-item-right">
-                  <span class="album-badge">{{ album.photosCountNum ?? album.totalItems ?? 0 }}</span>
-                  <span v-if="isAlbumSelected(album)" class="material-symbols-outlined check-icon">check</span>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Albums Grid -->
-      <div class="event-albums__grid">
-        <!-- Checklist Albums -->
-        <div v-for="album in regularFilteredAlbums" :key="album.id" class="event-album-card">
-          <div>
-            <div class="event-album-card__media">
-              <video v-if="isVideoMedia(album)" :src="album.img" class="event-album-card__img" muted playsinline
-                autoplay preload="metadata" @timeupdate="handleVideoTimeUpdate"></video>
-              <img v-else :src="album.img" :alt="album.title" class="event-album-card__img" loading="lazy" />
-              <span class="event-album-card__badge-top">{{ album.chapter }}</span>
-              <span class="event-album-card__badge-bottom">{{ album.photosCount }}</span>
-            </div>
-            <div class="event-album-card__body">
-              <h3 class="event-album-card__title">{{ album.title }}</h3>
-              <p class="event-album-card__author">
-                <span class="material-symbols-outlined author-icon">person_pin</span>
-                <span>Latest by <strong>{{ album.author }}</strong></span>
-              </p>
-            </div>
-          </div>
-
-          <div class="event-album-card__footer">
-            <button type="button" class="event-album-card__btn" @click="openAlbumModal(album)">
-              <span>View Album</span>
-              <span class="material-symbols-outlined btn-arrow">arrow_forward</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Dedicated Candids Card (Quick Captures) -->
-        <div v-if="isCandidVisible && candidAlbum" class="event-album-card event-album-card--candid">
-          <div class="event-album-card__layout">
-            <div class="event-album-card__media">
-              <video v-if="isVideoMedia(candidAlbum)" :src="candidAlbum.img" class="event-album-card__img" muted
-                playsinline autoplay preload="metadata" @timeupdate="handleVideoTimeUpdate"></video>
-              <img v-else :src="candidAlbum.img" :alt="candidAlbum.title" class="event-album-card__img"
-                loading="lazy" />
-              <span class="event-album-card__badge-top event-album-card__badge-top--gold">Dedicated Candid Vault</span>
-              <span class="event-album-card__badge-bottom">{{ candidAlbum.photosCount }}</span>
-            </div>
-
-            <div class="event-album-card__content-candid">
-              <div>
-                <div
-                  style="display: inline-flex; align-items: center; gap: 0.25rem; color: var(--primary); margin-bottom: 0.35rem;">
-                  <span class="material-symbols-outlined" style="font-size: 1.1rem;">auto_awesome</span>
-                  <span
-                    style="font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;">Spontaneous
-                    &amp; Real</span>
-                </div>
-                <h3 class="event-albums__title" style="font-size: 1.35rem;">{{ candidAlbum.title }}</h3>
-                <p style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.6; margin-top: 0.5rem;">
-                  {{
-                    candidAlbum.description
-                    ||
-                    `Spontaneous guest selfies, table decor snaps, after-party dance floor joy, and intimate behind - the
-                  - scenes moments not tied to specific checklist events.` }}
-                </p>
-                <p
-                  style="font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; margin-top: 0.75rem;">
-                  <span class="material-symbols-outlined" style="font-size: 1rem; color: var(--primary);">group</span>
-                  <span>Latest contributor: <strong>{{ candidAlbum.author }}</strong></span>
-                </p>
-              </div>
-
-              <div style="padding-top: 1.25rem;">
-                <button type="button" class="event-album-card__btn event-album-card__btn--primary"
-                  @click="openAlbumModal(candidAlbum)">
-                  <span>Explore All Candids</span>
-                  <span class="material-symbols-outlined btn-arrow">arrow_forward</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty state when no albums exist -->
-        <div v-if="albums.length === 0 && !isLoadingAlbums" class="event-albums__empty"
-          style="grid-column: 1 / -1; padding: 4rem 1rem; text-align: center; border-radius: var(--radius-xl, 0.75rem); background: var(--bg-surface-elevated, #fff); border: 1px dashed var(--border-color-subtle, rgba(197, 160, 89, 0.2));">
-          <span class="material-symbols-outlined"
-            style="font-size: 3rem; color: var(--primary, #c5a059); opacity: 0.8;">photo_library</span>
-          <h3 style="font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--text-primary);">No
-            Media Uploaded Yet</h3>
-          <p
-            style="font-size: 0.875rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto; line-height: 1.6;">
-            Guests have not uploaded photos or checklist moments for this event yet. Once photos are taken via the live
-            vault, they will appear here organized by chapter.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 2: Guest QR Code & Access -->
-    <div v-if="activeTab === 'tab2'" class="event-detail__tab-body">
-      <div class="event-qr-grid">
-        <!-- Scannable Placard Mockup Card -->
-        <div class="event-qr-mockup-wrap">
-          <div class="event-qr-placard">
-            <div class="event-qr-placard__inner">
-              <span class="event-qr-placard__subheading">Welcome to the celebration of</span>
-              <h3 class="event-qr-placard__couple">{{ coupleNames }}</h3>
-              <p class="event-qr-placard__date">{{ formattedEventDate }}</p>
-
-              <!-- Central QR Code -->
-              <div class="event-qr-placard__svg-wrap">
-                <div v-if="qrSvg" class="event-qr-code-display" v-html="qrSvg"></div>
-                <div v-else class="event-qr-loading">
-                  <span class="material-symbols-outlined spinning">progress_activity</span>
-                </div>
-              </div>
-
-              <p class="event-qr-placard__instruction">
-                Scan with your camera to upload reception photos instantly — no app required.
-              </p>
-              <span class="event-qr-placard__link">{{ hostOrigin }}/event/{{ eventCode }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Download & Access Info -->
-        <div class="event-qr-info">
-          <div class="event-qr-info__header">
-            <span class="event-qr-info__badge">Effortless Guest Participation</span>
-            <h2 class="event-qr-info__title">Live Guest Access QR Pass</h2>
-            <p class="event-qr-info__desc">
-              Every guest can easily scan this QR code from their mobile cameras.
-              Zero app download or account creation required for instant uploads.
-            </p>
-          </div>
-
-          <!-- Action Button -->
-          <div>
-            <button type="button" class="event-detail__action-btn event-detail__action-btn--primary"
-              style="padding: 0.75rem 1.5rem;" @click="downloadQrCode">
-              <span class="material-symbols-outlined" style="font-size: 1.15rem;">download</span>
-              <span>Download QR Code</span>
-            </button>
-          </div>
-
-          <!-- Direct URL Copy Box -->
-          <div class="event-qr-direct-box">
-            <div class="event-qr-direct-link">
-              <span class="material-symbols-outlined link-icon">link</span>
-              <span>{{ hostOrigin }}/v/{{ eventCode }}</span>
-            </div>
-            <button type="button" class="event-detail__action-btn event-detail__action-btn--tonal"
-              @click="copyVaultUrl">
-              Copy Direct URL
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- TAB 2: Event Management (Vertical Tabs: Event Details, Event Checklists, Event Background, Event QR Code) -->
+    <EventManageTab v-else-if="activeTab === 'tab2'" :event-code="eventCode" :event-data="eventData"
+      :couple-names="coupleNames" :formatted-event-date="formattedEventDate" :host-origin="hostOrigin" :qr-svg="qrSvg"
+      @refresh-event="fetchEventStats" @refresh-backgrounds="fetchBackgrounds"
+      @refresh-checklists="fetchChecklistPhotos" @download-qr="downloadQrCode" @copy-url="copyVaultUrl" />
 
     <!-- TAB 3: 5x7" Table Placard Templates -->
-    <div v-if="activeTab === 'tab3'" class="event-detail__tab-body">
-      <div class="event-placards__header">
-        <div class="event-placards__title-group">
-          <span class="event-albums__subtitle">Atelier Print Studio</span>
-          <h2 class="event-placards__title">5×7" Table Placard Templates</h2>
-          <p class="event-placards__desc">
-            Choose from our pre-formatted, print-ready 5×7 inch table placard designs. Pre-calculated with professional
-            1/8"
-            bleed margins for effortless home printing or luxury stationary ateliers.
-          </p>
-        </div>
-
-        <button type="button" class="event-detail__action-btn event-detail__action-btn--primary"
-          style="padding: 0.75rem 1.5rem; flex-shrink: 0;"
-          @click="handleAction(`Generating print-ready PDF for ${selectedPlacard} style...`, 'success')">
-          <span class="material-symbols-outlined" style="font-size: 1.15rem;">picture_as_pdf</span>
-          <span>Download Selected 5×7" PDF</span>
-        </button>
-      </div>
-
-      <!-- 4 Placard Designs Grid -->
-      <div class="event-placards__grid">
-        <!-- Style 1: Classic Gold Foil -->
-        <div class="event-placard-card" :class="{ 'is-selected': selectedPlacard === 'gold' }"
-          @click="selectedPlacard = 'gold'">
-          <div class="event-placard-sheet event-placard-sheet--gold">
-            <span class="event-placard-check">
-              <span class="material-symbols-outlined check-icon">check_circle</span>
-            </span>
-
-            <div class="event-placard-top">
-              <p class="event-placard-sub">Table Celebration</p>
-              <h4 class="event-placard-name">{{ coupleNames }}</h4>
-              <div class="event-placard-divider"></div>
-              <p class="event-placard-tagline">Capture our night through your lens.</p>
-            </div>
-
-            <div class="event-placard-qr-box">
-              <span class="material-symbols-outlined placard-qr-icon">qr_code</span>
-            </div>
-
-            <div class="event-placard-bottom">
-              <p class="event-placard-scan-text">Scan to add your photos to our vault</p>
-              <span class="event-placard-url-text">{{ hostOrigin }}/event/{{ eventCode }}</span>
-            </div>
-          </div>
-
-          <div class="event-placard-caption">
-            <h5 class="event-placard-label">Classic Gold Foil</h5>
-            <p class="event-placard-status">{{ selectedPlacard === 'gold' ? 'Selected Design' : 'Print-ready layout' }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Style 2: Minimalist Modern -->
-        <div class="event-placard-card" :class="{ 'is-selected': selectedPlacard === 'minimalist' }"
-          @click="selectedPlacard = 'minimalist'">
-          <div class="event-placard-sheet event-placard-sheet--minimalist">
-            <span class="event-placard-check">
-              <span class="material-symbols-outlined check-icon">check_circle</span>
-            </span>
-
-            <div class="event-placard-top">
-              <p class="event-placard-sub">Memory Archive</p>
-              <h4 class="event-placard-name event-placard-name--dark">{{ coupleInitials }}</h4>
-              <p class="event-placard-tagline" style="margin-top: 0.35rem;">{{ formattedEventDate }}</p>
-            </div>
-
-            <div class="event-placard-qr-box">
-              <span class="material-symbols-outlined placard-qr-icon placard-qr-icon--dark">qr_code</span>
-            </div>
-
-            <div class="event-placard-bottom">
-              <p class="event-placard-scan-text">Open Camera &amp; Scan</p>
-            </div>
-          </div>
-
-          <div class="event-placard-caption">
-            <h5 class="event-placard-label">Minimalist Modern</h5>
-            <p class="event-placard-status">
-              {{ selectedPlacard === 'minimalist' ?
-                'Selected Design' : 'Clean typographic layout' }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Style 3: Botanical Arch -->
-        <div class="event-placard-card" :class="{ 'is-selected': selectedPlacard === 'botanical' }"
-          @click="selectedPlacard = 'botanical'">
-          <div class="event-placard-sheet event-placard-sheet--botanical">
-            <span class="event-placard-check">
-              <span class="material-symbols-outlined check-icon">check_circle</span>
-            </span>
-
-            <div class="botanical-arch-line"></div>
-
-            <div class="event-placard-top">
-              <p class="event-placard-sub">Celebrate With Us</p>
-              <h4 class="event-placard-name event-placard-name--script">{{ coupleNames }}</h4>
-            </div>
-
-            <div class="event-placard-qr-box">
-              <span class="material-symbols-outlined placard-qr-icon">qr_code</span>
-            </div>
-
-            <div class="event-placard-bottom">
-              <p class="event-placard-tagline" style="font-size: 0.6875rem;">Share your favorite wedding snaps</p>
-            </div>
-          </div>
-
-          <div class="event-placard-caption">
-            <h5 class="event-placard-label">Botanical Arch</h5>
-            <p class="event-placard-status">{{
-              selectedPlacard === 'botanical' ? 'Selected Design' : 'Romantic arched foil detail' }}</p>
-          </div>
-        </div>
-
-        <!-- Style 4: Romance Script -->
-        <div class="event-placard-card" :class="{ 'is-selected': selectedPlacard === 'romance' }"
-          @click="selectedPlacard = 'romance'">
-          <div class="event-placard-sheet event-placard-sheet--romance">
-            <span class="event-placard-check">
-              <span class="material-symbols-outlined check-icon">check_circle</span>
-            </span>
-
-            <div class="event-placard-top">
-              <h4 class="event-placard-name event-placard-name--script" style="font-size: 1.35rem;">Share the Love</h4>
-              <p class="event-placard-sub" style="margin-top: 0.35rem;">{{ eventTitle }}</p>
-            </div>
-
-            <div class="event-placard-qr-box">
-              <span class="material-symbols-outlined placard-qr-icon placard-qr-icon--dark">qr_code</span>
-            </div>
-
-            <div class="event-placard-bottom">
-              <p class="event-placard-tagline" style="font-size: 0.6875rem;">Help us archive the evening</p>
-            </div>
-          </div>
-
-          <div class="event-placard-caption">
-            <h5 class="event-placard-label">Romance Script</h5>
-            <p class="event-placard-status">{{
-              selectedPlacard === 'romance' ?
-                'Selected Design' : 'Editorial calligraphy focus' }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Interactive Album Preview Modal -->
-    <JModal v-model="isAlbumModalOpen" :title="activeAlbum?.title || 'Album Viewer'"
-      :subtitle="activeAlbum?.chapter || 'Chapter Album'" size="md" variant="elevated">
-      <div v-if="activeAlbum" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div style="width: 100%; height: 260px; border-radius: 0.75rem; overflow: hidden; background: #000;">
-          <video v-if="isVideoMedia(activeAlbum)" :src="activeAlbum.img" controls autoplay playsinline
-            style="width: 100%; height: 100%; object-fit: contain;"></video>
-          <img v-else :src="activeAlbum.img" :alt="activeAlbum.title"
-            style="width: 100%; height: 100%; object-fit: cover;" />
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.8125rem; color: var(--text-secondary);">
-            {{ activeAlbum.photosCount }}
-          </span>
-          <span style="font-size: 0.8125rem; color: var(--text-secondary);">
-            Latest contributor: <strong>{{ activeAlbum.author }}</strong>
-          </span>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
-          <JBtn size="sm" variant="tonal" @click="isAlbumModalOpen = false">
-            Close
-          </JBtn>
-          <JBtn size="sm" color="primary"
-            @click="handleAction(`Downloading photos for ${activeAlbum.title}...`, 'success')">
-            Download Album
-          </JBtn>
-        </div>
-      </div>
-    </JModal>
+    <EventPlacardsTab v-else-if="activeTab === 'tab3'" :event-code="eventCode" :event-title="eventTitle"
+      :couple-names="coupleNames" :couple-initials="coupleInitials" :formatted-event-date="formattedEventDate"
+      :host-origin="hostOrigin" @action="handleAction" />
 
     <!-- Footer -->
     <footer class="event-detail__footer">

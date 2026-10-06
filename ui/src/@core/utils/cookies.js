@@ -49,20 +49,37 @@ export const removeCookie = (name, options = {}) => {
 }
 
 export const getAuthToken = () => {
-  return getCookie('X-Access-Token') || getCookie('accessToken') || getCookie('token')
+  return (
+    getCookie('X-Access-Token') ||
+    getCookie('accessToken') ||
+    getCookie('token') ||
+    (typeof window !== 'undefined' ? localStorage.getItem('X-Access-Token') || localStorage.getItem('accessToken') : null)
+  )
 }
 
 export const getRefreshToken = () => {
-  return getCookie('X-Refresh-Token') || getCookie('refreshToken')
+  return (
+    getCookie('X-Refresh-Token') ||
+    getCookie('refreshToken') ||
+    (typeof window !== 'undefined' ? localStorage.getItem('X-Refresh-Token') || localStorage.getItem('refreshToken') : null)
+  )
 }
 
 export const setAuthCookies = (accessToken, refreshToken = null, rememberMe = false) => {
   const days = rememberMe ? 90 : 1
   if (accessToken) {
     setCookie('X-Access-Token', accessToken, days)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('X-Access-Token', accessToken)
+      localStorage.setItem('accessToken', accessToken)
+    }
   }
   if (refreshToken) {
     setCookie('X-Refresh-Token', refreshToken, days)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('X-Refresh-Token', refreshToken)
+      localStorage.setItem('refreshToken', refreshToken)
+    }
   }
 }
 

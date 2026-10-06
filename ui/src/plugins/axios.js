@@ -115,15 +115,25 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true
 
       try {
+        const storedRefreshToken = getRefreshToken()
+        const refreshHeaders = {}
+        if (storedRefreshToken) {
+          refreshHeaders['X-Refresh-Token'] = storedRefreshToken
+        }
+
         const refreshRes = await axios.post(
           `${API_BASE_URL}/api/auth/refresh`,
-          {},
-          { withCredentials: true }
+          { refreshToken: storedRefreshToken || undefined },
+          {
+            withCredentials: true,
+            headers: refreshHeaders,
+          }
         )
 
         const newAccessToken = refreshRes.data?.accessToken
+        const newRefreshToken = refreshRes.data?.refreshToken || storedRefreshToken
         if (newAccessToken) {
-          setAuthCookies(newAccessToken)
+          setAuthCookies(newAccessToken, newRefreshToken)
           onRefreshed(newAccessToken)
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`
           originalRequest.headers['X-Access-Token'] = newAccessToken

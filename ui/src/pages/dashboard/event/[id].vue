@@ -632,16 +632,17 @@ onUnmounted(() => {
     <!-- Interactive Primary Tab Navigation -->
     <section class="event-detail__tabs-section">
       <div class="event-detail__tabs-list" role="tablist">
+
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab1' }"
           @click="activeTab = 'tab1'">
-          <span class="material-symbols-outlined tab-icon">photo_library</span>
-          <span>Guest Photos &amp; Checklists</span>
+          <span class="material-symbols-outlined tab-icon">settings_suggest</span>
+          <span>Event Management &amp; QR Pass</span>
         </button>
 
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab2' }"
           @click="activeTab = 'tab2'">
-          <span class="material-symbols-outlined tab-icon">settings_suggest</span>
-          <span>Event Management &amp; QR Pass</span>
+          <span class="material-symbols-outlined tab-icon">photo_library</span>
+          <span>Guest Photos &amp; Checklists</span>
         </button>
 
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab3' }"
@@ -652,15 +653,16 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <!-- TAB 1: Guest Photos & Albums -->
-    <EventPhotosTab v-if="activeTab === 'tab1'" :albums="albums" :is-loading-albums="isLoadingAlbums"
-      @action="handleAction" />
-
-    <!-- TAB 2: Event Management (Vertical Tabs: Event Details, Event Checklists, Event Background, Event QR Code) -->
-    <EventManageTab v-else-if="activeTab === 'tab2'" :event-code="eventCode" :event-data="eventData"
+    <!-- TAB 1: Event Management (Vertical Tabs: Event Details, Event Checklists, Event Background, Event QR Code) -->
+    <EventManageTab v-if="activeTab === 'tab1'" :event-code="eventCode" :event-data="eventData"
       :couple-names="coupleNames" :formatted-event-date="formattedEventDate" :host-origin="hostOrigin" :qr-svg="qrSvg"
       @refresh-event="fetchEventStats" @refresh-backgrounds="fetchBackgrounds"
       @refresh-checklists="fetchChecklistPhotos" @download-qr="downloadQrCode" @copy-url="copyVaultUrl" />
+
+    <!-- TAB 2: Guest Photos & Albums -->
+    <EventPhotosTab v-else-if="activeTab === 'tab2'" :albums="albums" :is-loading-albums="isLoadingAlbums"
+      @action="handleAction" />
+
 
     <!-- TAB 3: 5x7" Table Placard Templates -->
     <EventPlacardsTab v-else-if="activeTab === 'tab3'" :event-code="eventCode" :event-title="eventTitle"
@@ -689,7 +691,7 @@ onUnmounted(() => {
         </div>
 
         <div class="event-detail__footer-bottom">
-          <p style="margin: 0;">&copy; 2024 QRchive Celebration Vault. Handcrafted with bespoke intimacy.</p>
+          <p style="margin: 0;">&copy; 2026 QRchive Event. Powered by Ababa Online Store.</p>
           <div class="event-detail__footer-sublinks">
             <a href="#" @click.prevent="handleAction('Concierge support contacted')">Concierge</a>
             <a href="#" @click.prevent="handleAction('Privacy archive documentation')">Privacy Archive</a>

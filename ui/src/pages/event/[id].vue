@@ -51,7 +51,12 @@ const maxNumberOfPhotosAllowed = 30;
 
 const bannerImage = computed(() => {
     if (eventDetails.value?.photos?.length) {
-        return eventDetails.value?.photos?.find(x => x.type == 'mobile_cropped')?.url;
+        if (!hasGuestAuth.value) {
+            return eventDetails.value?.photos?.find(x => x.type == 'mobile_cropped')?.url;
+        }
+        else {
+            return eventDetails.value?.photos?.find(x => x.type == 'desktop_cropped')?.url;
+        }
     }
     return `${storageURL}/static/cover-photo.jpg`;
 })

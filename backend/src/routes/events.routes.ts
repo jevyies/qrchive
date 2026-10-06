@@ -6,6 +6,7 @@ import path from 'path';
 import { db, events, users, guests, snapGuests, snapPhotos, snapChecklist, eventPhotos, storeUsers, stores, Event, NewEvent } from '../db';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 import { R2Service, R2_ROOT_FOLDER, R2_PUBLIC_DOMAIN } from '../services/r2.service';
+import { enqueueBackgroundUploadJob, getBackgroundUploadJobStatus } from '../queues';
 
 export const eventRoutes: FastifyPluginAsync = async (app) => {
   // ==========================================
@@ -447,6 +448,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
     });
     const deskCropped = backgroundRows.find((b) => b.type === 'desktop_cropped');
     const mobCropped = backgroundRows.find((b) => b.type === 'mobile_cropped');
+    const origBackground = backgroundRows.find((b) => b.type === 'original' || b.type === 'mobile_original' || b.type === 'desktop_original');
 
     return reply.send({
       id: event.id,
@@ -462,6 +464,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       totalUsers,
       desktopCroppedUrl: deskCropped?.url || null,
       mobileCroppedUrl: mobCropped?.url || null,
+      originalUrl: origBackground?.url || null,
       backgrounds: backgroundRows,
       // camelCase aliases for convenience
       eventDate: event.eventDate,
@@ -728,99 +731,90 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       if (Array.isArray(body?.items)) {
         itemsToProcess.push(...body.items);
       } else {
+        if (body?.original) itemsToProcess.push({ type: 'original', ...body.original });
         if (body?.mobileOriginal) itemsToProcess.push({ type: 'mobile_original', ...body.mobileOriginal });
         if (body?.mobileCropped) itemsToProcess.push({ type: 'mobile_cropped', ...body.mobileCropped });
         if (body?.desktopOriginal) itemsToProcess.push({ type: 'desktop_original', ...body.desktopOriginal });
         if (body?.desktopCropped) itemsToProcess.push({ type: 'desktop_cropped', ...body.desktopCropped });
       }
 
-      const savedResults: any[] = [];
-
-      for (const item of itemsToProcess) {
-        if (!item.type) continue;
-
-        let finalUrl = item.url || '';
-        let storageKey = '';
-        let mimeType = 'image/jpeg';
-        let fileSize = 0;
-
-        if (item.dataUrl && item.dataUrl.startsWith('data:')) {
-          const match = item.dataUrl.match(/^data:([A-Za-z0-9\/\-+.]+);base64,(.+)$/);
-          if (match) {
-            mimeType = match[1];
-            const base64Data = match[2];
-            const buffer = Buffer.from(base64Data, 'base64');
-            fileSize = buffer.length;
-
-            const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
-            const cleanName = (item.fileName || `${item.type}.${ext}`).replace(/[^a-zA-Z0-9.-]/g, '_');
-            const uniqueKey = `${R2_ROOT_FOLDER}/events/${event.token || event.id}/backgrounds/${Date.now()}_${item.type}_${cleanName}`;
-            storageKey = uniqueKey;
-
-            try {
-              finalUrl = await R2Service.putObject(uniqueKey, buffer, mimeType);
-            } catch (r2Err: any) {
-              request.log.error({ err: r2Err.message }, 'Failed to upload event photo to R2 storage');
-              return reply.status(500).send({
-                error: 'R2StorageError',
-                message: `Failed to upload ${item.type} background photo to R2 storage: ${r2Err.message}`,
-              });
-            }
-          }
-        }
-
-        const existing = await db.query.eventPhotos.findFirst({
-          where: and(
-            eq(eventPhotos.eventId, event.id),
-            eq(eventPhotos.type, item.type)
-          ),
+      if (itemsToProcess.length === 0) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'No background items provided for upload',
         });
+      }
 
-        if (existing) {
-          // If replacing with a new image and existing had an R2 key, delete the old R2 object
-          if (existing.storageKey && storageKey && existing.storageKey !== storageKey) {
-            try {
-              await R2Service.deleteObject(existing.storageKey);
-            } catch (delErr) {
-              request.log.warn({ err: delErr }, `Failed to delete old R2 background object: ${existing.storageKey}`);
-            }
+      const jobId = crypto.randomUUID();
+
+      await enqueueBackgroundUploadJob({
+        jobId,
+        eventId: event.id,
+        eventToken: event.token || undefined,
+        items: itemsToProcess,
+        requestedAt: new Date().toISOString(),
+      });
+
+      request.log.info(`[BackgroundUpload] Enqueued background upload job ${jobId} for event ${event.id}`);
+
+      // If synchronous waiting is requested via ?sync=true, wait for job completion
+      if ((request.query as any)?.sync === 'true') {
+        const startTime = Date.now();
+        while (Date.now() - startTime < 60000) {
+          await new Promise((r) => setTimeout(r, 400));
+          const currentStatus = await getBackgroundUploadJobStatus(jobId);
+          if (currentStatus.status === 'completed') {
+            return reply.send({
+              success: true,
+              message: 'Event background photos saved successfully to R2 storage',
+              backgrounds: currentStatus.result?.savedResults || [],
+              jobId,
+            });
           }
-
-          const [updated] = await db
-            .update(eventPhotos)
-            .set({
-              url: finalUrl || existing.url,
-              storageKey: storageKey || existing.storageKey,
-              fileName: item.fileName || existing.fileName,
-              fileSize: fileSize || existing.fileSize,
-              mimeType: mimeType || existing.mimeType,
-              cropData: item.cropData !== undefined ? item.cropData : existing.cropData,
-            })
-            .where(eq(eventPhotos.id, existing.id))
-            .returning();
-          savedResults.push(updated);
-        } else {
-          const [created] = await db
-            .insert(eventPhotos)
-            .values({
-              eventId: event.id,
-              url: finalUrl,
-              storageKey,
-              fileName: item.fileName || `${item.type}.jpg`,
-              fileSize,
-              mimeType,
-              type: item.type,
-              cropData: item.cropData || null,
-            })
-            .returning();
-          savedResults.push(created);
+          if (currentStatus.status === 'failed') {
+            return reply.status(500).send({
+              error: 'BackgroundProcessingFailed',
+              message: currentStatus.error || 'Failed to process background photos in queue',
+              jobId,
+            });
+          }
         }
       }
 
-      return reply.send({
-        message: 'Event background photos saved successfully to R2 storage',
-        backgrounds: savedResults,
+      return reply.status(202).send({
+        success: true,
+        message: 'Event background upload queued successfully in BullMQ',
+        jobId,
+        status: 'queued',
+        statusUrl: `/api/events/${event.id}/backgrounds/status/${jobId}`,
+        eventId: event.id,
       });
+    }
+  );
+
+  // GET /:id/backgrounds/status/:jobId - Poll background upload job progress
+  app.get(
+    '/:id/backgrounds/status/:jobId',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Check Background Upload Job Status',
+        description: 'Polls the status and progress of an asynchronous event background upload job in BullMQ',
+        params: {
+          type: 'object',
+          required: ['id', 'jobId'],
+          properties: {
+            id: { type: 'string' },
+            jobId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { jobId } = request.params as any;
+      const statusData = await getBackgroundUploadJobStatus(jobId);
+      return reply.send(statusData);
     }
   );
 

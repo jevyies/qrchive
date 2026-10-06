@@ -596,6 +596,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "infinity",
+    "category": "Action",
+    "tags": [
+      "infinity",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "j",
     "category": "Action",
     "tags": [

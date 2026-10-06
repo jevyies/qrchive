@@ -262,14 +262,8 @@ defineExpose({
                 <JIcon :name="buttonIcon" size="20" :spin="isProcessingFiles" />
                 <span>{{ buttonText }}</span>
             </button>
-            <input
-                ref="galleryFileInput"
-                type="file"
-                accept="image/*,video/*"
-                multiple
-                class="checklist-hidden-input"
-                @change="handleGalleryFilesSelected"
-            />
+            <input ref="galleryFileInput" type="file" accept="image/*,video/*" multiple class="checklist-hidden-input"
+                @change="handleGalleryFilesSelected" />
         </div>
         <div id="quick-uploaded-stream-container" class="quick-uploaded-stream-container">
             <div class="quick-uploaded-stream-header">
@@ -277,8 +271,15 @@ defineExpose({
                     <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
                     <span class="quick-uploaded-stream-title">Uploaded Quick Captures</span>
                 </div>
-                <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/{{
-                    quickPhotosLeft }}</span>
+                <template v-if="!isUnlimited">
+                    <span class="quick-uploaded-stream-badge">{{ uploadedQuickPhotos.length }}/{{
+                        quickPhotosLeft }}</span>
+                </template>
+                <template v-else>
+                    <span class="quick-uploaded-stream-badge">
+                        <JIcon name="infinity" />
+                    </span>
+                </template>
             </div>
             <template v-if="uploadedQuickPhotos.length">
                 <div class="quick-uploaded-stream">
@@ -341,7 +342,8 @@ defineExpose({
             <template v-else>
                 <div class="py-10 text-center">
                     <p>Your photos will appear here.</p>
-                    <a class="text-underlined" href="javascript:void(0);" @click="handleButtonClick">{{ isPastEvent ? 'Upload now!' : 'Snap now!' }}</a>
+                    <a class="text-underlined" href="javascript:void(0);" @click="handleButtonClick">{{ isPastEvent ?
+                        'Upload now!' : 'Snap now!' }}</a>
                 </div>
             </template>
         </div>

@@ -24,7 +24,43 @@ export const client = postgres(connectionString, {
   max: 10,
 });
 
-export const db = drizzle(client, { schema });
+// Exclude table aliases from Drizzle's schema to prevent tableNamesMap collisions
+// where duplicate table definitions strip relations from canonical tables (snapPhotos, snapPhotoLikes, etc.)
+const {
+  photos: _photosTableAlias,
+  photoLikes: _photoLikesTableAlias,
+  snapChecklists: _snapChecklistsTableAlias,
+  pricings: _pricingsTableAlias,
+  ...canonicalSchema
+} = schema;
+
+export const db = drizzle(client, { schema: canonicalSchema });
+
+// Backward-compatibility getters on db.query so legacy references continue working
+if ((db as any).query) {
+  Object.defineProperties((db as any).query, {
+    photos: {
+      get: () => (db as any).query.snapPhotos,
+      configurable: true,
+      enumerable: true,
+    },
+    photoLikes: {
+      get: () => (db as any).query.snapPhotoLikes,
+      configurable: true,
+      enumerable: true,
+    },
+    snapChecklists: {
+      get: () => (db as any).query.snapChecklist,
+      configurable: true,
+      enumerable: true,
+    },
+    pricings: {
+      get: () => (db as any).query.pricing,
+      configurable: true,
+      enumerable: true,
+    },
+  });
+}
 
 /**
  * Ensures runtime database tables (such as snap_photo_likes, pricing) and columns exist

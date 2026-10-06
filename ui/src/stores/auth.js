@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { axiosInstance } from '../plugins/axios.js'
-import { getAuthToken, setAuthCookies, clearAuthCookies } from '../@core/utils/cookies.js'
+import { getAuthToken, getRefreshToken, setAuthCookies, clearAuthCookies } from '../@core/utils/cookies.js'
 import { decodeToken } from '../plugins/constant.js'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -106,6 +106,73 @@ export const useAuthStore = defineStore('auth', () => {
     isCreateStoreModalOpen.value = false
   }
 
+  let silentRefreshTimer = null
+
+  const stopSilentRefresh = () => {
+    if (silentRefreshTimer) {
+      clearTimeout(silentRefreshTimer)
+      silentRefreshTimer = null
+    }
+  }
+
+  const scheduleSilentRefresh = () => {
+    stopSilentRefresh()
+    if (!token.value) return
+
+    const decoded = decodeToken(token.value)
+    if (!decoded?.exp) {
+      silentRefreshTimer = setTimeout(() => {
+        refreshTokenSilently()
+      }, 4 * 60 * 1000)
+      return
+    }
+
+    const expiresInMs = decoded.exp * 1000 - Date.now()
+    // Refresh 60 seconds before token expires (minimum 5 seconds)
+    const refreshInMs = Math.max(expiresInMs - 60 * 1000, 5000)
+
+    silentRefreshTimer = setTimeout(() => {
+      refreshTokenSilently()
+    }, refreshInMs)
+  }
+
+  const refreshTokenSilently = async () => {
+    try {
+      await refreshToken()
+    } catch (err) {
+      console.warn('[auth] Proactive silent token refresh failed:', err)
+      stopSilentRefresh()
+    }
+  }
+
+  // Auto-refresh when tab gains focus or becomes visible
+  if (typeof window !== 'undefined') {
+    const handleVisibilityOrFocus = () => {
+      if (token.value) {
+        const decoded = decodeToken(token.value)
+        if (decoded?.exp) {
+          const expiresInMs = decoded.exp * 1000 - Date.now()
+          if (expiresInMs <= 75 * 1000) {
+            refreshTokenSilently()
+            return
+          }
+        }
+        scheduleSilentRefresh()
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        handleVisibilityOrFocus()
+      }
+    })
+    window.addEventListener('focus', handleVisibilityOrFocus)
+
+    if (token.value) {
+      scheduleSilentRefresh()
+    }
+  }
+
   const setAuthData = (userData, accessToken, refreshToken = null, rememberMe = false) => {
     user.value = userData
     token.value = accessToken
@@ -113,6 +180,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (typeof window !== 'undefined' && userData) {
       localStorage.setItem('qrchive_user', JSON.stringify(userData))
     }
+    scheduleSilentRefresh()
   }
 
   const oauthPendingProfile = ref(
@@ -148,7 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
         rememberMe: credentials.rememberMe ?? false,
       })
 
-      setAuthData(res.data.user, res.data.accessToken, null, credentials.rememberMe)
+      setAuthData(res.data.user, res.data.accessToken, res.data.refreshToken || null, credentials.rememberMe)
       clearOAuthPending()
       return res.data
     } catch (err) {
@@ -189,7 +257,7 @@ export const useAuthStore = defineStore('auth', () => {
         return res.data
       }
 
-      setAuthData(res.data.user, res.data.accessToken, null, payload.rememberMe ?? rememberMe)
+      setAuthData(res.data.user, res.data.accessToken, res.data.refreshToken || null, payload.rememberMe ?? rememberMe)
       clearOAuthPending()
       return res.data
     } catch (err) {
@@ -217,7 +285,7 @@ export const useAuthStore = defineStore('auth', () => {
         return res.data
       }
 
-      setAuthData(res.data.user, res.data.accessToken, null, rememberMe)
+      setAuthData(res.data.user, res.data.accessToken, res.data.refreshToken || null, rememberMe)
       clearOAuthPending()
       return res.data
     } catch (err) {
@@ -252,7 +320,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await axiosInstance.post('/api/auth/register', registrationData)
       if (res.data?.accessToken && res.data?.user) {
-        setAuthData(res.data.user, res.data.accessToken, null, registrationData.rememberMe ?? false)
+        setAuthData(res.data.user, res.data.accessToken, res.data.refreshToken || null, registrationData.rememberMe ?? false)
         clearOAuthPending()
       }
       return res.data
@@ -311,16 +379,30 @@ export const useAuthStore = defineStore('auth', () => {
   // 6. Refresh Access Token (/api/auth/refresh)
   const refreshToken = async () => {
     try {
-      const res = await axiosInstance.post('/api/auth/refresh')
+      const storedRefreshToken = getRefreshToken()
+      const headers = {}
+      if (storedRefreshToken) {
+        headers['X-Refresh-Token'] = storedRefreshToken
+      }
+
+      const res = await axiosInstance.post(
+        '/api/auth/refresh',
+        { refreshToken: storedRefreshToken || undefined },
+        { headers }
+      )
+
       if (res.data?.accessToken) {
         token.value = res.data.accessToken
-        setAuthCookies(res.data.accessToken)
+        const newRefreshToken = res.data.refreshToken || storedRefreshToken
+        setAuthCookies(res.data.accessToken, newRefreshToken)
+        scheduleSilentRefresh()
       }
       if (res.data?.user) {
         user.value = res.data.user
       }
       return res.data
     } catch (err) {
+      stopSilentRefresh()
       clearAuthCookies()
       token.value = null
       user.value = null
@@ -330,8 +412,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 7. Logout (/api/auth/logout)
   const logout = async () => {
+    stopSilentRefresh()
     try {
-      await axiosInstance.post('/api/auth/logout')
+      const storedRefreshToken = getRefreshToken()
+      const headers = {}
+      if (storedRefreshToken) {
+        headers['X-Refresh-Token'] = storedRefreshToken
+      }
+      await axiosInstance.post(
+        '/api/auth/logout',
+        { refreshToken: storedRefreshToken || undefined },
+        { headers }
+      )
     } catch (err) {
       console.warn('Server logout error (proceeding with local cleanup):', err)
     } finally {
@@ -375,6 +467,8 @@ export const useAuthStore = defineStore('auth', () => {
     completeProfile,
     fetchCurrentUser,
     refreshToken,
+    scheduleSilentRefresh,
+    stopSilentRefresh,
     logout,
   }
 })

@@ -104,10 +104,14 @@ const issueRefreshToken = async (userId: number, rememberMe: boolean = false) =>
  * Set HTTP-only refresh token session cookie
  */
 const setSessionCookie = (reply: FastifyReply, token: string, maxAgeSeconds: number) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sameSite = (process.env.COOKIE_SAME_SITE as 'none' | 'lax' | 'strict') || (isProduction ? 'none' : 'lax');
+  const secure = process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : (sameSite === 'none' ? true : isProduction);
+
   reply.setCookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure,
+    sameSite,
     path: '/',
     maxAge: maxAgeSeconds,
   });
@@ -280,6 +284,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
             properties: {
               message: { type: 'string', example: 'User registered successfully' },
               accessToken: { type: 'string', description: '5-minute access token' },
+              refreshToken: { type: 'string', description: 'Session refresh token' },
               user: {
                 type: 'object',
                 properties: {
@@ -448,6 +453,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(201).send({
         message: 'User registered successfully',
         accessToken,
+        refreshToken,
         user: formatUserResponse(newUser),
       });
     }
@@ -480,6 +486,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
             properties: {
               message: { type: 'string', example: 'Login successful' },
               accessToken: { type: 'string', description: '5-minute access token' },
+              refreshToken: { type: 'string', description: 'Session refresh token' },
               user: {
                 type: 'object',
                 properties: {
@@ -570,6 +577,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({
         message: 'Login successful',
         accessToken,
+        refreshToken,
         user: formatUserResponse(user),
       });
     }
@@ -608,6 +616,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
               registered: { type: 'boolean', example: true },
               message: { type: 'string', example: 'Google authentication successful' },
               accessToken: { type: 'string', description: '5-minute access token (when registered: true)' },
+              refreshToken: { type: 'string', description: 'Session refresh token' },
               user: {
                 type: 'object',
                 properties: {
@@ -824,6 +833,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
         registered: true,
         message: 'Google authentication successful',
         accessToken,
+        refreshToken,
         user: formatUserResponse(user),
       });
     }
@@ -862,6 +872,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
               registered: { type: 'boolean', example: true },
               message: { type: 'string', example: 'GitHub authentication successful' },
               accessToken: { type: 'string', description: '5-minute access token (when registered: true)' },
+              refreshToken: { type: 'string', description: 'Session refresh token' },
               user: {
                 type: 'object',
                 properties: {
@@ -1101,6 +1112,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
           registered: true,
           message: 'GitHub authentication successful',
           accessToken,
+          refreshToken,
           user: formatUserResponse(user),
         });
       } catch (err: any) {
@@ -1139,6 +1151,7 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
             type: 'object',
             properties: {
               accessToken: { type: 'string', description: 'Fresh 5-minute access token' },
+              refreshToken: { type: 'string', description: 'Session refresh token' },
               user: {
                 type: 'object',
                 properties: {
@@ -1169,12 +1182,13 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
     async (request: FastifyRequest<{ Body?: { refreshToken?: string } }>, reply: FastifyReply) => {
       const cookieToken = request.cookies.refreshToken;
       const bodyToken = request.body?.refreshToken;
-      const rawToken = cookieToken || bodyToken;
+      const headerToken = (request.headers['x-refresh-token'] as string) || undefined;
+      const rawToken = cookieToken || bodyToken || headerToken;
 
       if (!rawToken) {
         return reply.status(401).send({
           error: 'Unauthorized',
-          message: 'No refresh token provided in session cookie or request body.',
+          message: 'No refresh token provided in session cookie, request body, or header.',
         });
       }
 
@@ -1200,8 +1214,16 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
       const user = existing.user;
       const newAccessToken = generateAccessToken(user);
 
+      // Re-affirm session cookie with remaining lifetime
+      const remainingSeconds = Math.max(
+        Math.floor((new Date(existing.expiresAt).getTime() - Date.now()) / 1000),
+        3600
+      );
+      setSessionCookie(reply, rawToken, remainingSeconds);
+
       return reply.send({
         accessToken: newAccessToken,
+        refreshToken: rawToken,
         user: formatUserResponse(user),
       });
     }
@@ -1238,7 +1260,8 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
     async (request: FastifyRequest<{ Body?: { refreshToken?: string } }>, reply: FastifyReply) => {
       const cookieToken = request.cookies.refreshToken;
       const bodyToken = request.body?.refreshToken;
-      const rawToken = cookieToken || bodyToken;
+      const headerToken = (request.headers['x-refresh-token'] as string) || undefined;
+      const rawToken = cookieToken || bodyToken || headerToken;
 
       if (rawToken) {
         await db
@@ -1247,11 +1270,15 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
           .where(eq(refreshTokens.token, rawToken));
       }
 
+      const isProduction = process.env.NODE_ENV === 'production';
+      const sameSite = (process.env.COOKIE_SAME_SITE as 'none' | 'lax' | 'strict') || (isProduction ? 'none' : 'lax');
+      const secure = process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : (sameSite === 'none' ? true : isProduction);
+
       reply.clearCookie('refreshToken', {
         path: '/',
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure,
+        sameSite,
       });
 
       return reply.send({

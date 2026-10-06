@@ -8,6 +8,7 @@ import { guestRoutes } from './guests.routes';
 import { photoRoutes } from './photos.routes';
 import { imageResizeRoutes } from './imageResize.routes';
 import { pricingRoutes } from './pricing.routes';
+import { adminRoutes } from './admin.routes';
 
 export const appRoutes: FastifyPluginAsync = async (app) => {
   // Register testing / system routes at root
@@ -21,6 +22,9 @@ export const appRoutes: FastifyPluginAsync = async (app) => {
 
   // Register authentication routes with /api/auth prefix
   await app.register(authenticationRoutes, { prefix: '/api/auth' });
+
+  // Register admin routes with /api/admin prefix
+  await app.register(adminRoutes, { prefix: '/api/admin' });
 
   // Register events routes with /api/events prefix
   await app.register(eventRoutes, { prefix: '/api/events' });
@@ -42,6 +46,7 @@ export const appRoutes: FastifyPluginAsync = async (app) => {
 };
 
 export * from './authentication.routes';
+export * from './admin.routes';
 export * from './stats.routes';
 export * from './testing.routes';
 export * from './events.routes';
@@ -49,3 +54,4 @@ export * from './pricing.routes';
 export * from './stores.routes';
 export * from './guests.routes';
 export * from './photos.routes';
+

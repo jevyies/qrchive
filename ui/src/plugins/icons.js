@@ -112,6 +112,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "banknote",
+    "category": "Action",
+    "tags": [
+      "banknote",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "bars",
     "category": "Action",
     "tags": [

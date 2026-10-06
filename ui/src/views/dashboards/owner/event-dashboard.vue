@@ -8,6 +8,7 @@ import JCard from '@/@core/components/JCard.vue'
 import JBtn from '@/@core/components/JBtn.vue'
 import JModal from '@/@core/components/JModal.vue'
 import EventModal from '@/views/modals/EventModal.vue'
+import PaymentQrModal from '@/views/modals/PaymentQrModal.vue'
 
 const router = useRouter()
 
@@ -27,7 +28,7 @@ const handlePendingNotice = () => {
 const navigateToEvent = (eventOrCode) => {
   if (typeof eventOrCode === 'object' && eventOrCode !== null) {
     if (isPaymentPending(eventOrCode)) {
-      handlePendingNotice()
+      openPaymentQrModal(eventOrCode)
       return
     }
     const token = eventOrCode.token || eventOrCode.id
@@ -39,7 +40,7 @@ const navigateToEvent = (eventOrCode) => {
 
   const matched = allEvents.value.find(e => e.token === eventOrCode || String(e.id) === String(eventOrCode))
   if (matched && isPaymentPending(matched)) {
-    handlePendingNotice()
+    openPaymentQrModal(matched)
     return
   }
 
@@ -159,6 +160,20 @@ const closeCreateModal = () => {
   isCreateModalOpen.value = false
 }
 
+// Dedicated Payment QR Modal State (displays only Step 3 QR codes)
+const isPaymentQrModalOpen = ref(false)
+const selectedEventForPaymentQr = ref(null)
+
+const openPaymentQrModal = (event) => {
+  selectedEventForPaymentQr.value = event || null
+  isPaymentQrModalOpen.value = true
+}
+
+const closePaymentQrModal = () => {
+  isPaymentQrModalOpen.value = false
+  selectedEventForPaymentQr.value = null
+}
+
 // Live QR Preview Modal State
 const isQrModalOpen = ref(false)
 const selectedEventForQr = ref(null)
@@ -209,6 +224,7 @@ const handleCreateVault = async (payload) => {
       groomFirstname: payload.groomFirstname ?? payload.groom_firstname ?? null,
       groomLastname: payload.groomLastname ?? payload.groom_lastname ?? null,
       paymentStatus: 'pending',
+      payment_status: 'pending',
     })
 
     toast.show({
@@ -366,29 +382,34 @@ const formatDate = (dateStr) => {
           </div>
 
           <!-- Card Footer -->
-          <div class="event-card__footer">
-            <button type="button" class="event-card__action-btn"
-              :class="isPaymentPending(event) ? 'event-card__action-btn--pending' : 'event-card__action-btn--primary'"
-              @click.stop="navigateToEvent(event)">
-              <span class="material-symbols-outlined" style="font-size: 1rem;">
-                {{ isPaymentPending(event) ? 'lock' : 'tune' }}
-              </span>
-              <span>{{ isPaymentPending(event) ? 'Payment Pending' : 'Manage Vault & Placards' }}</span>
-            </button>
-            <div class="event-card__quick-actions">
-              <button type="button" class="event-card__text-btn" title="View Live QR"
-                :disabled="isPaymentPending(event)"
-                @click.stop="isPaymentPending(event) ? handlePendingNotice() : openLiveQr(event.name)">
-                <span class="material-symbols-outlined btn-icon">qr_code_2</span>
-                <span>Live QR</span>
+          <div class="event-card__footer" :class="{ 'event-card__footer--full': isPaymentPending(event) }">
+            <template v-if="isPaymentPending(event)">
+              <button type="button"
+                class="event-card__action-btn event-card__action-btn--pending event-card__action-btn--full"
+                title="View Payment QR Codes" @click.stop="openPaymentQrModal(event)">
+                <span class="material-symbols-outlined" style="font-size: 1rem;">payments</span>
+                <span>View Payment QR's</span>
               </button>
-              <button type="button" class="event-card__text-btn" title="Copy Guest Link"
-                :disabled="isPaymentPending(event)"
-                @click.stop="isPaymentPending(event) ? handlePendingNotice() : copyGuestLink(event.token || event.id)">
-                <span class="material-symbols-outlined btn-icon">content_copy</span>
-                <span>Copy Link</span>
+            </template>
+            <template v-else>
+              <button type="button" class="event-card__action-btn event-card__action-btn--primary"
+                @click.stop="navigateToEvent(event)">
+                <span class="material-symbols-outlined" style="font-size: 1rem;">tune</span>
+                <span>Manage Vault & Placards</span>
               </button>
-            </div>
+              <div class="event-card__quick-actions">
+                <button type="button" class="event-card__text-btn" title="View Live QR"
+                  @click.stop="openLiveQr(event.name)">
+                  <span class="material-symbols-outlined btn-icon">qr_code_2</span>
+                  <span>Live QR</span>
+                </button>
+                <button type="button" class="event-card__text-btn" title="Copy Guest Link"
+                  @click.stop="copyGuestLink(event.token || event.id)">
+                  <span class="material-symbols-outlined btn-icon">content_copy</span>
+                  <span>Copy Link</span>
+                </button>
+              </div>
+            </template>
           </div>
         </JCard>
       </div>
@@ -447,6 +468,13 @@ const formatDate = (dateStr) => {
               </div>
             </div>
           </div>
+
+          <!-- Card Footer (Shown when paymentStatus = pending) -->
+          <div v-if="isPaymentPending(event)" class="event-card__footer event-card__footer--full">
+            <JBtn type="button" block title="View Payment QR Codes" @click.stop="openPaymentQrModal(event)">
+              <JIcon name="banknote" size="20" /> <span>View Payment QR Codes</span>
+            </JBtn>
+          </div>
         </JCard>
       </div>
     </section>
@@ -454,6 +482,9 @@ const formatDate = (dateStr) => {
     <!-- Interactive Modal: Curate Celebration Vault (Relocated to EventModal.vue) -->
     <EventModal v-model="isCreateModalOpen" :pricing-groups="pricingGroups" :loading="isSubmittingVault"
       @submit="handleCreateVault" @close="closeCreateModal" />
+
+    <!-- Dedicated Payment QR Modal (Displays ONLY Step 3 payment QR codes) -->
+    <PaymentQrModal v-model="isPaymentQrModalOpen" :event="selectedEventForPaymentQr" @close="closePaymentQrModal" />
 
     <!-- Quick Live QR Preview Modal -->
     <JModal v-model="isQrModalOpen" :title="selectedEventForQr || 'Live Celebration Vault QR'"
@@ -487,11 +518,10 @@ const formatDate = (dateStr) => {
     <!-- Footer -->
     <footer v-if="showFooter" class="event-dashboard__footer">
       <div class="event-dashboard__footer-brand">
-        <span>QRchive</span>
-        <span class="brand-subtext">— Celebration Vault</span>
+        <span>QRchive Events</span>
       </div>
       <span class="event-dashboard__footer-copyright">
-        &copy; 2024 QRchive. All rights reserved.
+        &copy; 2026 QRchive Events. All rights reserved.
       </span>
     </footer>
   </div>

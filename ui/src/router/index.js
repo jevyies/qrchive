@@ -13,6 +13,7 @@ import { getCurrentAuthPosition, getCurrentAuthStatus, ROLE_MENUS, getMenusForRo
 
 export const ROUTE_PERMISSIONS = {
   '/dashboard': ['admin', 'owner', 'ordinary'],
+  '/events': ['admin'],
   '/stores': ['admin'],
   '/weddings': ['owner'],
   '/users': ['admin', 'owner'],

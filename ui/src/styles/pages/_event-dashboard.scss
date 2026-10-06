@@ -433,6 +433,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+
+  &--full {
+    width: 100%;
+    display: flex;
+    justify-content: stretch;
+  }
 }
 
 .event-card__action-btn {
@@ -482,6 +488,29 @@
     color: var(--text-muted, #7f7667);
     cursor: not-allowed;
   }
+
+  &--pending {
+    background: linear-gradient(135deg, var(--primary, #c5a059) 0%, var(--primary-hover, #a47608) 100%);
+    color: var(--primary-text, #ffffff);
+    box-shadow: 0 4px 14px rgba(119, 90, 25, 0.22);
+    border: 1px solid rgba(197, 160, 89, 0.35);
+
+    &:hover {
+      background: linear-gradient(135deg, var(--primary-hover, #b58f48) 0%, var(--primary, #8e6605) 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(119, 90, 25, 0.32);
+    }
+  }
+
+  &--full {
+    width: 100%;
+    flex: 1 1 100%;
+    justify-content: center;
+    padding: 0.65rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
 }
 
 .event-card__quick-actions {
@@ -509,6 +538,20 @@
   &:hover {
     background-color: var(--bg-surface-tonal, rgba(197, 160, 89, 0.1));
     color: var(--text-primary, #1f1b18);
+  }
+
+  &--highlight {
+    background-color: rgba(217, 119, 6, 0.12);
+    color: #b45309;
+
+    &:hover {
+      background-color: rgba(217, 119, 6, 0.2);
+      color: #92400e;
+    }
+
+    .btn-icon {
+      color: #d97706;
+    }
   }
 
   .btn-icon {

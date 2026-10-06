@@ -130,7 +130,7 @@
     @include custom-scrollbar(5px, transparent, var(--border-color, rgba(255, 255, 255, 0.15)), var(--text-muted, rgba(255, 255, 255, 0.3)));
   }
 
-    .sidebar-nav-header {
+  .sidebar-nav-header {
     font-size: 0.6875rem;
     font-weight: $font-weight-bold;
     text-transform: uppercase;
@@ -199,7 +199,7 @@
     flex-direction: column;
     width: 100%;
 
-    &.has-active-child > .sidebar-nav-group-toggle {
+    &.has-active-child>.sidebar-nav-group-toggle {
       color: var(--primary, #6366f1);
       background-color: var(--primary-tonal, rgba(99, 102, 241, 0.08));
       font-weight: $font-weight-semibold;
@@ -482,7 +482,9 @@
   .navbar-brand {
     font-size: $font-size-lg;
     font-weight: $font-weight-bold;
-    color: $text-primary;
+    font-family: var(--font-heading, "Playfair Display", Georgia, serif);
+
+    color: var(--primary, #6366f1);
     display: flex;
     align-items: center;
     gap: 0.625rem;
@@ -496,7 +498,6 @@
     }
 
     &:hover {
-      color: var(--primary, #6366f1);
 
       .navbar-brand-logo {
         filter: drop-shadow(0 2px 8px var(--primary-tonal, rgba(99, 102, 241, 0.45)));
@@ -653,7 +654,7 @@
 
     // Hover reveal on desktop
     @media (min-width: 992px) {
-      &:hover > .dropdown-submenu-menu {
+      &:hover>.dropdown-submenu-menu {
         display: block;
       }
     }
@@ -665,6 +666,7 @@
     opacity: 0;
     transform: translateX(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -756,7 +758,7 @@
     align-items: center;
     color: $text-muted;
 
-    + .breadcrumb-item::before {
+    +.breadcrumb-item::before {
       content: '/';
       padding: 0 0.5rem;
       color: $text-muted;
@@ -853,4 +855,3 @@
     transition: fill 250ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
-

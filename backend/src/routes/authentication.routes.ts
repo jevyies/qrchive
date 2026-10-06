@@ -2,7 +2,7 @@ import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { eq, or, and, isNull, gt } from 'drizzle-orm';
+import { eq, or, and, isNull, gt, inArray } from 'drizzle-orm';
 import { db, users, stores, storeUsers, refreshTokens, emailVerifications, User, NewUser } from '../db';
 import { sendVerificationEmail, sendCustomEmail } from '../services/email.service';
 import { optionalAuthenticate } from '../middlewares/auth.middleware';
@@ -10,7 +10,6 @@ import { optionalAuthenticate } from '../middlewares/auth.middleware';
 // JWT & Cookie Configuration
 const JWT_SECRET =
   process.env.JWT_SECRET || 'qrchive-super-secret-jwt-key-change-in-production';
-const ACCESS_TOKEN_EXPIRY_SECONDS = 5 * 60; // 5 minutes
 const REFRESH_TOKEN_EXPIRY_REMEMBER_DAYS = 90; // 3 months
 const REFRESH_TOKEN_EXPIRY_NORMAL_DAYS = 1; // 1 day
 
@@ -408,6 +407,9 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
             message: 'Username is already taken.',
           });
         }
+      } else if (isOAuth) {
+        const baseUsername = firstname ? firstname.trim() : cleanEmail.split('@')[0];
+        finalUsername = await generateUniqueUsername(baseUsername);
       }
 
       // Hash password if provided
@@ -784,12 +786,16 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
 
       // If user not found in database, auto-create user record and log in directly
       if (!user) {
+        const rawUsername = email ? email.split('@')[0] : (firstname || 'user');
+        const uniqueUsername = await generateUniqueUsername(rawUsername);
+
         const [newUser] = await db
           .insert(users)
           .values({
             firstname,
             lastname,
             email,
+            username: uniqueUsername,
             authProvider: 'google',
             googleId,
             avatarUrl,
@@ -975,24 +981,34 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
 
         const ghUser = (await userRes.json()) as any;
         const githubId = String(ghUser.id);
-        let email = ghUser.email ? ghUser.email.toLowerCase() : null;
+        let primaryEmail = ghUser.email ? ghUser.email.toLowerCase().trim() : null;
 
-        // If email is null/private, fetch from /user/emails
-        if (!email) {
-          const emailsRes = await fetch('https://api.github.com/user/emails', {
-            headers: {
-              Authorization: `Bearer ${githubToken}`,
-              'User-Agent': 'WeddingDrive-Auth',
-            },
-          });
-          if (emailsRes.ok) {
-            const emails = (await emailsRes.json()) as any[];
-            const primary = emails.find((e) => e.primary && e.verified) || emails.find((e) => e.verified) || emails[0];
-            if (primary) {
-              email = primary.email.toLowerCase();
+        // Fetch primary verified email from /user/emails if not in public profile
+        if (!primaryEmail) {
+          try {
+            const emailsRes = await fetch('https://api.github.com/user/emails', {
+              headers: {
+                Authorization: `Bearer ${githubToken}`,
+                'User-Agent': 'WeddingDrive-Auth',
+              },
+            });
+            if (emailsRes.ok) {
+              const emails = (await emailsRes.json()) as any[];
+              const primary =
+                emails.find((e) => e.primary && e.verified) ||
+                emails.find((e) => e.primary) ||
+                emails.find((e) => e.verified) ||
+                emails[0];
+              if (primary && primary.email) {
+                primaryEmail = primary.email.toLowerCase().trim();
+              }
             }
+          } catch (e) {
+            request.log.warn({ err: e }, 'Failed to fetch /user/emails from GitHub');
           }
         }
+
+        const email = primaryEmail;
 
         // Extract firstname & lastname from GitHub profile if available
         let firstname: string | null = null;
@@ -1010,55 +1026,53 @@ export const authenticationRoutes: FastifyPluginAsync = async (app) => {
 
         const avatarUrl = ghUser.avatar_url || null;
 
-        // Find existing user by githubId
+        // 1. Find existing user by githubId
         let user = await db.query.users.findFirst({
           where: eq(users.githubId, githubId),
         });
 
+        // 2. If not found by githubId, link ONLY to existing user with the exact primary email
         if (!user && email) {
-          // Link to existing user with same email
           user = await db.query.users.findFirst({
             where: eq(users.email, email),
           });
-
-          if (user) {
-            const [updated] = await db
-              .update(users)
-              .set({
-                githubId,
-                avatarUrl: user.avatarUrl || avatarUrl,
-                firstname: user.firstname || firstname || null,
-                lastname: user.lastname || lastname || null,
-              })
-              .where(eq(users.id, user.id))
-              .returning();
-            user = updated;
-          }
-        } else if (user) {
-          // If existing user lacks firstname, lastname, or avatarUrl, populate from GitHub profile
-          if ((!user.firstname && firstname) || (!user.lastname && lastname) || (!user.avatarUrl && avatarUrl)) {
-            const [updated] = await db
-              .update(users)
-              .set({
-                firstname: user.firstname || firstname || null,
-                lastname: user.lastname || lastname || null,
-                avatarUrl: user.avatarUrl || avatarUrl,
-              })
-              .where(eq(users.id, user.id))
-              .returning();
-            user = updated;
-          }
         }
 
-        // If user not found in database, auto-create user record and log in directly
-        if (!user) {
+        if (user) {
+          // Link / Update GitHub details on existing user record
+          const updateData: Partial<NewUser> = {};
+          if (!user.githubId) {
+            updateData.githubId = githubId;
+          }
+          if (!user.avatarUrl && avatarUrl) {
+            updateData.avatarUrl = avatarUrl;
+          }
+          if (!user.firstname && firstname) {
+            updateData.firstname = firstname;
+          }
+          if (!user.lastname && lastname) {
+            updateData.lastname = lastname;
+          }
+          if (Object.keys(updateData).length > 0) {
+            const [updated] = await db
+              .update(users)
+              .set(updateData)
+              .where(eq(users.id, user.id))
+              .returning();
+            user = updated;
+          }
+        } else {
+          // 4. Create new user record with a guaranteed unique username
+          const rawUsername = ghUser.login ? ghUser.login.trim() : (firstname || 'user');
+          const uniqueUsername = await generateUniqueUsername(rawUsername);
+
           const [newUser] = await db
             .insert(users)
             .values({
               firstname,
               lastname,
               email,
-              username: ghUser.login ? ghUser.login.trim() : null,
+              username: uniqueUsername,
               authProvider: 'github',
               githubId,
               avatarUrl,

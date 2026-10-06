@@ -5,6 +5,7 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { axiosInstance } from '@/plugins/axios'
 import { getDeviceSerial, getDeviceName, saveStoredEventSession, getStoredEventSession } from '@/utils/device';
 import { saveDemoQuickPhoto, saveDemoChecklistMoment, getDemoPhotosCount, clearDemoData } from '@/utils/demoDb'
+import { isVideoFile, getImageDataUrl, getVideoDetails } from '@/utils/media'
 import { useEventVaultStore, resolveStorageUrl } from '@/stores/eventVault'
 import BaseError from '@/views/BaseError.vue'
 import LoadingEvent from '@/views/LoadingEvent.vue'
@@ -740,7 +741,20 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
     }
 }
 
+const handleChecklistUpload = ({ moment, file, previewUrl, extra }) => {
+    galleryPhotos.value.push(previewUrl)
+    uploadChecklistPhoto(moment, file, previewUrl, extra)
+}
+
 const openGalleryPicker = () => {
+    const isQuick = captureMode.value === 'quick' || !activeMoment.value || activeMoment.value?.id === 'quick'
+    if (isQuick && !isUnlimited.value) {
+        const remainingSlots = Math.max(0, quickPhotosLeft.value - uploadedQuickPhotos.value.length)
+        if (remainingSlots <= 0) {
+            alert('Photo limit reached. You cannot upload any more photos or videos.')
+            return
+        }
+    }
     if (fileInput.value) {
         fileInput.value.removeAttribute('capture')
         fileInput.value.click()
@@ -789,47 +803,132 @@ const openGalleryLightbox = ({ items, index }) => {
     lightboxIndex.value = index
     isLightboxOpen.value = true
 }
-const handleFileChange = (e) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-            if (event.target && event.target.result) {
-                const dataResult = event.target.result
-                galleryPhotos.value.push(dataResult)
+const handleFileChange = async (e) => {
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
 
-                if (currentTargetTitle.value || (activeMoment.value && captureMode.value !== 'quick')) {
-                    const matched = moments.value.find(
-                        (m) => (activeMoment.value && Number(m.id) === Number(activeMoment.value.id))
-                    )
-                    if (matched) {
-                        const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
-                        const oldPhotoId = matched.photoId || null
-                        matched.captured = true
-                        matched.image = dataResult
-                        uploadChecklistPhoto(matched, files[0], dataResult, {
-                            isReplace,
-                            oldPhotoId,
-                            isVideo: files[0].type?.startsWith('video'),
-                            fileName: files[0].name,
-                            mimeType: files[0].type,
-                        })
-                    }
-                } else {
-                    handleCameraCapture({
-                        dataUrl: dataResult,
-                        blob: files[0],
-                        moment: { id: 'quick' },
-                        type: files[0].type?.startsWith('video') ? 'video' : 'photo',
-                        isVideo: files[0].type?.startsWith('video'),
-                        fileName: files[0].name,
-                        mimeType: files[0].type,
-                    })
+    const files = Array.from(fileList)
+    e.target.value = ''
+
+    const isQuick = captureMode.value === 'quick' || !activeMoment.value || activeMoment.value?.id === 'quick'
+
+    if (isQuick) {
+        const remainingSlots = isUnlimited.value
+            ? Infinity
+            : Math.max(0, quickPhotosLeft.value - uploadedQuickPhotos.value.length)
+
+        if (remainingSlots <= 0) {
+            alert('Photo limit reached. You cannot upload any more photos or videos.')
+            return
+        }
+
+        let filesToProcess = files
+        if (!isUnlimited.value && files.length > remainingSlots) {
+            alert(`You can only upload up to ${remainingSlots} item${remainingSlots > 1 ? 's' : ''}. Only the first ${remainingSlots} will be uploaded.`)
+            filesToProcess = files.slice(0, remainingSlots)
+        }
+
+        isCameraOpen.value = false
+
+        for (const file of filesToProcess) {
+            const isVid = isVideoFile(file)
+            if (isVid) {
+                const videoDetails = await getVideoDetails(file)
+                if (!videoDetails.valid) {
+                    alert(videoDetails.error || `Video "${file.name}" exceeds the 30-second limit. Videos must be 30 seconds or less.`)
+                    continue
                 }
+
+                await handleCameraCapture({
+                    dataUrl: videoDetails.thumbnailDataUrl || videoDetails.videoUrl,
+                    blob: file,
+                    moment: { id: 'quick' },
+                    type: 'video',
+                    isVideo: true,
+                    videoUrl: videoDetails.videoUrl || null,
+                    duration: Math.round(videoDetails.duration),
+                    fileName: file.name,
+                    mimeType: file.type || 'video/mp4',
+                })
+            } else {
+                const dataUrl = await getImageDataUrl(file)
+                if (!dataUrl) continue
+
+                await handleCameraCapture({
+                    dataUrl,
+                    blob: file,
+                    moment: { id: 'quick' },
+                    type: 'photo',
+                    isVideo: false,
+                    videoUrl: null,
+                    duration: null,
+                    fileName: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                })
             }
         }
-        reader.readAsDataURL(files[0])
-        e.target.value = ''
+    } else {
+        const file = files[0]
+        const isVid = isVideoFile(file)
+
+        if (isVid) {
+            const videoDetails = await getVideoDetails(file)
+            if (!videoDetails.valid) {
+                alert(videoDetails.error || `Video "${file.name}" exceeds the 30-second limit. Videos must be 30 seconds or less.`)
+                return
+            }
+
+            const matched = moments.value.find(
+                (m) => activeMoment.value && Number(m.id) === Number(activeMoment.value.id)
+            )
+            if (matched) {
+                const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
+                const oldPhotoId = matched.photoId || null
+                matched.captured = true
+                matched.image = videoDetails.thumbnailDataUrl || videoDetails.videoUrl
+                matched.fullImage = videoDetails.thumbnailDataUrl || videoDetails.videoUrl
+                matched.isVideo = true
+                matched.videoUrl = videoDetails.videoUrl
+                matched.videoBlob = file
+                galleryPhotos.value.push(videoDetails.thumbnailDataUrl || videoDetails.videoUrl)
+                uploadChecklistPhoto(matched, file, videoDetails.thumbnailDataUrl || videoDetails.videoUrl, {
+                    isReplace,
+                    oldPhotoId,
+                    isVideo: true,
+                    videoUrl: videoDetails.videoUrl,
+                    duration: Math.round(videoDetails.duration),
+                    fileName: file.name,
+                    mimeType: file.type || 'video/mp4',
+                })
+            }
+        } else {
+            const dataUrl = await getImageDataUrl(file)
+            if (!dataUrl) return
+            galleryPhotos.value.push(dataUrl)
+
+            const matched = moments.value.find(
+                (m) => activeMoment.value && Number(m.id) === Number(activeMoment.value.id)
+            )
+            if (matched) {
+                const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
+                const oldPhotoId = matched.photoId || null
+                matched.captured = true
+                matched.image = dataUrl
+                matched.fullImage = dataUrl
+                matched.isVideo = false
+                uploadChecklistPhoto(matched, file, dataUrl, {
+                    isReplace,
+                    oldPhotoId,
+                    isVideo: false,
+                    fileName: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                })
+            }
+        }
+
+        setTimeout(() => {
+            isCameraOpen.value = false
+        }, 500)
     }
 }
 onMounted(async () => {
@@ -939,7 +1038,7 @@ onMounted(async () => {
                         <EventWelcomePage v-if="eventDetails?.token && !hasGuestAuth" :eventDetails="eventDetails"
                             :isPressed="isPressed" @homepage="goToHomePage" @get-started="handleGetStarted" />
                         <template v-else-if="eventDetails?.token && hasGuestAuth">
-                            <input id="photo-upload-input" ref="fileInput" accept="image/*" capture="environment"
+                            <input id="photo-upload-input" ref="fileInput" accept="image/*,video/*" multiple
                                 class="checklist-hidden-input" type="file" @change="handleFileChange">
                             <EventBoard v-if="tabModel == 'capture'" ref="eventBoardRef" :eventDetails="eventDetails"
                                 v-model:captureMode="captureMode" :isDemo="isDemo" :isUnlimited="isUnlimited"
@@ -947,7 +1046,8 @@ onMounted(async () => {
                                 :quickPhotosLeft="quickPhotosLeft" :capturedCount="capturedCount"
                                 :totalCount="totalCount" :progressPercent="progressPercent" @reset-demo="resetDemo"
                                 @open-camera="openCamera" @open-lightbox="openQuickPhotoLightbox"
-                                @open-moment-lightbox="openMomentLightbox" @capture="handleCameraCapture" />
+                                @open-moment-lightbox="openMomentLightbox" @capture="handleCameraCapture"
+                                @upload-moment="handleChecklistUpload" />
                             <LiveGallery :eventDetails="eventDetails" :isDemo="isDemo" v-if="tabModel == 'gallery'"
                                 @open-lightbox="openGalleryLightbox" />
                             <EventTab v-model="tabModel" />

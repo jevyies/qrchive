@@ -82,12 +82,6 @@ const formatRemainingTime = (expiryDateStr) => {
   }
 }
 
-// Upload window pill text
-const uploadWindowText = computed(() => {
-  const rem = formatRemainingTime(eventData.value?.upload_expiry || eventData.value?.uploadExpiry)
-  return rem ? `Upload Window: ${rem}` : 'Upload Window: Active'
-})
-
 // Archive storage pill text
 const storageWindowText = computed(() => {
   const rem = formatRemainingTime(eventData.value?.photo_expiry || eventData.value?.photoExpiry)
@@ -580,10 +574,6 @@ onUnmounted(() => {
               <span class="event-detail__hero-pill" :class="{ 'event-detail__hero-pill--gold': isUnlimitedPackage }">
                 <span class="material-symbols-outlined pill-icon">all_inclusive</span>
                 <span>{{ packageText }}</span>
-              </span>
-              <span class="event-detail__hero-pill">
-                <span class="material-symbols-outlined pill-icon" style="color: var(--primary);">timer</span>
-                <span>{{ uploadWindowText }}</span>
               </span>
               <span class="event-detail__hero-pill">
                 <span class="material-symbols-outlined pill-icon" style="color: var(--primary);">inventory_2</span>

@@ -78,6 +78,8 @@ export const events = pgTable('events', {
     .references(() => users.id, { onDelete: 'cascade' }),
   token: varchar('token', { length: 255 }).unique(),
   name: varchar('name', { length: 200 }).notNull(),
+  eventCategory: varchar('event_category', { length: 100 }).default('Wedding'),
+  paymentStatus: varchar('payment_status', { length: 50 }).default('pending'),
   brideFirstname: varchar('bride_firstname', { length: 100 }),
   brideLastname: varchar('bride_lastname', { length: 100 }),
   groomFirstname: varchar('groom_firstname', { length: 100 }),
@@ -86,13 +88,15 @@ export const events = pgTable('events', {
   price: numeric('price', { precision: 10, scale: 2 }),
   invitationDeadline: timestamp('invitation_deadline', { withTimezone: true, mode: 'string' }),
   eventDate: timestamp('event_date', { withTimezone: true, mode: 'string' }),
-  uploadExpiry: timestamp('upload_expiry', { withTimezone: true, mode: 'string' }),
   photoExpiry: timestamp('photo_expiry', { withTimezone: true, mode: 'string' }),
   isUnlimited: boolean('is_unlimited').default(false),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
 });
+
+export type EventCategory = 'Wedding' | 'Anniversary' | 'Others';
+export type PaymentStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
 
 // ==========================================
 // 5. GUEST_TABLES

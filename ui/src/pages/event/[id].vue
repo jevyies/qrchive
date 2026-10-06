@@ -28,6 +28,7 @@ const loading = ref(false);
 const hasGuestAuth = ref(false);
 const eventDetails = ref(null);
 const notFound = ref(false);
+const maxGuest = ref(false);
 const eventError = ref(false);
 const hasNotStartedYet = ref(false);
 const daysToGo = ref(0);
@@ -59,6 +60,9 @@ const bannerImage = computed(() => {
         }
     }
     return `${storageURL}/static/cover-photo.jpg`;
+})
+const eventMaxGuest = computed(() => {
+    return eventDetails.value?.maxGuest || 0;
 })
 const isUnlimited = computed(() => {
     return eventDetails.value?.isUnlimited || false;
@@ -114,6 +118,10 @@ const getEventData = async (eventToken) => {
     try {
         const { data: response } = await axiosInstance.get(`/api/events/token/${eventToken}`)
         if (response?.error) {
+            if (response?.message?.includes('Max Guest')) {
+                maxGuest.value = true;
+                return;
+            }
             notFound.value = true;
             return;
         }
@@ -122,12 +130,16 @@ const getEventData = async (eventToken) => {
             hasNotStartedYet.value = true;
             return;
         }
-        if (new Date(response.uploadExpiry) < new Date()) {
+        if (new Date(response.photoExpiry) < new Date()) {
             notFound.value = true;
             return;
         }
         eventDetails.value = response;
     } catch (err) {
+        if (err?.response?.data?.message?.includes('Max Guest')) {
+            maxGuest.value = true;
+            return;
+        }
         eventError.value = true;
     }
 }
@@ -171,6 +183,9 @@ const submitGuest = async (guestName) => {
             deviceName,
         })
         if (response?.error) {
+            if (response?.message?.includes('Max Guest')) {
+                maxGuest.value = true;
+            }
             return;
         }
         hasGuestAuth.value = true;
@@ -179,6 +194,10 @@ const submitGuest = async (guestName) => {
         eventDetails.value.guestName = guestName;
         alreadyLoaded.value = true;
     } catch (error) {
+        if (error?.response?.data?.message?.includes('Max Guest')) {
+            maxGuest.value = true;
+            return;
+        }
         eventError.value = true;
     } finally {
         isSubmitting.value = false;
@@ -451,7 +470,7 @@ const performQuickUpload = async (photoItem) => {
             ? 'Mobile Device'
             : 'Desktop Browser',
     )
-    if (photoItem.isVideo && photoItem.dataUrl) {
+    if (photoItem.isVideo && photoItem.dataUrl && photoItem.dataUrl.startsWith('data:')) {
         formData.append('thumbnailBase64', photoItem.dataUrl)
     }
     formData.append('file', blob, fileName)
@@ -836,6 +855,10 @@ onMounted(async () => {
     if (storedSessions) {
         hasGuestAuth.value = true;
         eventDetails.value = storedSessions;
+        if (new Date(eventDetails.value.photoExpiry) < new Date()) {
+            notFound.value = true;
+            return;
+        }
         await eventVaultStore.fetchInitialGuestData(route.params.id, storedSessions.guestCode)
         loading.value = false;
         return;
@@ -857,7 +880,8 @@ onMounted(async () => {
             <LoadingEvent />
         </template>
         <template v-else>
-            <BaseError type="notfound" v-if="notFound" @homepage="goToHomePage" />
+            <BaseError type="maxguest" v-if="maxGuest" :maxGuest="eventMaxGuest" @homepage="goToHomePage" />
+            <BaseError type="notfound" v-else-if="notFound" @homepage="goToHomePage" />
             <BaseError type="notstarted" v-else-if="hasNotStartedYet" :days="daysToGo" @homepage="goToHomePage" />
             <BaseError type="error" v-else-if="eventError" @homepage="goToHomePage" />
             <template v-else>
@@ -918,12 +942,12 @@ onMounted(async () => {
                             <input id="photo-upload-input" ref="fileInput" accept="image/*" capture="environment"
                                 class="checklist-hidden-input" type="file" @change="handleFileChange">
                             <EventBoard v-if="tabModel == 'capture'" ref="eventBoardRef" :eventDetails="eventDetails"
-                                v-model:captureMode="captureMode" :isDemo="isDemo"
+                                v-model:captureMode="captureMode" :isDemo="isDemo" :isUnlimited="isUnlimited"
                                 :uploadedQuickPhotos="uploadedQuickPhotos" :moments="moments"
                                 :quickPhotosLeft="quickPhotosLeft" :capturedCount="capturedCount"
                                 :totalCount="totalCount" :progressPercent="progressPercent" @reset-demo="resetDemo"
                                 @open-camera="openCamera" @open-lightbox="openQuickPhotoLightbox"
-                                @open-moment-lightbox="openMomentLightbox" />
+                                @open-moment-lightbox="openMomentLightbox" @capture="handleCameraCapture" />
                             <LiveGallery :eventDetails="eventDetails" :isDemo="isDemo" v-if="tabModel == 'gallery'"
                                 @open-lightbox="openGalleryLightbox" />
                             <EventTab v-model="tabModel" />

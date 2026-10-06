@@ -36,10 +36,20 @@ const selectedGroup = ref('unlimited')
 const selectedStandardCap = ref('100') // '100' | '300' | 'plus'
 const selectedUnlimitedCap = ref('100') // '100' | '300' | 'plus'
 
-// Step 2 Form State (Only 'name' and 'event_date')
+// Step 2 Form State
 const eventName = ref('')
+const eventCategory = ref('Wedding')
+const eventCategoryOptions = ['Wedding', 'Anniversary', 'Others']
+const brideFirstname = ref('')
+const brideLastname = ref('')
+const groomFirstname = ref('')
+const groomLastname = ref('')
 const eventDate = ref('')
 const errorMessage = ref('')
+
+const isCoupleCategory = computed(() => {
+  return eventCategory.value === 'Wedding' || eventCategory.value === 'Anniversary'
+})
 
 // Fallback pricing configuration matching index.vue
 const fallbackPricing = {
@@ -118,6 +128,11 @@ const resetForm = () => {
   selectedStandardCap.value = '100'
   selectedUnlimitedCap.value = '100'
   eventName.value = props.initialData?.name || props.initialData?.title || ''
+  eventCategory.value = props.initialData?.eventCategory || props.initialData?.event_category || 'Wedding'
+  brideFirstname.value = props.initialData?.brideFirstname || props.initialData?.bride_firstname || ''
+  brideLastname.value = props.initialData?.brideLastname || props.initialData?.bride_lastname || ''
+  groomFirstname.value = props.initialData?.groomFirstname || props.initialData?.groom_firstname || ''
+  groomLastname.value = props.initialData?.groomLastname || props.initialData?.groom_lastname || ''
   eventDate.value = props.initialData?.event_date || props.initialData?.eventDate || props.initialData?.date || ''
   errorMessage.value = ''
 }
@@ -182,9 +197,12 @@ const handleStep2Submit = () => {
   const currentUserId = authStore.user?.id || null
 
   const tier = currentSelectedTier.value
+  const isUnlimitedVal = selectedGroup.value === 'unlimited'
 
   const payload = {
     name: eventName.value.trim(),
+    event_category: eventCategory.value,
+    eventCategory: eventCategory.value,
     event_date: eventDate.value,
     eventDate: eventDate.value,
     user_id: currentUserId,
@@ -195,7 +213,16 @@ const handleStep2Submit = () => {
     group: selectedGroup.value,
     pricing_id: tier?.id ?? null,
     pricingName: tier?.name ?? null,
-    is_unlimited: selectedGroup.value === 'unlimited',
+    is_unlimited: isUnlimitedVal,
+    isUnlimited: isUnlimitedVal,
+    bride_firstname: isCoupleCategory.value ? brideFirstname.value.trim() || null : null,
+    brideFirstname: isCoupleCategory.value ? brideFirstname.value.trim() || null : null,
+    bride_lastname: isCoupleCategory.value ? brideLastname.value.trim() || null : null,
+    brideLastname: isCoupleCategory.value ? brideLastname.value.trim() || null : null,
+    groom_firstname: isCoupleCategory.value ? groomFirstname.value.trim() || null : null,
+    groomFirstname: isCoupleCategory.value ? groomFirstname.value.trim() || null : null,
+    groom_lastname: isCoupleCategory.value ? groomLastname.value.trim() || null : null,
+    groomLastname: isCoupleCategory.value ? groomLastname.value.trim() || null : null,
   }
 
   emit('submit', payload)
@@ -325,34 +352,27 @@ const handleStep2Submit = () => {
                   <span>Max 30 original photos per guest</span>
                 </li>
                 <li class="perk-item">
-                  <span class="material-symbols-outlined perk-icon">check_circle</span>
-                  <span>Short video clips up to 30s</span>
+                  <span class="material-symbols-outlined perk-icon text-accent">verified</span>
+                  <span>Short video clips up to 30s in 4K resolution</span>
+                </li>
+                <li class="perk-item">
+                  <span class="material-symbols-outlined perk-icon text-accent">verified</span>
+                  <span>Custom event cover photo displayed on scan &amp; upload</span>
+                </li>
+                <li class="perk-item">
+                  <span class="material-symbols-outlined perk-icon text-accent">verified</span>
+                  <span>Interactive Photo Checklist</span>
+                </li>
+                <li class="perk-item">
+                  <span class="material-symbols-outlined perk-icon text-accent">verified</span>
+                  <span>Shareable export link &amp; 1-click ZIP archive</span>
                 </li>
                 <li class="perk-item">
                   <span class="material-symbols-outlined perk-icon">check_circle</span>
-                  <span>Instant QR &amp; 5x7 printable table placard template</span>
-                </li>
-                <li class="perk-item">
-                  <span class="material-symbols-outlined perk-icon">check_circle</span>
-                  <span>1-month post-event upload deadline</span>
-                </li>
-                <li class="perk-item">
-                  <span class="material-symbols-outlined perk-icon">check_circle</span>
-                  <span>2-month cloud gallery storage &amp; full ZIP download</span>
+                  <span>1-month post-event upload deadline & gallery storage</span>
                 </li>
               </ul>
             </div>
-
-            <button type="button" class="btn-tier-select"
-              :class="selectedGroup === 'standard' ? 'btn-tier-selected' : 'btn-tier-ghost'"
-              @click.stop="handleSelectTier('standard', selectedStandardCap, true)">
-              <span v-if="selectedGroup === 'standard'">
-                Selected • {{ resolvedPricing.standard[selectedStandardCap]?.formattedPrice }}
-              </span>
-              <span v-else>
-                Select Standard Snap ({{ resolvedPricing.standard[selectedStandardCap]?.formattedPrice }})
-              </span>
-            </button>
           </div>
 
           <!-- TIER 2: Unlimited Snap (group: 'unlimited') -->
@@ -415,33 +435,18 @@ const handleStep2Submit = () => {
                 </li>
                 <li class="perk-item">
                   <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                  <span>Romantic font &amp; motif styling customization</span>
+                  <span>Interactive Photo Checklist</span>
                 </li>
                 <li class="perk-item">
                   <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                  <span>Instant 5x7 printable table placards (Chic gold styling)</span>
+                  <span>Shareable export link &amp; 1-click ZIP archive</span>
                 </li>
                 <li class="perk-item">
-                  <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                  <span>Interactive Photo Scavenger Hunt &amp; Checklist</span>
-                </li>
-                <li class="perk-item">
-                  <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                  <span>Google Drive shareable export link &amp; 1-click ZIP archive</span>
+                  <span class="material-symbols-outlined perk-icon">check_circle</span>
+                  <span>1-month post-event upload deadline & gallery storage</span>
                 </li>
               </ul>
             </div>
-
-            <button type="button" class="btn-tier-select btn-tier-primary"
-              @click.stop="handleSelectTier('unlimited', selectedUnlimitedCap, true)">
-              <span v-if="selectedGroup === 'unlimited'">
-                Selected • {{ resolvedPricing.unlimited[selectedUnlimitedCap]?.formattedPrice }}
-              </span>
-              <span v-else>
-                Get Unlimited Snap ({{ resolvedPricing.unlimited[selectedUnlimitedCap]?.formattedPrice }})
-              </span>
-              <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </button>
           </div>
         </div>
 
@@ -496,7 +501,56 @@ const handleStep2Submit = () => {
               </JInput>
             </div>
 
-            <!-- Input 2: event_date -->
+            <!-- Input 2: eventCategory Select -->
+            <div class="field-item">
+              <label class="profile-field-label" for="event-category">
+                <span class="label-with-req">Event Category <span class="required-star">*</span></span>
+              </label>
+              <div class="category-select-wrapper">
+                <select id="event-category" v-model="eventCategory" class="profile-input-control custom-category-select" required>
+                  <option v-for="cat in eventCategoryOptions" :key="cat" :value="cat">
+                    {{ cat }}
+                  </option>
+                </select>
+                <span class="material-symbols-outlined category-chevron">expand_more</span>
+              </div>
+            </div>
+
+            <!-- Couple Particulars (Only for Wedding & Anniversary) -->
+            <div v-if="isCoupleCategory" class="couple-inputs-block">
+              <div class="couple-section-title">
+                <span class="material-symbols-outlined couple-title-icon">favorite</span>
+                <span>Celebrated Couple Details</span>
+              </div>
+              <div class="couple-names-grid">
+                <div class="field-item">
+                  <JInput id="bride-firstname" v-model="brideFirstname" label="Bride / Partner 1 First Name"
+                    placeholder="First name" autocomplete="off"
+                    container-class="profile-input-container" input-class="profile-input-control"
+                    label-class="profile-field-label" />
+                </div>
+                <div class="field-item">
+                  <JInput id="bride-lastname" v-model="brideLastname" label="Bride / Partner 1 Last Name"
+                    placeholder="Last name" autocomplete="off"
+                    container-class="profile-input-container" input-class="profile-input-control"
+                    label-class="profile-field-label" />
+                </div>
+                <div class="field-item">
+                  <JInput id="groom-firstname" v-model="groomFirstname" label="Groom / Partner 2 First Name"
+                    placeholder="First name" autocomplete="off"
+                    container-class="profile-input-container" input-class="profile-input-control"
+                    label-class="profile-field-label" />
+                </div>
+                <div class="field-item">
+                  <JInput id="groom-lastname" v-model="groomLastname" label="Groom / Partner 2 Last Name"
+                    placeholder="Last name" autocomplete="off"
+                    container-class="profile-input-container" input-class="profile-input-control"
+                    label-class="profile-field-label" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Input 3: event_date -->
             <div class="field-item">
               <JInput id="event-date" v-model="eventDate" type="date" label="Celebration Date" required
                 container-class="profile-input-container" input-class="profile-input-control"
@@ -1195,6 +1249,77 @@ const handleStep2Submit = () => {
 .trailing-glyph {
   font-size: 18px;
   color: var(--text-muted, #7f7667);
+}
+
+.category-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.custom-category-select {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border-radius: 12px !important;
+  border: 1px solid var(--border-color, #d1c5b4) !important;
+  background: var(--bg-input, var(--bg-body, #fff8f5)) !important;
+  color: var(--text-primary, #1f1b18) !important;
+  font-size: 14px !important;
+  font-family: inherit;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: var(--primary, #c5a059) !important;
+    box-shadow: 0 0 0 3px var(--ring-color, rgba(197, 160, 89, 0.2)) !important;
+  }
+}
+
+.category-chevron {
+  position: absolute;
+  right: 0.85rem;
+  pointer-events: none;
+  font-size: 20px;
+  color: var(--text-muted, #7f7667);
+}
+
+.couple-inputs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.15rem;
+  border-radius: 14px;
+  background: var(--bg-surface-tonal, rgba(197, 160, 89, 0.05));
+  border: 1px dashed var(--border-color, rgba(197, 160, 89, 0.3));
+}
+
+.couple-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary, #c5a059);
+
+  .couple-title-icon {
+    font-size: 14px;
+    color: var(--primary, #c5a059);
+  }
+}
+
+.couple-names-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 // ----------------------------------------------------------------------------

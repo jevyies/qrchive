@@ -44,7 +44,7 @@ const props = defineProps({
         default: false
     }
 })
-const emit = defineEmits(['reset-demo', 'open-camera', 'update:captureMode', 'open-lightbox', 'open-moment-lightbox'])
+const emit = defineEmits(['reset-demo', 'open-camera', 'update:captureMode', 'open-lightbox', 'open-moment-lightbox', 'capture'])
 const quickCaptureRef = ref();
 
 const switchExperience = (mode) => {
@@ -55,6 +55,9 @@ const resetDemo = () => {
 }
 const openCamera = (moment) => {
     emit('open-camera', moment)
+}
+const handleCapture = (payload) => {
+    emit('capture', payload)
 }
 const handleOpenLightbox = (index) => {
     emit('open-lightbox', index)
@@ -129,8 +132,10 @@ defineExpose({
                 </div>
             </div>
             <QuickCapture v-show="captureMode === 'quick'" ref="quickCaptureRef" :isDemo="isDemo"
+                :eventDetails="eventDetails"
                 :isUnlimited="isUnlimited" :uploadedQuickPhotos="uploadedQuickPhotos" :quickPhotosLeft="quickPhotosLeft"
-                @reset-demo="resetDemo" @open-camera="openCamera" @open-lightbox="handleOpenLightbox" />
+                @reset-demo="resetDemo" @open-camera="openCamera" @open-lightbox="handleOpenLightbox"
+                @capture="handleCapture" />
             <Checklist v-show="captureMode === 'checklist'" :isDemo="isDemo" :isUnlimited="isUnlimited"
                 :capturedCount="capturedCount" :totalCount="totalCount" :progressPercent="progressPercent"
                 :moments="moments" @open-camera="openCamera" @open-lightbox="handleOpenMomentLightbox" />

@@ -1,8 +1,8 @@
 import { Queue, Worker, Job, QueueEvents } from 'bullmq';
 import crypto from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { bullMqConnectionOptions } from '../config/redis';
-import { db, snapGuests, SnapGuest } from '../db';
+import { db, snapGuests, events, SnapGuest } from '../db';
 
 export const GUEST_CREATION_QUEUE_NAME = 'snap-guest-creation';
 
@@ -14,12 +14,14 @@ export interface CreateSnapGuestJobData {
 }
 
 export interface CreateSnapGuestResult {
-  id: number;
-  guest_code: string;
-  name: string;
-  eventId: number;
+  id?: number;
+  guest_code?: string;
+  name?: string;
+  eventId?: number;
   deviceSerial?: string | null;
   deviceName?: string | null;
+  error?: boolean;
+  message?: string;
 }
 
 /**
@@ -55,6 +57,26 @@ export async function directCreateSnapGuest(
         eventId: existing.eventId,
         deviceSerial: existing.deviceSerial,
         deviceName: existing.deviceName,
+      };
+    }
+  }
+
+  // Check event maxGuest limit before creating a new guest
+  const event = await db.query.events.findFirst({
+    where: eq(events.id, eventId),
+  });
+
+  if (event && event.maxGuest !== null && event.maxGuest !== undefined) {
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(snapGuests)
+      .where(eq(snapGuests.eventId, eventId));
+
+    const snapGuestsCount = Number(countResult?.count || 0);
+    if (snapGuestsCount >= Number(event.maxGuest)) {
+      return {
+        error: true,
+        message: 'Max Guest ',
       };
     }
   }
@@ -135,7 +157,11 @@ export const guestCreationWorker = new Worker<
 );
 
 guestCreationWorker.on('completed', (job, returnvalue) => {
-  console.log(`[guestCreationWorker] Snap guest created (Job ${job.id}): guest_code=${returnvalue?.guest_code}`);
+  if (returnvalue?.error) {
+    console.log(`[guestCreationWorker] Snap guest creation rejected (Job ${job.id}): ${returnvalue.message}`);
+  } else {
+    console.log(`[guestCreationWorker] Snap guest created (Job ${job.id}): guest_code=${returnvalue?.guest_code}`);
+  }
 });
 
 guestCreationWorker.on('failed', (job, err) => {

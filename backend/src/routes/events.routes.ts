@@ -46,6 +46,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
                     userId: { type: 'integer' },
                     token: { type: 'string', nullable: true },
                     name: { type: 'string' },
+                    eventCategory: { type: 'string', nullable: true },
+                    paymentStatus: { type: 'string', nullable: true },
                     brideFirstname: { type: 'string', nullable: true },
                     brideLastname: { type: 'string', nullable: true },
                     groomFirstname: { type: 'string', nullable: true },
@@ -53,6 +55,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
                     invitationDeadline: { type: 'string', nullable: true },
                     eventDate: { type: 'string', nullable: true },
                     weddingDate: { type: 'string', nullable: true },
+                    isUnlimited: { type: 'boolean', nullable: true },
                     guestCount: { type: 'integer' },
                     photoCount: { type: 'integer' },
                     user: {
@@ -114,12 +117,15 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         userId: e.userId,
         token: e.token,
         name: e.name,
+        eventCategory: e.eventCategory,
+        paymentStatus: e.paymentStatus,
         brideFirstname: e.brideFirstname,
         brideLastname: e.brideLastname,
         groomFirstname: e.groomFirstname,
         groomLastname: e.groomLastname,
         maxGuest: e.maxGuest,
         price: e.price,
+        isUnlimited: e.isUnlimited,
         invitationDeadline: e.invitationDeadline,
         eventDate: e.eventDate,
         weddingDate: e.eventDate,
@@ -181,12 +187,16 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
                     userId: { type: 'integer' },
                     token: { type: 'string', nullable: true },
                     name: { type: 'string' },
+                    eventCategory: { type: 'string', nullable: true },
+                    paymentStatus: { type: 'string', nullable: true },
                     brideFirstname: { type: 'string', nullable: true },
                     brideLastname: { type: 'string', nullable: true },
                     groomFirstname: { type: 'string', nullable: true },
                     groomLastname: { type: 'string', nullable: true },
                     maxGuest: { type: 'integer', nullable: true },
                     price: { type: 'string', nullable: true },
+                    isUnlimited: { type: 'boolean', nullable: true },
+                    photoExpiry: { type: 'string', nullable: true },
                     invitationDeadline: { type: 'string', nullable: true },
                     eventDate: { type: 'string', nullable: true },
                     createdAt: { type: 'string' },
@@ -243,6 +253,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           userId: e.userId,
           token: e.token,
           name: e.name,
+          eventCategory: e.eventCategory,
+          paymentStatus: e.paymentStatus,
           brideFirstname: e.brideFirstname,
           brideLastname: e.brideLastname,
           groomFirstname: e.groomFirstname,
@@ -250,7 +262,6 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           maxGuest: e.maxGuest,
           price: e.price,
           isUnlimited: e.isUnlimited,
-          uploadExpiry: e.uploadExpiry,
           photoExpiry: e.photoExpiry,
           invitationDeadline: e.invitationDeadline,
           eventDate: e.eventDate,
@@ -340,9 +351,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         id: event.id,
         name: event.name,
         token: event.token,
+        eventCategory: event.eventCategory,
+        paymentStatus: event.paymentStatus,
         eventDate: event.eventDate,
         weddingDate: event.eventDate,
-        uploadExpiry: event.uploadExpiry,
         photoExpiry: event.photoExpiry,
         isUnlimited: event.isUnlimited,
         brideFirstname: event.brideFirstname,
@@ -364,7 +376,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
   // ==========================================
   // 2c. GET EVENT STATS BY TOKEN (GET /token/:token/stats)
-  // [id, event_date, upload_expiry, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers (total uploaders)]
+  // [id, event_date, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers (total uploaders)]
   // ==========================================
   const handleGetEventStats = async (request: FastifyRequest, reply: FastifyReply) => {
     const rawToken = (request.params as any).token || (request.params as any).id;
@@ -454,9 +466,13 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       id: event.id,
       name: event.name,
       token: event.token,
+      eventCategory: event.eventCategory,
+      event_category: event.eventCategory,
+      paymentStatus: event.paymentStatus,
+      payment_status: event.paymentStatus,
       isUnlimited: event.isUnlimited,
+      is_unlimited: event.isUnlimited,
       event_date: event.eventDate,
-      upload_expiry: event.uploadExpiry,
       photo_expiry: event.photoExpiry,
       totalPhotos,
       totalVideos,
@@ -469,7 +485,6 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       // camelCase aliases for convenience
       eventDate: event.eventDate,
       weddingDate: event.eventDate,
-      uploadExpiry: event.uploadExpiry,
       photoExpiry: event.photoExpiry,
       totalUploaders: totalUsers,
       totalBytes,
@@ -490,7 +505,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       schema: {
         tags: ['Events'],
         summary: 'Get Event Stats by Public Token',
-        description: 'Retrieves event stats (id, event_date, upload_expiry, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers) by event token.',
+        description: 'Retrieves event stats (id, event_date, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers) by event token.',
         params: {
           type: 'object',
           required: ['token'],
@@ -896,6 +911,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         userId: event.userId,
         token: event.token,
         name: event.name,
+        eventCategory: event.eventCategory,
+        paymentStatus: event.paymentStatus,
         brideFirstname: event.brideFirstname,
         brideLastname: event.brideLastname,
         groomFirstname: event.groomFirstname,
@@ -903,7 +920,6 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         maxGuest: event.maxGuest,
         price: event.price,
         isUnlimited: event.isUnlimited,
-        uploadExpiry: event.uploadExpiry,
         photoExpiry: event.photoExpiry,
         invitationDeadline: event.invitationDeadline,
         eventDate: event.eventDate,
@@ -932,6 +948,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           properties: {
             name: { type: 'string' },
             token: { type: 'string' },
+            eventCategory: { type: 'string' },
+            event_category: { type: 'string' },
+            paymentStatus: { type: 'string' },
+            payment_status: { type: 'string' },
             brideFirstname: { type: 'string' },
             brideLastname: { type: 'string' },
             groomFirstname: { type: 'string' },
@@ -939,9 +959,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
-            uploadExpiry: { type: 'string' },
             photoExpiry: { type: 'string' },
             isUnlimited: { type: 'boolean' },
+            is_unlimited: { type: 'boolean' },
             maxGuest: { type: 'integer' },
             price: { type: ['string', 'number'] },
             userId: { type: 'integer' },
@@ -964,21 +984,23 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       const generatedToken = body.token || crypto.randomBytes(4).toString('hex');
       const targetEventDate = body.eventDate || body.weddingDate || null;
 
-      let uploadExpiry: string | null = body.uploadExpiry || body.upload_expiry || null;
       let photoExpiry: string | null = body.photoExpiry || body.photo_expiry || null;
 
       if (targetEventDate) {
         const eventDateObj = new Date(targetEventDate);
         if (!isNaN(eventDateObj.getTime())) {
-          const uploadExpiryDate = new Date(eventDateObj);
-          uploadExpiryDate.setDate(uploadExpiryDate.getDate() + 30);
-          uploadExpiry = uploadExpiryDate.toISOString();
-
           const photoExpiryDate = new Date(eventDateObj);
           photoExpiryDate.setDate(photoExpiryDate.getDate() + 60);
           photoExpiry = photoExpiryDate.toISOString();
         }
       }
+
+      const isUnlimitedVal =
+        body.isUnlimited !== undefined && body.isUnlimited !== null
+          ? Boolean(body.isUnlimited)
+          : body.is_unlimited !== undefined && body.is_unlimited !== null
+            ? Boolean(body.is_unlimited)
+            : false;
 
       const [newEvent] = await db
         .insert(events)
@@ -986,15 +1008,16 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           userId: targetUserId,
           token: generatedToken,
           name: body.name,
-          brideFirstname: body.brideFirstname || null,
-          brideLastname: body.brideLastname || null,
-          groomFirstname: body.groomFirstname || null,
-          groomLastname: body.groomLastname || null,
+          eventCategory: body.eventCategory || body.event_category || 'Wedding',
+          paymentStatus: body.paymentStatus || body.payment_status || 'pending',
+          brideFirstname: body.brideFirstname || body.bride_firstname || null,
+          brideLastname: body.brideLastname || body.bride_lastname || null,
+          groomFirstname: body.groomFirstname || body.groom_firstname || null,
+          groomLastname: body.groomLastname || body.groom_lastname || null,
           invitationDeadline: body.invitationDeadline || null,
           eventDate: targetEventDate,
-          uploadExpiry: uploadExpiry,
           photoExpiry: photoExpiry,
-          isUnlimited: body.isUnlimited !== undefined && body.isUnlimited !== null ? Boolean(body.isUnlimited) : false,
+          isUnlimited: isUnlimitedVal,
           maxGuest: body.maxGuest !== undefined && body.maxGuest !== null ? Number(body.maxGuest) : null,
           price: body.price !== undefined && body.price !== null ? String(body.price) : null,
         })
@@ -1006,8 +1029,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           id: newEvent.id,
           name: newEvent.name,
           token: newEvent.token,
+          eventCategory: newEvent.eventCategory,
+          paymentStatus: newEvent.paymentStatus,
           eventDate: newEvent.eventDate,
-          uploadExpiry: newEvent.uploadExpiry,
           photoExpiry: newEvent.photoExpiry,
           isUnlimited: newEvent.isUnlimited,
         },
@@ -1037,6 +1061,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           type: 'object',
           properties: {
             name: { type: 'string' },
+            eventCategory: { type: 'string' },
+            event_category: { type: 'string' },
+            paymentStatus: { type: 'string' },
+            payment_status: { type: 'string' },
             brideFirstname: { type: 'string' },
             brideLastname: { type: 'string' },
             groomFirstname: { type: 'string' },
@@ -1044,9 +1072,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
-            uploadExpiry: { type: 'string' },
             photoExpiry: { type: 'string' },
             isUnlimited: { type: 'boolean' },
+            is_unlimited: { type: 'boolean' },
             maxGuest: { type: 'integer' },
             price: { type: ['string', 'number'] },
           },
@@ -1075,6 +1103,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
       const updatePayload: Partial<NewEvent> = {};
       if (body.name !== undefined) updatePayload.name = body.name;
+      if (body.eventCategory !== undefined) updatePayload.eventCategory = body.eventCategory;
+      if (body.event_category !== undefined) updatePayload.eventCategory = body.event_category;
+      if (body.paymentStatus !== undefined) updatePayload.paymentStatus = body.paymentStatus;
+      if (body.payment_status !== undefined) updatePayload.paymentStatus = body.payment_status;
       if (body.brideFirstname !== undefined) updatePayload.brideFirstname = body.brideFirstname;
       if (body.brideLastname !== undefined) updatePayload.brideLastname = body.brideLastname;
       if (body.groomFirstname !== undefined) updatePayload.groomFirstname = body.groomFirstname;
@@ -1086,18 +1118,12 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         if (newEventDate) {
           const eventDateObj = new Date(newEventDate);
           if (!isNaN(eventDateObj.getTime())) {
-            const uploadExpiryDate = new Date(eventDateObj);
-            uploadExpiryDate.setDate(uploadExpiryDate.getDate() + 30);
-            updatePayload.uploadExpiry = uploadExpiryDate.toISOString();
-
             const photoExpiryDate = new Date(eventDateObj);
             photoExpiryDate.setDate(photoExpiryDate.getDate() + 60);
             updatePayload.photoExpiry = photoExpiryDate.toISOString();
           }
         }
       }
-      if (body.uploadExpiry !== undefined) updatePayload.uploadExpiry = body.uploadExpiry;
-      if (body.upload_expiry !== undefined) updatePayload.uploadExpiry = body.upload_expiry;
       if (body.photoExpiry !== undefined) updatePayload.photoExpiry = body.photoExpiry;
       if (body.photo_expiry !== undefined) updatePayload.photoExpiry = body.photo_expiry;
       if (body.isUnlimited !== undefined) updatePayload.isUnlimited = Boolean(body.isUnlimited);
@@ -1160,7 +1186,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         });
         for (const p of bgPhotos) {
           if (p.storageKey) {
-            await R2Service.deleteObject(p.storageKey).catch(() => {});
+            await R2Service.deleteObject(p.storageKey).catch(() => { });
           }
         }
       } catch (r2Err) {

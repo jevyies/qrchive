@@ -60,13 +60,16 @@ export async function initDbTables() {
       ALTER TABLE events ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2);
     `;
     await client`
-      ALTER TABLE events ADD COLUMN IF NOT EXISTS upload_expiry TIMESTAMP WITH TIME ZONE;
-    `;
-    await client`
       ALTER TABLE events ADD COLUMN IF NOT EXISTS photo_expiry TIMESTAMP WITH TIME ZONE;
     `;
     await client`
       ALTER TABLE events ADD COLUMN IF NOT EXISTS is_unlimited BOOLEAN DEFAULT FALSE;
+    `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS event_category VARCHAR(100) DEFAULT 'Wedding';
+    `;
+    await client`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'pending';
     `;
     await client`
       ALTER TABLE snap_guests ADD COLUMN IF NOT EXISTS guest_code VARCHAR(255);

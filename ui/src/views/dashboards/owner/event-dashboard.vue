@@ -11,8 +11,58 @@ import EventModal from '@/views/modals/EventModal.vue'
 
 const router = useRouter()
 
-const navigateToEvent = (code) => {
-  router.push(`/dashboard/event/${code}`)
+const isPaymentPending = (event) => {
+  const status = (event?.paymentStatus || event?.payment_status || 'pending').toLowerCase()
+  return status === 'pending'
+}
+
+const handlePendingNotice = () => {
+  toast.show({
+    message: 'Payment is pending. Please complete payment to access and manage this celebration vault.',
+    color: 'warning',
+    icon: 'triangle-exclamation',
+  })
+}
+
+const navigateToEvent = (eventOrCode) => {
+  if (typeof eventOrCode === 'object' && eventOrCode !== null) {
+    if (isPaymentPending(eventOrCode)) {
+      handlePendingNotice()
+      return
+    }
+    const token = eventOrCode.token || eventOrCode.id
+    if (token) {
+      router.push(`/dashboard/event/${token}`)
+    }
+    return
+  }
+
+  const matched = allEvents.value.find(e => e.token === eventOrCode || String(e.id) === String(eventOrCode))
+  if (matched && isPaymentPending(matched)) {
+    handlePendingNotice()
+    return
+  }
+
+  router.push(`/dashboard/event/${eventOrCode}`)
+}
+
+const getPaymentStatusText = (event) => {
+  const raw = event?.paymentStatus || event?.payment_status || 'pending'
+  return raw.charAt(0).toUpperCase() + raw.slice(1)
+}
+
+const getPaymentBadgeClass = (event) => {
+  const status = (event?.paymentStatus || event?.payment_status || 'pending').toLowerCase()
+  if (status === 'paid' || status === 'completed') return 'payment-badge--paid'
+  if (status === 'cancelled' || status === 'refunded') return 'payment-badge--cancelled'
+  return 'payment-badge--pending'
+}
+
+const getPaymentBadgeIcon = (event) => {
+  const status = (event?.paymentStatus || event?.payment_status || 'pending').toLowerCase()
+  if (status === 'paid' || status === 'completed') return 'check_circle'
+  if (status === 'cancelled' || status === 'refunded') return 'cancel'
+  return 'hourglass_top'
 }
 
 const props = defineProps({
@@ -147,11 +197,18 @@ const handleCreateVault = async (payload) => {
   try {
     await axiosInstance.post('/api/events', {
       name: payload.name,
+      eventCategory: payload.eventCategory || payload.event_category || 'Wedding',
       eventDate: payload.event_date || payload.eventDate,
       token: payload.token,
       userId: payload.user_id || payload.userId || authStore.user?.id,
       maxGuest: payload.max_guest ?? payload.maxGuest,
       price: payload.price,
+      isUnlimited: payload.isUnlimited ?? payload.is_unlimited ?? false,
+      brideFirstname: payload.brideFirstname ?? payload.bride_firstname ?? null,
+      brideLastname: payload.brideLastname ?? payload.bride_lastname ?? null,
+      groomFirstname: payload.groomFirstname ?? payload.groom_firstname ?? null,
+      groomLastname: payload.groomLastname ?? payload.groom_lastname ?? null,
+      paymentStatus: 'pending',
     })
 
     toast.show({
@@ -164,12 +221,9 @@ const handleCreateVault = async (payload) => {
   } catch (err) {
     console.error('Failed to create celebration vault:', err)
     toast.show({
-      message: `Celebration Vault "${payload.name}" successfully curated!`,
-      color: 'success',
-      icon: 'verified',
+      message: `Failed to create celebration vault: ${err?.response?.data?.message || err.message}`,
+      color: 'danger',
     })
-    isCreateModalOpen.value = false
-    await fetchMyEvents()
   } finally {
     isSubmittingVault.value = false
   }
@@ -265,14 +319,24 @@ const formatDate = (dateStr) => {
 
       <div class="event-grid--active">
         <JCard v-for="event in activeEvents" :key="event.id" variant="custom" no-body
-          class="event-card event-card--clickable" @click="navigateToEvent(event.token || event.id)">
+          class="event-card event-card--clickable" :class="{ 'event-card--pending-payment': isPaymentPending(event) }"
+          @click="navigateToEvent(event)">
           <div class="event-card__main">
             <div class="event-card__top">
               <div class="event-card__header-info">
                 <div class="event-card__status-indicator">
-                  <span class="event-card__pulse-dot event-card__pulse-dot--emerald"></span>
-                  <span class="event-card__status-text event-card__status-text--emerald">
-                    Active • Live Vault Open
+                  <span class="event-card__pulse-dot"
+                    :class="isPaymentPending(event) ? 'event-card__pulse-dot--amber' : 'event-card__pulse-dot--emerald'"></span>
+                  <span class="event-card__status-text"
+                    :class="isPaymentPending(event) ? 'event-card__status-text--amber' : 'event-card__status-text--emerald'">
+                    {{ isPaymentPending(event) ? 'Pending Activation' : 'Active • Live Vault Open' }}
+                  </span>
+                  <!-- Payment Status Badge -->
+                  <span class="payment-badge" :class="getPaymentBadgeClass(event)">
+                    <span class="material-symbols-outlined payment-badge-icon">
+                      {{ getPaymentBadgeIcon(event) }}
+                    </span>
+                    <span>{{ getPaymentStatusText(event) }}</span>
                   </span>
                 </div>
                 <h3 class="event-card__title">{{ event.name }}</h3>
@@ -282,7 +346,9 @@ const formatDate = (dateStr) => {
                 </p>
               </div>
               <div class="event-card__icon-box">
-                <span class="material-symbols-outlined box-icon">photo_library</span>
+                <span class="material-symbols-outlined box-icon">
+                  {{ isPaymentPending(event) ? 'lock' : 'photo_library' }}
+                </span>
               </div>
             </div>
 
@@ -301,19 +367,24 @@ const formatDate = (dateStr) => {
 
           <!-- Card Footer -->
           <div class="event-card__footer">
-            <button type="button" class="event-card__action-btn event-card__action-btn--primary"
-              @click.stop="navigateToEvent(event.token || event.id)">
-              <span class="material-symbols-outlined" style="font-size: 1rem;">tune</span>
-              <span>Manage Vault &amp; Placards</span>
+            <button type="button" class="event-card__action-btn"
+              :class="isPaymentPending(event) ? 'event-card__action-btn--pending' : 'event-card__action-btn--primary'"
+              @click.stop="navigateToEvent(event)">
+              <span class="material-symbols-outlined" style="font-size: 1rem;">
+                {{ isPaymentPending(event) ? 'lock' : 'tune' }}
+              </span>
+              <span>{{ isPaymentPending(event) ? 'Payment Pending' : 'Manage Vault & Placards' }}</span>
             </button>
             <div class="event-card__quick-actions">
               <button type="button" class="event-card__text-btn" title="View Live QR"
-                @click.stop="openLiveQr(event.name)">
+                :disabled="isPaymentPending(event)"
+                @click.stop="isPaymentPending(event) ? handlePendingNotice() : openLiveQr(event.name)">
                 <span class="material-symbols-outlined btn-icon">qr_code_2</span>
                 <span>Live QR</span>
               </button>
               <button type="button" class="event-card__text-btn" title="Copy Guest Link"
-                @click.stop="copyGuestLink(event.token || event.id)">
+                :disabled="isPaymentPending(event)"
+                @click.stop="isPaymentPending(event) ? handlePendingNotice() : copyGuestLink(event.token || event.id)">
                 <span class="material-symbols-outlined btn-icon">content_copy</span>
                 <span>Copy Link</span>
               </button>
@@ -337,12 +408,21 @@ const formatDate = (dateStr) => {
       <div class="event-grid--completed">
         <JCard v-for="event in completedEvents" :key="event.id" variant="custom" no-body
           class="event-card event-card--completed event-card--clickable"
-          @click="navigateToEvent(event.token || event.id)">
+          :class="{ 'event-card--pending-payment': isPaymentPending(event) }" @click="navigateToEvent(event)">
           <div class="event-card__main">
             <div class="event-card__status-indicator" style="justify-content: space-between;">
-              <span class="event-card__status-text event-card__status-text--secondary">
-                Completed • Archived
-              </span>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span class="event-card__status-text event-card__status-text--secondary">
+                  Completed • Archived
+                </span>
+                <!-- Payment Status Badge -->
+                <span class="payment-badge" :class="getPaymentBadgeClass(event)">
+                  <span class="material-symbols-outlined payment-badge-icon">
+                    {{ getPaymentBadgeIcon(event) }}
+                  </span>
+                  <span>{{ getPaymentStatusText(event) }}</span>
+                </span>
+              </div>
               <span class="material-symbols-outlined" style="font-size: 1.125rem; color: var(--secondary);">
                 archive
               </span>
@@ -365,24 +445,6 @@ const formatDate = (dateStr) => {
                   {{ [event.groomFirstname, event.groomLastname].filter(Boolean).join(' ') }}
                 </span>
               </div>
-            </div>
-          </div>
-
-          <div class="event-card__footer">
-            <div class="event-card__completed-actions">
-              <button type="button" class="event-card__action-btn event-card__action-btn--tonal"
-                style="justify-content: center; width: 100%;"
-                @click.stop="handleActionNotice('Preparing ZIP archive download...', 'info')">
-                <span class="material-symbols-outlined" style="font-size: 0.95rem; color: var(--primary);">
-                  folder_zip
-                </span>
-                <span>Download Archive (ZIP)</span>
-              </button>
-              <button type="button" class="event-card__action-btn event-card__action-btn--outlined"
-                style="justify-content: center; width: 100%;" @click.stop="navigateToEvent(event.token || event.id)">
-                <span class="material-symbols-outlined" style="font-size: 0.95rem;">visibility</span>
-                <span>View Archive</span>
-              </button>
             </div>
           </div>
         </JCard>
@@ -437,4 +499,61 @@ const formatDate = (dateStr) => {
 
 <style lang="scss">
 @use '@/styles/pages/event-dashboard.scss';
+
+.payment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+
+  .payment-badge-icon {
+    font-size: 0.8rem;
+  }
+
+  &--pending {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  &--paid,
+  &--completed {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  &--cancelled,
+  &--refunded {
+    background-color: rgba(244, 63, 94, 0.12);
+    color: #be123c;
+    border: 1px solid rgba(244, 63, 94, 0.3);
+  }
+}
+
+.event-card__action-btn--pending {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #b45309 !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(245, 158, 11, 0.22) !important;
+    color: #92400e !important;
+  }
+}
+
+.event-card--pending-payment {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+
+  &:hover {
+    border-color: rgba(245, 158, 11, 0.6) !important;
+  }
+}
 </style>

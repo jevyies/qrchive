@@ -27,31 +27,28 @@ const hasChanges = ref(false)
 const isSaving = ref(false)
 const isLoading = ref(false)
 
-// Mobile Screen State
-const mobileFileInput = ref(null)
-const mobileOriginalUrl = ref('')
-const mobileOriginalDataUrl = ref('')
+// 1 Picture for all viewports (Single Original Picture State)
+const fileInput = ref(null)
+const originalUrl = ref('')
+const originalDataUrl = ref('')
+const fileName = ref('background.jpg')
+const imgNatural = reactive({ width: 0, height: 0 })
+
+// Mobile Screen Framing State (9:16)
 const mobileCroppedUrl = ref('')
-const mobileFileName = ref('mobile-background.jpg')
 const mobilePos = reactive({
   x: 0,
   y: 0,
   scale: 1.0,
 })
-const mobileImgNatural = reactive({ width: 0, height: 0 })
 
-// Desktop Screen State
-const desktopFileInput = ref(null)
-const desktopOriginalUrl = ref('')
-const desktopOriginalDataUrl = ref('')
+// Desktop Screen Framing State (16:9)
 const desktopCroppedUrl = ref('')
-const desktopFileName = ref('desktop-background.jpg')
 const desktopPos = reactive({
   x: 0,
   y: 0,
   scale: 1.0,
 })
-const desktopImgNatural = reactive({ width: 0, height: 0 })
 
 // Viewport container dimensions (fixed CSS sizes for the interactive editor)
 const MOBILE_VIEWPORT = { width: 320, height: 568 } // 9:16 aspect ratio
@@ -90,9 +87,7 @@ const currentPos = computed(() => {
 })
 
 const currentOriginalImage = computed(() => {
-  return activeScreen.value === 'mobile'
-    ? mobileOriginalDataUrl.value || mobileOriginalUrl.value
-    : desktopOriginalDataUrl.value || desktopOriginalUrl.value
+  return originalDataUrl.value || originalUrl.value
 })
 
 const currentViewport = computed(() => {
@@ -100,7 +95,7 @@ const currentViewport = computed(() => {
 })
 
 const currentNatural = computed(() => {
-  return activeScreen.value === 'mobile' ? mobileImgNatural : desktopImgNatural
+  return imgNatural
 })
 
 // Compute responsive stage scaling for narrow mobile phone screens
@@ -119,6 +114,17 @@ watch(activeScreen, () => {
   setTimeout(updateStageScale, 50)
 })
 
+// Preload original image natural dimensions
+const preloadImage = (url) => {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.onload = () => {
+    imgNatural.width = img.naturalWidth
+    imgNatural.height = img.naturalHeight
+  }
+  img.src = url
+}
+
 // Load existing backgrounds from backend
 const fetchBackgrounds = async () => {
   isLoading.value = true
@@ -128,15 +134,20 @@ const fetchBackgrounds = async () => {
     const { data } = await axiosInstance.get(`/api/events/${eventId}/backgrounds`)
     const list = data?.backgrounds || []
 
-    // 1. Mobile Original & Cropped
-    const mobOrig = list.find((b) => b.type === 'mobile_original')
-    const mobCrop = list.find((b) => b.type === 'mobile_cropped')
+    // 1. Original Picture (prefer 'original', fallback to legacy 'mobile_original' or 'desktop_original')
+    const orig = list.find((b) => b.type === 'original')
+      || list.find((b) => b.type === 'mobile_original')
+      || list.find((b) => b.type === 'desktop_original')
 
-    if (mobOrig?.url) {
-      mobileOriginalUrl.value = mobOrig.url
-      mobileFileName.value = mobOrig.fileName || 'mobile-background.jpg'
-      preloadImage(mobOrig.url, 'mobile')
+    if (orig?.url) {
+      originalUrl.value = orig.url
+      originalDataUrl.value = ''
+      fileName.value = orig.fileName || 'background.jpg'
+      preloadImage(orig.url)
     }
+
+    // 2. Mobile Cropped
+    const mobCrop = list.find((b) => b.type === 'mobile_cropped')
     if (mobCrop?.url) {
       mobileCroppedUrl.value = mobCrop.url
     }
@@ -146,15 +157,8 @@ const fetchBackgrounds = async () => {
       mobilePos.scale = Number(mobCrop.cropData.scale) || 1.0
     }
 
-    // 2. Desktop Original & Cropped
-    const deskOrig = list.find((b) => b.type === 'desktop_original')
+    // 3. Desktop Cropped
     const deskCrop = list.find((b) => b.type === 'desktop_cropped')
-
-    if (deskOrig?.url) {
-      desktopOriginalUrl.value = deskOrig.url
-      desktopFileName.value = deskOrig.fileName || 'desktop-background.jpg'
-      preloadImage(deskOrig.url, 'desktop')
-    }
     if (deskCrop?.url) {
       desktopCroppedUrl.value = deskCrop.url
     }
@@ -173,23 +177,8 @@ const fetchBackgrounds = async () => {
   }
 }
 
-const preloadImage = (url, target) => {
-  const img = new Image()
-  img.crossOrigin = 'anonymous'
-  img.onload = () => {
-    if (target === 'mobile') {
-      mobileImgNatural.width = img.naturalWidth
-      mobileImgNatural.height = img.naturalHeight
-    } else {
-      desktopImgNatural.width = img.naturalWidth
-      desktopImgNatural.height = img.naturalHeight
-    }
-  }
-  img.src = url
-}
-
-// Handle File Selection: upload at natural original size & aspect ratio
-const handleFileSelect = (e, screen) => {
+// Handle File Selection: 1 picture for all viewports
+const handleFileSelect = (e) => {
   const file = e.target?.files?.[0]
   if (!file) return
 
@@ -199,25 +188,20 @@ const handleFileSelect = (e, screen) => {
 
     const img = new Image()
     img.onload = () => {
-      if (screen === 'mobile') {
-        mobileOriginalDataUrl.value = dataUrl
-        mobileFileName.value = file.name
-        mobileImgNatural.width = img.naturalWidth
-        mobileImgNatural.height = img.naturalHeight
-        // Reset position for new image
-        mobilePos.x = 0
-        mobilePos.y = 0
-        mobilePos.scale = 1.0
-      } else {
-        desktopOriginalDataUrl.value = dataUrl
-        desktopFileName.value = file.name
-        desktopImgNatural.width = img.naturalWidth
-        desktopImgNatural.height = img.naturalHeight
-        // Reset position for new image
-        desktopPos.x = 0
-        desktopPos.y = 0
-        desktopPos.scale = 1.0
-      }
+      originalDataUrl.value = dataUrl
+      fileName.value = file.name
+      imgNatural.width = img.naturalWidth
+      imgNatural.height = img.naturalHeight
+
+      // Reset positions for both viewports for the new image
+      mobilePos.x = 0
+      mobilePos.y = 0
+      mobilePos.scale = 1.0
+
+      desktopPos.x = 0
+      desktopPos.y = 0
+      desktopPos.scale = 1.0
+
       hasChanges.value = true
     }
     img.src = dataUrl
@@ -225,12 +209,10 @@ const handleFileSelect = (e, screen) => {
   reader.readAsDataURL(file)
 }
 
-// Trigger file input
-const triggerFileInput = (screen) => {
-  if (screen === 'mobile' && mobileFileInput.value) {
-    mobileFileInput.value.click()
-  } else if (screen === 'desktop' && desktopFileInput.value) {
-    desktopFileInput.value.click()
+// Trigger single file input
+const triggerFileInput = () => {
+  if (fileInput.value) {
+    fileInput.value.click()
   }
 }
 
@@ -447,7 +429,7 @@ const resetPosition = () => {
 // Compute image render dimensions inside container preserving natural aspect ratio
 const getImageStyle = (screen) => {
   const pos = screen === 'mobile' ? mobilePos : desktopPos
-  const natural = screen === 'mobile' ? mobileImgNatural : desktopImgNatural
+  const natural = imgNatural
   const viewport = screen === 'mobile' ? MOBILE_VIEWPORT : DESKTOP_VIEWPORT
 
   if (!natural.width || !natural.height) {
@@ -554,90 +536,78 @@ const generateCroppedDataUrl = async (imgSrc, pos, viewport, targetW, targetH) =
   })
 }
 
-// Save Changes: Saves the 4 photos into event_photos table
+// Save Changes: Saves only 3 images into event_photos table:
+// a - original uploaded picture
+// b - mobile_cropped
+// c - desktop_cropped
 const saveBackgroundChanges = async () => {
   isSaving.value = true
   const eventId = props.eventData?.id || props.eventCode
 
   try {
-    const payloadItems = []
-
-    // 1. Mobile Screen Process
-    const mobSrc = mobileOriginalDataUrl.value || mobileOriginalUrl.value
-    if (mobSrc) {
-      // 1st: Mobile Original
-      payloadItems.push({
-        type: 'mobile_original',
-        dataUrl: mobileOriginalDataUrl.value || undefined,
-        url: !mobileOriginalDataUrl.value ? mobileOriginalUrl.value : undefined,
-        fileName: mobileFileName.value,
-      })
-
-      // 2nd: Mobile Cropped (1080x1920)
-      const mobCroppedDataUrl = await generateCroppedDataUrl(
-        mobSrc,
-        mobilePos,
-        MOBILE_VIEWPORT,
-        1080,
-        1920
-      )
-      payloadItems.push({
-        type: 'mobile_cropped',
-        dataUrl: mobCroppedDataUrl,
-        fileName: `cropped_${mobileFileName.value}`,
-        cropData: {
-          x: mobilePos.x,
-          y: mobilePos.y,
-          scale: mobilePos.scale,
-          viewportWidth: MOBILE_VIEWPORT.width,
-          viewportHeight: MOBILE_VIEWPORT.height,
-        },
-      })
-    }
-
-    // 2. Desktop Screen Process
-    const deskSrc = desktopOriginalDataUrl.value || desktopOriginalUrl.value
-    if (deskSrc) {
-      // 3rd: Desktop Original
-      payloadItems.push({
-        type: 'desktop_original',
-        dataUrl: desktopOriginalDataUrl.value || undefined,
-        url: !desktopOriginalDataUrl.value ? desktopOriginalUrl.value : undefined,
-        fileName: desktopFileName.value,
-      })
-
-      // 4th: Desktop Cropped (1920x1080)
-      const deskCroppedDataUrl = await generateCroppedDataUrl(
-        deskSrc,
-        desktopPos,
-        DESKTOP_VIEWPORT,
-        1920,
-        1080
-      )
-      payloadItems.push({
-        type: 'desktop_cropped',
-        dataUrl: deskCroppedDataUrl,
-        fileName: `cropped_${desktopFileName.value}`,
-        cropData: {
-          x: desktopPos.x,
-          y: desktopPos.y,
-          scale: desktopPos.scale,
-          viewportWidth: DESKTOP_VIEWPORT.width,
-          viewportHeight: DESKTOP_VIEWPORT.height,
-        },
-      })
-    }
-
-    if (payloadItems.length === 0) {
+    const imgSrc = originalDataUrl.value || originalUrl.value
+    if (!imgSrc) {
       toast.show({
-        message: 'Please upload at least one background picture for mobile or desktop.',
+        message: 'Please upload a background picture first.',
         color: 'warning',
       })
       isSaving.value = false
       return
     }
 
-    await axiosInstance.post(
+    const payloadItems = []
+
+    // a - Original uploaded picture
+    payloadItems.push({
+      type: 'original',
+      dataUrl: originalDataUrl.value || undefined,
+      url: !originalDataUrl.value ? originalUrl.value : undefined,
+      fileName: fileName.value,
+    })
+
+    // b - Mobile Cropped (1080x1920)
+    const mobCroppedDataUrl = await generateCroppedDataUrl(
+      imgSrc,
+      mobilePos,
+      MOBILE_VIEWPORT,
+      1080,
+      1920
+    )
+    payloadItems.push({
+      type: 'mobile_cropped',
+      dataUrl: mobCroppedDataUrl,
+      fileName: `mobile_cropped_${fileName.value}`,
+      cropData: {
+        x: mobilePos.x,
+        y: mobilePos.y,
+        scale: mobilePos.scale,
+        viewportWidth: MOBILE_VIEWPORT.width,
+        viewportHeight: MOBILE_VIEWPORT.height,
+      },
+    })
+
+    // c - Desktop Cropped (1920x1080)
+    const deskCroppedDataUrl = await generateCroppedDataUrl(
+      imgSrc,
+      desktopPos,
+      DESKTOP_VIEWPORT,
+      1920,
+      1080
+    )
+    payloadItems.push({
+      type: 'desktop_cropped',
+      dataUrl: deskCroppedDataUrl,
+      fileName: `desktop_cropped_${fileName.value}`,
+      cropData: {
+        x: desktopPos.x,
+        y: desktopPos.y,
+        scale: desktopPos.scale,
+        viewportWidth: DESKTOP_VIEWPORT.width,
+        viewportHeight: DESKTOP_VIEWPORT.height,
+      },
+    })
+
+    const { data: queueRes } = await axiosInstance.post(
       `/api/events/${eventId}/backgrounds`,
       {
         items: payloadItems,
@@ -646,6 +616,29 @@ const saveBackgroundChanges = async () => {
         timeout: 120000, // Allow up to 2 minutes for multi-image high-res upload to R2
       }
     )
+
+    // Poll BullMQ queue status if job was enqueued
+    if (queueRes?.jobId && queueRes?.status !== 'completed') {
+      let isDone = false
+      let attempts = 0
+      while (!isDone && attempts < 100) {
+        attempts++
+        await new Promise((r) => setTimeout(r, 600))
+        try {
+          const { data: statusData } = await axiosInstance.get(
+            `/api/events/${eventId}/backgrounds/status/${queueRes.jobId}`
+          )
+          if (statusData?.status === 'completed') {
+            isDone = true
+          } else if (statusData?.status === 'failed') {
+            throw new Error(statusData?.error || 'Background processing failed in queue')
+          }
+        } catch (pollErr) {
+          if (pollErr.message?.includes('failed')) throw pollErr
+          // Transient network hiccup, retry next tick
+        }
+      }
+    }
 
     toast.show({
       message: 'Event background pictures and crop positions saved successfully!',
@@ -694,48 +687,28 @@ onUnmounted(() => {
         <span class="subtab-badge">Visual Atmosphere</span>
         <h2 class="subtab-title">Event Backgrounds &amp; Viewports</h2>
         <p class="subtab-desc">
-          Upload custom backgrounds for mobile guest vaults and desktop displays. Drag to position and freely resize to frame each screen ratio.
+          Upload 1 picture for all viewports, then position and freely resize to frame each screen ratio.
         </p>
       </div>
 
       <!-- Screen Mode Selector Pill -->
       <div class="screen-selector">
-        <button
-          type="button"
-          class="screen-btn"
-          :class="{ 'is-active': activeScreen === 'mobile' }"
-          @click="activeScreen = 'mobile'"
-        >
+        <button type="button" class="screen-btn" :class="{ 'is-active': activeScreen === 'mobile' }"
+          @click="activeScreen = 'mobile'">
           <span class="material-symbols-outlined">smartphone</span>
           <span>Mobile View (9:16)</span>
         </button>
-        <button
-          type="button"
-          class="screen-btn"
-          :class="{ 'is-active': activeScreen === 'desktop' }"
-          @click="activeScreen = 'desktop'"
-        >
+        <button type="button" class="screen-btn" :class="{ 'is-active': activeScreen === 'desktop' }"
+          @click="activeScreen = 'desktop'">
           <span class="material-symbols-outlined">desktop_windows</span>
           <span>Desktop View (16:9)</span>
         </button>
       </div>
     </div>
 
-    <!-- Hidden File Inputs -->
-    <input
-      ref="mobileFileInput"
-      type="file"
-      accept="image/*"
-      style="display: none;"
-      @change="(e) => handleFileSelect(e, 'mobile')"
-    />
-    <input
-      ref="desktopFileInput"
-      type="file"
-      accept="image/*"
-      style="display: none;"
-      @change="(e) => handleFileSelect(e, 'desktop')"
-    />
+    <!-- Hidden File Input (1 picture for all viewports) -->
+    <input ref="fileInput" type="file" accept="image/*" style="display: none;"
+      @change="handleFileSelect" />
 
     <!-- Editor Workspace Area -->
     <div class="cropper-workspace">
@@ -747,27 +720,23 @@ onUnmounted(() => {
               {{ activeScreen === 'mobile' ? 'smartphone' : 'desktop_windows' }}
             </span>
             <span class="indicator-text">
-              {{ activeScreen === 'mobile' ? 'Mobile Portrait (9:16 / 1080×1920)' : 'Desktop Landscape (16:9 / 1920×1080)' }}
+              {{ activeScreen === 'mobile' ?
+                'Mobile Portrait (9:16 / 1080×1920)' : 'Desktop Landscape (16:9 / 1920×1080)' }}
             </span>
+          </span>
+          <span v-if="fileName && currentOriginalImage" class="active-filename-badge">
+            <span class="material-symbols-outlined filename-icon">image</span>
+            <span class="filename-text">{{ fileName }}</span>
           </span>
         </div>
 
         <div class="cropper-toolbar__right">
-          <JBtn
-            size="sm"
-            variant="tonal"
-            @click="triggerFileInput(activeScreen)"
-          >
+          <JBtn size="sm" variant="tonal" @click="triggerFileInput">
             <span class="material-symbols-outlined" style="font-size: 1rem;">cloud_upload</span>
-            <span>{{ (activeScreen === 'mobile' ? mobileOriginalDataUrl || mobileOriginalUrl : desktopOriginalDataUrl || desktopOriginalUrl) ? 'Change Picture' : 'Upload Picture' }}</span>
+            <span>{{ currentOriginalImage ? 'Change Picture' : 'Upload Picture' }}</span>
           </JBtn>
-          <JBtn
-            v-if="currentOriginalImage"
-            size="sm"
-            variant="tonal"
-            title="Reset position and zoom"
-            @click="resetPosition"
-          >
+          <JBtn v-if="currentOriginalImage" size="sm" variant="tonal" title="Reset position and zoom"
+            @click="resetPosition">
             <span class="material-symbols-outlined" style="font-size: 1rem;">filter_center_focus</span>
             <span>Center</span>
           </JBtn>
@@ -776,45 +745,24 @@ onUnmounted(() => {
 
       <!-- Viewport Stage with Responsive Mobile Scaling -->
       <div ref="stageContainerRef" class="stage-container">
-        <div
-          class="stage-scaler"
-          :style="{
-            transform: stageScale < 1 ? `scale(${stageScale})` : undefined,
-            transformOrigin: 'center center',
-          }"
-        >
+        <div class="stage-scaler" :style="{
+          transform: stageScale < 1 ? `scale(${stageScale})` : undefined,
+          transformOrigin: 'center center',
+        }">
           <!-- Interactive Viewport Canvas -->
-          <div
-            ref="viewportFrameRef"
-            class="viewport-frame"
-            :class="`viewport-frame--${activeScreen}`"
-            :style="{
-              width: `${currentViewport.width}px`,
-              height: `${currentViewport.height}px`,
-            }"
-            @mousedown="onMouseDown"
-            @touchstart="onTouchStart"
-            @wheel.prevent="onWheel"
-          >
+          <div ref="viewportFrameRef" class="viewport-frame" :class="`viewport-frame--${activeScreen}`" :style="{
+            width: `${currentViewport.width}px`,
+            height: `${currentViewport.height}px`,
+          }" @mousedown="onMouseDown" @touchstart="onTouchStart" @wheel.prevent="onWheel">
             <!-- Loaded Image (Unstretched, Natural Aspect Ratio Preserved) -->
-            <img
-              v-if="currentOriginalImage"
-              :src="currentOriginalImage"
-              alt="Event Background"
-              class="viewport-img"
-              :style="getImageStyle(activeScreen)"
-              draggable="false"
-            />
+            <img v-if="currentOriginalImage" :src="currentOriginalImage" alt="Event Background" class="viewport-img"
+              :style="getImageStyle(activeScreen)" draggable="false" />
 
             <!-- Empty Placeholder / Drop Zone -->
-            <div
-              v-else
-              class="viewport-empty"
-              @click="triggerFileInput(activeScreen)"
-            >
+            <div v-else class="viewport-empty" @click="triggerFileInput">
               <span class="material-symbols-outlined empty-icon">add_photo_alternate</span>
-              <p class="empty-text">Click to upload {{ activeScreen }} background</p>
-              <span class="empty-hint">High-resolution JPG, PNG or WebP</span>
+              <p class="empty-text">Click to upload background picture</p>
+              <span class="empty-hint">1 picture for all viewports (Mobile & Desktop) • High-resolution JPG, PNG or WebP</span>
             </div>
 
             <!-- Composition Rule of Thirds Grid Overlay -->
@@ -827,34 +775,20 @@ onUnmounted(() => {
 
             <!-- Resizable Bounding Box with 4 Corner Handles -->
             <div
-              v-if="currentOriginalImage && (activeScreen === 'mobile' ? mobileImgNatural.width : desktopImgNatural.width)"
-              class="image-bounding-box"
-              :style="boundingBoxStyle"
-            >
-              <div
-                class="corner-handle corner-handle--tl"
-                title="Drag corner to resize"
-                @mousedown.stop="onCornerMouseDown($event, 'tl')"
-                @touchstart.stop="onCornerTouchStart($event, 'tl')"
-              ></div>
-              <div
-                class="corner-handle corner-handle--tr"
-                title="Drag corner to resize"
-                @mousedown.stop="onCornerMouseDown($event, 'tr')"
-                @touchstart.stop="onCornerTouchStart($event, 'tr')"
-              ></div>
-              <div
-                class="corner-handle corner-handle--bl"
-                title="Drag corner to resize"
-                @mousedown.stop="onCornerMouseDown($event, 'bl')"
-                @touchstart.stop="onCornerTouchStart($event, 'bl')"
-              ></div>
-              <div
-                class="corner-handle corner-handle--br"
-                title="Drag corner to resize"
-                @mousedown.stop="onCornerMouseDown($event, 'br')"
-                @touchstart.stop="onCornerTouchStart($event, 'br')"
-              ></div>
+              v-if="currentOriginalImage && imgNatural.width"
+              class="image-bounding-box" :style="boundingBoxStyle">
+              <div class="corner-handle corner-handle--tl" title="Drag corner to resize"
+                @mousedown.stop="onCornerMouseDown($event, 'tl')" @touchstart.stop="onCornerTouchStart($event, 'tl')">
+              </div>
+              <div class="corner-handle corner-handle--tr" title="Drag corner to resize"
+                @mousedown.stop="onCornerMouseDown($event, 'tr')" @touchstart.stop="onCornerTouchStart($event, 'tr')">
+              </div>
+              <div class="corner-handle corner-handle--bl" title="Drag corner to resize"
+                @mousedown.stop="onCornerMouseDown($event, 'bl')" @touchstart.stop="onCornerTouchStart($event, 'bl')">
+              </div>
+              <div class="corner-handle corner-handle--br" title="Drag corner to resize"
+                @mousedown.stop="onCornerMouseDown($event, 'br')" @touchstart.stop="onCornerTouchStart($event, 'br')">
+              </div>
             </div>
 
             <!-- Dragging Instruction Hint -->
@@ -869,31 +803,14 @@ onUnmounted(() => {
       <!-- Zoom & Scale Controls (Visible when image is loaded) -->
       <div v-if="currentOriginalImage" class="cropper-controls">
         <div class="zoom-group">
-          <button
-            type="button"
-            class="zoom-step-btn"
-            title="Zoom out 10%"
-            @click="stepZoom(-0.1)"
-          >
+          <button type="button" class="zoom-step-btn" title="Zoom out 10%" @click="stepZoom(-0.1)">
             <span class="material-symbols-outlined">zoom_out</span>
           </button>
 
-          <input
-            type="range"
-            min="0.1"
-            max="4.0"
-            step="0.05"
-            :value="currentPos.scale"
-            class="zoom-slider"
-            @input="(e) => updateZoom(e.target.value)"
-          />
+          <input type="range" min="0.1" max="4.0" step="0.05" :value="currentPos.scale" class="zoom-slider"
+            @input="(e) => updateZoom(e.target.value)" />
 
-          <button
-            type="button"
-            class="zoom-step-btn"
-            title="Zoom in 10%"
-            @click="stepZoom(0.1)"
-          >
+          <button type="button" class="zoom-step-btn" title="Zoom in 10%" @click="stepZoom(0.1)">
             <span class="material-symbols-outlined">zoom_in</span>
           </button>
 
@@ -902,42 +819,22 @@ onUnmounted(() => {
 
         <!-- Quick Aspect Presets -->
         <div class="preset-group">
-          <button
-            type="button"
-            class="preset-btn"
-            title="Fit entire original image without cropping"
-            @click="setFit"
-          >
+          <button type="button" class="preset-btn" title="Fit entire original image without cropping" @click="setFit">
             <span class="material-symbols-outlined preset-icon">fit_screen</span>
             <span>Fit</span>
           </button>
 
-          <button
-            type="button"
-            class="preset-btn"
-            title="Scale image to completely cover viewport"
-            @click="setFill"
-          >
+          <button type="button" class="preset-btn" title="Scale image to completely cover viewport" @click="setFill">
             <span class="material-symbols-outlined preset-icon">crop_free</span>
             <span>Fill</span>
           </button>
 
-          <button
-            type="button"
-            class="preset-btn"
-            title="100% natural pixel scale"
-            @click="setOriginal"
-          >
+          <button type="button" class="preset-btn" title="100% natural pixel scale" @click="setOriginal">
             <span class="material-symbols-outlined preset-icon">aspect_ratio</span>
             <span>1:1</span>
           </button>
 
-          <button
-            type="button"
-            class="preset-btn"
-            title="Center position"
-            @click="resetPosition"
-          >
+          <button type="button" class="preset-btn" title="Center position" @click="resetPosition">
             <span class="material-symbols-outlined preset-icon">filter_center_focus</span>
             <span>Center</span>
           </button>
@@ -953,48 +850,40 @@ onUnmounted(() => {
     <!-- Summary of Both Viewports Saved Status -->
     <div class="viewports-summary">
       <!-- Mobile Status Card -->
-      <div
-        class="viewport-status-card"
-        :class="{ 'is-configured': Boolean(mobileOriginalDataUrl || mobileOriginalUrl) }"
-        @click="activeScreen = 'mobile'"
-      >
+      <div class="viewport-status-card"
+        :class="{ 'is-active': activeScreen === 'mobile', 'is-configured': Boolean(currentOriginalImage) }"
+        @click="activeScreen = 'mobile'">
         <div class="card-left">
           <span class="material-symbols-outlined card-icon">smartphone</span>
           <div>
-            <h4 class="card-title">Mobile Background</h4>
+            <h4 class="card-title">Mobile Viewport (9:16)</h4>
             <p class="card-desc">
-              {{ (mobileOriginalDataUrl || mobileOriginalUrl) ? (hasChanges ? 'Changes pending save' : 'Configured & Positioned') : 'Not uploaded yet' }}
+              {{ currentOriginalImage ? (hasChanges ? 'Changes pending save' : 'Framed & Configured') : 'Upload picture to configure' }}
             </p>
           </div>
         </div>
-        <span
-          class="material-symbols-outlined status-dot-icon"
-          :style="{ color: (mobileOriginalDataUrl || mobileOriginalUrl) ? 'var(--primary, #c5a059)' : '#9ca3af' }"
-        >
-          {{ (mobileOriginalDataUrl || mobileOriginalUrl) ? 'check_circle' : 'radio_button_unchecked' }}
+        <span class="material-symbols-outlined status-dot-icon"
+          :style="{ color: currentOriginalImage ? 'var(--primary, #c5a059)' : '#9ca3af' }">
+          {{ currentOriginalImage ? 'check_circle' : 'radio_button_unchecked' }}
         </span>
       </div>
 
       <!-- Desktop Status Card -->
-      <div
-        class="viewport-status-card"
-        :class="{ 'is-configured': Boolean(desktopOriginalDataUrl || desktopOriginalUrl) }"
-        @click="activeScreen = 'desktop'"
-      >
+      <div class="viewport-status-card"
+        :class="{ 'is-active': activeScreen === 'desktop', 'is-configured': Boolean(currentOriginalImage) }"
+        @click="activeScreen = 'desktop'">
         <div class="card-left">
           <span class="material-symbols-outlined card-icon">desktop_windows</span>
           <div>
-            <h4 class="card-title">Desktop Background</h4>
+            <h4 class="card-title">Desktop Viewport (16:9)</h4>
             <p class="card-desc">
-              {{ (desktopOriginalDataUrl || desktopOriginalUrl) ? (hasChanges ? 'Changes pending save' : 'Configured & Positioned') : 'Not uploaded yet' }}
+              {{ currentOriginalImage ? (hasChanges ? 'Changes pending save' : 'Framed & Configured') : 'Upload picture to configure' }}
             </p>
           </div>
         </div>
-        <span
-          class="material-symbols-outlined status-dot-icon"
-          :style="{ color: (desktopOriginalDataUrl || desktopOriginalUrl) ? 'var(--primary, #c5a059)' : '#9ca3af' }"
-        >
-          {{ (desktopOriginalDataUrl || desktopOriginalUrl) ? 'check_circle' : 'radio_button_unchecked' }}
+        <span class="material-symbols-outlined status-dot-icon"
+          :style="{ color: currentOriginalImage ? 'var(--primary, #c5a059)' : '#9ca3af' }">
+          {{ currentOriginalImage ? 'check_circle' : 'radio_button_unchecked' }}
         </span>
       </div>
     </div>
@@ -1007,14 +896,8 @@ onUnmounted(() => {
           <span>You have unsaved background adjustments. Save to update guest viewports.</span>
         </div>
 
-        <JBtn
-          color="primary"
-          size="sm"
-          :loading="isSaving"
-          :disabled="isSaving"
-          class="save-btn"
-          @click="saveBackgroundChanges"
-        >
+        <JBtn color="primary" size="sm" :loading="isSaving" :disabled="isSaving" class="save-btn"
+          @click="saveBackgroundChanges">
           <span class="material-symbols-outlined" style="font-size: 1.05rem;">save</span>
           <span>Save Changes</span>
         </JBtn>
@@ -1157,6 +1040,35 @@ onUnmounted(() => {
   .indicator-icon {
     font-size: 1rem;
     color: var(--primary, #c5a059);
+  }
+}
+
+.active-filename-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #4e4639);
+  background: var(--bg-surface-tonal, rgba(197, 160, 89, 0.08));
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-color-subtle, rgba(197, 160, 89, 0.2));
+  margin-left: 0.5rem;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  .filename-icon {
+    font-size: 0.85rem;
+    color: var(--primary, #c5a059);
+    flex-shrink: 0;
+  }
+
+  .filename-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -1494,6 +1406,11 @@ onUnmounted(() => {
 
   &.is-configured {
     border-left: 4px solid var(--primary, #c5a059);
+  }
+
+  &.is-active {
+    border-color: var(--primary, #c5a059);
+    box-shadow: 0 0 0 1px var(--primary, #c5a059), var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
   }
 
   .card-left {

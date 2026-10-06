@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import { client, initDbTables } from './db';
 import { swaggerPlugin } from './plugins/swagger';
 import { appRoutes } from './routes';
-import { emailWorker, photoUploadWorker, guestCreationWorker, zipArchiveWorker } from './queues';
+import { emailWorker, photoUploadWorker, guestCreationWorker, zipArchiveWorker, backgroundUploadWorker } from './queues';
 
 // Ensure reliable DNS resolution on systems where Node defaults to localhost loopback (127.0.0.1)
 try {
@@ -110,6 +110,7 @@ const start = async () => {
           photoUploadWorker.close(),
           guestCreationWorker.close(),
           zipArchiveWorker.close(),
+          backgroundUploadWorker.close(),
         ]);
         await client.end();
         app.log.info('Graceful shutdown completed.');

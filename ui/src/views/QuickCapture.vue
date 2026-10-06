@@ -1,5 +1,15 @@
 <script setup>
+import { isVideoFile, getImageDataUrl, getVideoDetails } from '@/utils/media'
+
 const props = defineProps({
+    eventDetails: {
+        type: Object,
+        default: () => ({})
+    },
+    eventDate: {
+        type: String,
+        default: ''
+    },
     isDemo: {
         type: Boolean,
         default: true
@@ -17,9 +27,31 @@ const props = defineProps({
         default: 0
     }
 })
-const emit = defineEmits(['reset-demo', 'open-camera', 'open-lightbox'])
+const emit = defineEmits(['reset-demo', 'open-camera', 'open-lightbox', 'capture'])
 const isResettingDemo = ref(false);
 const resetSuccess = ref(false);
+const galleryFileInput = ref(null);
+const isProcessingFiles = ref(false);
+
+const isPastEvent = computed(() => {
+    const rawDate = props.eventDetails?.eventDate || props.eventDetails?.event_date || props.eventDetails?.weddingDate || props.eventDate
+    if (!rawDate) return false
+    const eventDate = new Date(rawDate)
+    if (isNaN(eventDate.getTime())) return false
+
+    const now = new Date()
+
+    // 1. Calendar day difference (start of day)
+    const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const eventMidnight = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate()).getTime()
+    const calendarDiffDays = Math.floor((nowMidnight - eventMidnight) / (1000 * 60 * 60 * 24))
+
+    // 2. 24 hours elapsed difference
+    const elapsedMs = now.getTime() - eventDate.getTime()
+    const isAtLeast24Hours = elapsedMs >= 24 * 60 * 60 * 1000
+
+    return calendarDiffDays >= 1 || isAtLeast24Hours
+})
 
 const handleResetDemo = () => {
     if (isResettingDemo.value) return
@@ -32,6 +64,31 @@ const isOpenCameraDisabled = computed(() => {
     if (props.isUnlimited) return false;
     return props.uploadedQuickPhotos.length >= props.quickPhotosLeft;
 })
+const isButtonDisabled = computed(() => {
+    return isOpenCameraDisabled.value || isProcessingFiles.value;
+})
+const buttonIcon = computed(() => {
+    if (isProcessingFiles.value) return 'spinner';
+    if (isOpenCameraDisabled.value) return 'lock';
+    return isPastEvent.value ? 'upload' : 'camera';
+})
+const buttonText = computed(() => {
+    if (isProcessingFiles.value) return 'Processing...';
+    if (isOpenCameraDisabled.value) return 'Photo Limit Reached';
+    return isPastEvent.value ? 'Upload Now' : 'Snap & Share Now';
+})
+
+const handleButtonClick = () => {
+    if (isButtonDisabled.value) return
+    if (isPastEvent.value) {
+        if (galleryFileInput.value) {
+            galleryFileInput.value.click()
+        }
+    } else {
+        handleOpenCamera()
+    }
+}
+
 const handleOpenCamera = () => {
     if (props.quickPhotosLeft <= 0 && !props.isUnlimited) return
     emit('open-camera', {
@@ -40,6 +97,74 @@ const handleOpenCamera = () => {
         title: 'Quick Snapshot',
         description: 'Instant candid capture saved to vault',
     })
+}
+
+const handleGalleryFilesSelected = async (event) => {
+    const fileList = event.target?.files
+    if (!fileList || fileList.length === 0) return
+
+    const files = Array.from(fileList)
+    event.target.value = ''
+
+    const remainingSlots = props.isUnlimited
+        ? Infinity
+        : Math.max(0, props.quickPhotosLeft - props.uploadedQuickPhotos.length)
+
+    if (remainingSlots <= 0) {
+        alert('Photo limit reached. You cannot upload any more photos or videos.')
+        return
+    }
+
+    let filesToProcess = files
+    if (!props.isUnlimited && files.length > remainingSlots) {
+        alert(`You can only upload up to ${remainingSlots} item${remainingSlots > 1 ? 's' : ''}. Only the first ${remainingSlots} will be uploaded.`)
+        filesToProcess = files.slice(0, remainingSlots)
+    }
+
+    isProcessingFiles.value = true
+    try {
+        for (const file of filesToProcess) {
+            const isVid = isVideoFile(file)
+            if (isVid) {
+                const videoDetails = await getVideoDetails(file)
+                if (!videoDetails.valid) {
+                    alert(videoDetails.error || `Video "${file.name}" exceeds the 30-second limit. Videos must be 30 seconds or less.`)
+                    continue
+                }
+
+                emit('capture', {
+                    dataUrl: videoDetails.thumbnailDataUrl || videoDetails.videoUrl,
+                    blob: file,
+                    moment: { id: 'quick' },
+                    type: 'video',
+                    isVideo: true,
+                    videoUrl: videoDetails.videoUrl || null,
+                    duration: Math.round(videoDetails.duration),
+                    fileName: file.name,
+                    mimeType: file.type || 'video/mp4',
+                })
+            } else {
+                const dataUrl = await getImageDataUrl(file)
+                if (!dataUrl) continue
+
+                emit('capture', {
+                    dataUrl,
+                    blob: file,
+                    moment: { id: 'quick' },
+                    type: 'photo',
+                    isVideo: false,
+                    videoUrl: null,
+                    duration: null,
+                    fileName: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                })
+            }
+        }
+    } catch (err) {
+        console.error('Error processing gallery files for upload:', err)
+    } finally {
+        isProcessingFiles.value = false
+    }
 }
 const handlePhotoClick = (index) => {
     emit('open-lightbox', index)
@@ -132,12 +257,19 @@ defineExpose({
 <template>
     <div id="quick-capture-section" class="checklist-quick-section">
         <div class="checklist-quick-card__actions">
-            <button class="checklist-quick-card__submit-btn" type="button" :disabled="isOpenCameraDisabled"
-                @click="handleOpenCamera">
-                <JIcon :name="isOpenCameraDisabled ? 'lock' : 'camera'" size="20" />
-                <span>{{ isOpenCameraDisabled ? 'Photo Limit Reached' :
-                    'Snap & Share Now' }}</span>
+            <button class="checklist-quick-card__submit-btn" type="button" :disabled="isButtonDisabled"
+                @click="handleButtonClick">
+                <JIcon :name="buttonIcon" size="20" :spin="isProcessingFiles" />
+                <span>{{ buttonText }}</span>
             </button>
+            <input
+                ref="galleryFileInput"
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                class="checklist-hidden-input"
+                @change="handleGalleryFilesSelected"
+            />
         </div>
         <div id="quick-uploaded-stream-container" class="quick-uploaded-stream-container">
             <div class="quick-uploaded-stream-header">
@@ -209,7 +341,7 @@ defineExpose({
             <template v-else>
                 <div class="py-10 text-center">
                     <p>Your photos will appear here.</p>
-                    <a class="text-underlined" href="javascript:void(0);" @click="handleOpenCamera">Snap now!</a>
+                    <a class="text-underlined" href="javascript:void(0);" @click="handleButtonClick">{{ isPastEvent ? 'Upload now!' : 'Snap now!' }}</a>
                 </div>
             </template>
         </div>

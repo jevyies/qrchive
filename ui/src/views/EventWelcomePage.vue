@@ -44,10 +44,7 @@ const displayDate = computed(() => {
             <span class="event-cta-text">
                 Get Started
             </span>
-            <span id="btnArrow" class="material-symbols-outlined event-cta-icon"
-                :style="{ transform: isHovered ? 'translateX(4px)' : 'translateX(0px)' }">
-                arrow_forward
-            </span>
+            <JIcon name="arrow-right" :size="16" />
         </button>
         <template v-if="eventDetails.storeName">
             <p class="event-hero-narrative mt-3">

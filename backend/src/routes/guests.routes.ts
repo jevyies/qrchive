@@ -1376,8 +1376,11 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
 
       let resolvedEventId: number | null = null;
       if (rawToken) {
+        const isNumeric = /^\d+$/.test(String(rawToken));
         const event = await db.query.events.findFirst({
-          where: eq(events.token, String(rawToken)),
+          where: isNumeric
+            ? or(eq(events.token, String(rawToken)), eq(events.id, Number(rawToken)))
+            : eq(events.token, String(rawToken)),
         });
         if (event) {
           resolvedEventId = event.id;
@@ -1397,6 +1400,14 @@ export const guestRoutes: FastifyPluginAsync = async (app) => {
         deviceSerial: body.deviceSerial || null,
         deviceName: body.deviceName || null,
       });
+
+      if (result.error) {
+        return reply.status(200).send({
+          error: true,
+          message: result.message || 'Max Guest ',
+        });
+      }
+
       return reply.status(201).send(result.guest_code);
     }
   );

@@ -5,6 +5,7 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { axiosInstance } from '@/plugins/axios'
 import { getDeviceSerial, getDeviceName, saveStoredEventSession, getStoredEventSession } from '@/utils/device';
 import { saveDemoQuickPhoto, saveDemoChecklistMoment, getDemoPhotosCount, clearDemoData } from '@/utils/demoDb'
+import { isVideoFile, getImageDataUrl, getVideoDetails } from '@/utils/media'
 import { useEventVaultStore, resolveStorageUrl } from '@/stores/eventVault'
 import BaseError from '@/views/BaseError.vue'
 import LoadingEvent from '@/views/LoadingEvent.vue'
@@ -28,6 +29,7 @@ const loading = ref(false);
 const hasGuestAuth = ref(false);
 const eventDetails = ref(null);
 const notFound = ref(false);
+const maxGuest = ref(false);
 const eventError = ref(false);
 const hasNotStartedYet = ref(false);
 const daysToGo = ref(0);
@@ -51,9 +53,17 @@ const maxNumberOfPhotosAllowed = 30;
 
 const bannerImage = computed(() => {
     if (eventDetails.value?.photos?.length) {
-        return eventDetails.value?.photos?.find(x => x.type == 'mobile_cropped')?.url;
+        if (!hasGuestAuth.value) {
+            return eventDetails.value?.photos?.find(x => x.type == 'mobile_cropped')?.url;
+        }
+        else {
+            return eventDetails.value?.photos?.find(x => x.type == 'desktop_cropped')?.url;
+        }
     }
     return `${storageURL}/static/cover-photo.jpg`;
+})
+const eventMaxGuest = computed(() => {
+    return eventDetails.value?.maxGuest || 0;
 })
 const isUnlimited = computed(() => {
     return eventDetails.value?.isUnlimited || false;
@@ -109,6 +119,10 @@ const getEventData = async (eventToken) => {
     try {
         const { data: response } = await axiosInstance.get(`/api/events/token/${eventToken}`)
         if (response?.error) {
+            if (response?.message?.includes('Max Guest')) {
+                maxGuest.value = true;
+                return;
+            }
             notFound.value = true;
             return;
         }
@@ -117,12 +131,16 @@ const getEventData = async (eventToken) => {
             hasNotStartedYet.value = true;
             return;
         }
-        if (new Date(response.uploadExpiry) < new Date()) {
+        if (new Date(response.photoExpiry) < new Date()) {
             notFound.value = true;
             return;
         }
         eventDetails.value = response;
     } catch (err) {
+        if (err?.response?.data?.message?.includes('Max Guest')) {
+            maxGuest.value = true;
+            return;
+        }
         eventError.value = true;
     }
 }
@@ -166,6 +184,9 @@ const submitGuest = async (guestName) => {
             deviceName,
         })
         if (response?.error) {
+            if (response?.message?.includes('Max Guest')) {
+                maxGuest.value = true;
+            }
             return;
         }
         hasGuestAuth.value = true;
@@ -174,6 +195,10 @@ const submitGuest = async (guestName) => {
         eventDetails.value.guestName = guestName;
         alreadyLoaded.value = true;
     } catch (error) {
+        if (error?.response?.data?.message?.includes('Max Guest')) {
+            maxGuest.value = true;
+            return;
+        }
         eventError.value = true;
     } finally {
         isSubmitting.value = false;
@@ -446,7 +471,7 @@ const performQuickUpload = async (photoItem) => {
             ? 'Mobile Device'
             : 'Desktop Browser',
     )
-    if (photoItem.isVideo && photoItem.dataUrl) {
+    if (photoItem.isVideo && photoItem.dataUrl && photoItem.dataUrl.startsWith('data:')) {
         formData.append('thumbnailBase64', photoItem.dataUrl)
     }
     formData.append('file', blob, fileName)
@@ -716,7 +741,20 @@ const uploadChecklistPhoto = async (momentItem, fileOrBlob, localPreviewUrl, ext
     }
 }
 
+const handleChecklistUpload = ({ moment, file, previewUrl, extra }) => {
+    galleryPhotos.value.push(previewUrl)
+    uploadChecklistPhoto(moment, file, previewUrl, extra)
+}
+
 const openGalleryPicker = () => {
+    const isQuick = captureMode.value === 'quick' || !activeMoment.value || activeMoment.value?.id === 'quick'
+    if (isQuick && !isUnlimited.value) {
+        const remainingSlots = Math.max(0, quickPhotosLeft.value - uploadedQuickPhotos.value.length)
+        if (remainingSlots <= 0) {
+            alert('Photo limit reached. You cannot upload any more photos or videos.')
+            return
+        }
+    }
     if (fileInput.value) {
         fileInput.value.removeAttribute('capture')
         fileInput.value.click()
@@ -765,47 +803,132 @@ const openGalleryLightbox = ({ items, index }) => {
     lightboxIndex.value = index
     isLightboxOpen.value = true
 }
-const handleFileChange = (e) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-            if (event.target && event.target.result) {
-                const dataResult = event.target.result
-                galleryPhotos.value.push(dataResult)
+const handleFileChange = async (e) => {
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
 
-                if (currentTargetTitle.value || (activeMoment.value && captureMode.value !== 'quick')) {
-                    const matched = moments.value.find(
-                        (m) => (activeMoment.value && Number(m.id) === Number(activeMoment.value.id))
-                    )
-                    if (matched) {
-                        const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
-                        const oldPhotoId = matched.photoId || null
-                        matched.captured = true
-                        matched.image = dataResult
-                        uploadChecklistPhoto(matched, files[0], dataResult, {
-                            isReplace,
-                            oldPhotoId,
-                            isVideo: files[0].type?.startsWith('video'),
-                            fileName: files[0].name,
-                            mimeType: files[0].type,
-                        })
-                    }
-                } else {
-                    handleCameraCapture({
-                        dataUrl: dataResult,
-                        blob: files[0],
-                        moment: { id: 'quick' },
-                        type: files[0].type?.startsWith('video') ? 'video' : 'photo',
-                        isVideo: files[0].type?.startsWith('video'),
-                        fileName: files[0].name,
-                        mimeType: files[0].type,
-                    })
+    const files = Array.from(fileList)
+    e.target.value = ''
+
+    const isQuick = captureMode.value === 'quick' || !activeMoment.value || activeMoment.value?.id === 'quick'
+
+    if (isQuick) {
+        const remainingSlots = isUnlimited.value
+            ? Infinity
+            : Math.max(0, quickPhotosLeft.value - uploadedQuickPhotos.value.length)
+
+        if (remainingSlots <= 0) {
+            alert('Photo limit reached. You cannot upload any more photos or videos.')
+            return
+        }
+
+        let filesToProcess = files
+        if (!isUnlimited.value && files.length > remainingSlots) {
+            alert(`You can only upload up to ${remainingSlots} item${remainingSlots > 1 ? 's' : ''}. Only the first ${remainingSlots} will be uploaded.`)
+            filesToProcess = files.slice(0, remainingSlots)
+        }
+
+        isCameraOpen.value = false
+
+        for (const file of filesToProcess) {
+            const isVid = isVideoFile(file)
+            if (isVid) {
+                const videoDetails = await getVideoDetails(file)
+                if (!videoDetails.valid) {
+                    alert(videoDetails.error || `Video "${file.name}" exceeds the 30-second limit. Videos must be 30 seconds or less.`)
+                    continue
                 }
+
+                await handleCameraCapture({
+                    dataUrl: videoDetails.thumbnailDataUrl || videoDetails.videoUrl,
+                    blob: file,
+                    moment: { id: 'quick' },
+                    type: 'video',
+                    isVideo: true,
+                    videoUrl: videoDetails.videoUrl || null,
+                    duration: Math.round(videoDetails.duration),
+                    fileName: file.name,
+                    mimeType: file.type || 'video/mp4',
+                })
+            } else {
+                const dataUrl = await getImageDataUrl(file)
+                if (!dataUrl) continue
+
+                await handleCameraCapture({
+                    dataUrl,
+                    blob: file,
+                    moment: { id: 'quick' },
+                    type: 'photo',
+                    isVideo: false,
+                    videoUrl: null,
+                    duration: null,
+                    fileName: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                })
             }
         }
-        reader.readAsDataURL(files[0])
-        e.target.value = ''
+    } else {
+        const file = files[0]
+        const isVid = isVideoFile(file)
+
+        if (isVid) {
+            const videoDetails = await getVideoDetails(file)
+            if (!videoDetails.valid) {
+                alert(videoDetails.error || `Video "${file.name}" exceeds the 30-second limit. Videos must be 30 seconds or less.`)
+                return
+            }
+
+            const matched = moments.value.find(
+                (m) => activeMoment.value && Number(m.id) === Number(activeMoment.value.id)
+            )
+            if (matched) {
+                const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
+                const oldPhotoId = matched.photoId || null
+                matched.captured = true
+                matched.image = videoDetails.thumbnailDataUrl || videoDetails.videoUrl
+                matched.fullImage = videoDetails.thumbnailDataUrl || videoDetails.videoUrl
+                matched.isVideo = true
+                matched.videoUrl = videoDetails.videoUrl
+                matched.videoBlob = file
+                galleryPhotos.value.push(videoDetails.thumbnailDataUrl || videoDetails.videoUrl)
+                uploadChecklistPhoto(matched, file, videoDetails.thumbnailDataUrl || videoDetails.videoUrl, {
+                    isReplace,
+                    oldPhotoId,
+                    isVideo: true,
+                    videoUrl: videoDetails.videoUrl,
+                    duration: Math.round(videoDetails.duration),
+                    fileName: file.name,
+                    mimeType: file.type || 'video/mp4',
+                })
+            }
+        } else {
+            const dataUrl = await getImageDataUrl(file)
+            if (!dataUrl) return
+            galleryPhotos.value.push(dataUrl)
+
+            const matched = moments.value.find(
+                (m) => activeMoment.value && Number(m.id) === Number(activeMoment.value.id)
+            )
+            if (matched) {
+                const isReplace = Boolean(matched.captured || activeMoment.value?.isReplace)
+                const oldPhotoId = matched.photoId || null
+                matched.captured = true
+                matched.image = dataUrl
+                matched.fullImage = dataUrl
+                matched.isVideo = false
+                uploadChecklistPhoto(matched, file, dataUrl, {
+                    isReplace,
+                    oldPhotoId,
+                    isVideo: false,
+                    fileName: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                })
+            }
+        }
+
+        setTimeout(() => {
+            isCameraOpen.value = false
+        }, 500)
     }
 }
 onMounted(async () => {
@@ -831,6 +954,10 @@ onMounted(async () => {
     if (storedSessions) {
         hasGuestAuth.value = true;
         eventDetails.value = storedSessions;
+        if (new Date(eventDetails.value.photoExpiry) < new Date()) {
+            notFound.value = true;
+            return;
+        }
         await eventVaultStore.fetchInitialGuestData(route.params.id, storedSessions.guestCode)
         loading.value = false;
         return;
@@ -852,7 +979,8 @@ onMounted(async () => {
             <LoadingEvent />
         </template>
         <template v-else>
-            <BaseError type="notfound" v-if="notFound" @homepage="goToHomePage" />
+            <BaseError type="maxguest" v-if="maxGuest" :maxGuest="eventMaxGuest" @homepage="goToHomePage" />
+            <BaseError type="notfound" v-else-if="notFound" @homepage="goToHomePage" />
             <BaseError type="notstarted" v-else-if="hasNotStartedYet" :days="daysToGo" @homepage="goToHomePage" />
             <BaseError type="error" v-else-if="eventError" @homepage="goToHomePage" />
             <template v-else>
@@ -910,15 +1038,16 @@ onMounted(async () => {
                         <EventWelcomePage v-if="eventDetails?.token && !hasGuestAuth" :eventDetails="eventDetails"
                             :isPressed="isPressed" @homepage="goToHomePage" @get-started="handleGetStarted" />
                         <template v-else-if="eventDetails?.token && hasGuestAuth">
-                            <input id="photo-upload-input" ref="fileInput" accept="image/*" capture="environment"
+                            <input id="photo-upload-input" ref="fileInput" accept="image/*,video/*" multiple
                                 class="checklist-hidden-input" type="file" @change="handleFileChange">
                             <EventBoard v-if="tabModel == 'capture'" ref="eventBoardRef" :eventDetails="eventDetails"
-                                v-model:captureMode="captureMode" :isDemo="isDemo"
+                                v-model:captureMode="captureMode" :isDemo="isDemo" :isUnlimited="isUnlimited"
                                 :uploadedQuickPhotos="uploadedQuickPhotos" :moments="moments"
                                 :quickPhotosLeft="quickPhotosLeft" :capturedCount="capturedCount"
                                 :totalCount="totalCount" :progressPercent="progressPercent" @reset-demo="resetDemo"
                                 @open-camera="openCamera" @open-lightbox="openQuickPhotoLightbox"
-                                @open-moment-lightbox="openMomentLightbox" />
+                                @open-moment-lightbox="openMomentLightbox" @capture="handleCameraCapture"
+                                @upload-moment="handleChecklistUpload" />
                             <LiveGallery :eventDetails="eventDetails" :isDemo="isDemo" v-if="tabModel == 'gallery'"
                                 @open-lightbox="openGalleryLightbox" />
                             <EventTab v-model="tabModel" />

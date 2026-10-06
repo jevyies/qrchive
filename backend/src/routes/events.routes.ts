@@ -6,6 +6,7 @@ import path from 'path';
 import { db, events, users, guests, snapGuests, snapPhotos, snapChecklist, eventPhotos, storeUsers, stores, Event, NewEvent } from '../db';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 import { R2Service, R2_ROOT_FOLDER, R2_PUBLIC_DOMAIN } from '../services/r2.service';
+import { enqueueBackgroundUploadJob, getBackgroundUploadJobStatus } from '../queues';
 
 export const eventRoutes: FastifyPluginAsync = async (app) => {
   // ==========================================
@@ -45,6 +46,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
                     userId: { type: 'integer' },
                     token: { type: 'string', nullable: true },
                     name: { type: 'string' },
+                    eventCategory: { type: 'string', nullable: true },
+                    paymentStatus: { type: 'string', nullable: true },
                     brideFirstname: { type: 'string', nullable: true },
                     brideLastname: { type: 'string', nullable: true },
                     groomFirstname: { type: 'string', nullable: true },
@@ -52,6 +55,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
                     invitationDeadline: { type: 'string', nullable: true },
                     eventDate: { type: 'string', nullable: true },
                     weddingDate: { type: 'string', nullable: true },
+                    isUnlimited: { type: 'boolean', nullable: true },
                     guestCount: { type: 'integer' },
                     photoCount: { type: 'integer' },
                     user: {
@@ -113,12 +117,15 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         userId: e.userId,
         token: e.token,
         name: e.name,
+        eventCategory: e.eventCategory,
+        paymentStatus: e.paymentStatus,
         brideFirstname: e.brideFirstname,
         brideLastname: e.brideLastname,
         groomFirstname: e.groomFirstname,
         groomLastname: e.groomLastname,
         maxGuest: e.maxGuest,
         price: e.price,
+        isUnlimited: e.isUnlimited,
         invitationDeadline: e.invitationDeadline,
         eventDate: e.eventDate,
         weddingDate: e.eventDate,
@@ -180,12 +187,16 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
                     userId: { type: 'integer' },
                     token: { type: 'string', nullable: true },
                     name: { type: 'string' },
+                    eventCategory: { type: 'string', nullable: true },
+                    paymentStatus: { type: 'string', nullable: true },
                     brideFirstname: { type: 'string', nullable: true },
                     brideLastname: { type: 'string', nullable: true },
                     groomFirstname: { type: 'string', nullable: true },
                     groomLastname: { type: 'string', nullable: true },
                     maxGuest: { type: 'integer', nullable: true },
                     price: { type: 'string', nullable: true },
+                    isUnlimited: { type: 'boolean', nullable: true },
+                    photoExpiry: { type: 'string', nullable: true },
                     invitationDeadline: { type: 'string', nullable: true },
                     eventDate: { type: 'string', nullable: true },
                     createdAt: { type: 'string' },
@@ -242,6 +253,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           userId: e.userId,
           token: e.token,
           name: e.name,
+          eventCategory: e.eventCategory,
+          paymentStatus: e.paymentStatus,
           brideFirstname: e.brideFirstname,
           brideLastname: e.brideLastname,
           groomFirstname: e.groomFirstname,
@@ -249,7 +262,6 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           maxGuest: e.maxGuest,
           price: e.price,
           isUnlimited: e.isUnlimited,
-          uploadExpiry: e.uploadExpiry,
           photoExpiry: e.photoExpiry,
           invitationDeadline: e.invitationDeadline,
           eventDate: e.eventDate,
@@ -339,9 +351,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         id: event.id,
         name: event.name,
         token: event.token,
+        eventCategory: event.eventCategory,
+        paymentStatus: event.paymentStatus,
         eventDate: event.eventDate,
         weddingDate: event.eventDate,
-        uploadExpiry: event.uploadExpiry,
         photoExpiry: event.photoExpiry,
         isUnlimited: event.isUnlimited,
         brideFirstname: event.brideFirstname,
@@ -363,7 +376,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
   // ==========================================
   // 2c. GET EVENT STATS BY TOKEN (GET /token/:token/stats)
-  // [id, event_date, upload_expiry, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers (total uploaders)]
+  // [id, event_date, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers (total uploaders)]
   // ==========================================
   const handleGetEventStats = async (request: FastifyRequest, reply: FastifyReply) => {
     const rawToken = (request.params as any).token || (request.params as any).id;
@@ -447,14 +460,19 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
     });
     const deskCropped = backgroundRows.find((b) => b.type === 'desktop_cropped');
     const mobCropped = backgroundRows.find((b) => b.type === 'mobile_cropped');
+    const origBackground = backgroundRows.find((b) => b.type === 'original' || b.type === 'mobile_original' || b.type === 'desktop_original');
 
     return reply.send({
       id: event.id,
       name: event.name,
       token: event.token,
+      eventCategory: event.eventCategory,
+      event_category: event.eventCategory,
+      paymentStatus: event.paymentStatus,
+      payment_status: event.paymentStatus,
       isUnlimited: event.isUnlimited,
+      is_unlimited: event.isUnlimited,
       event_date: event.eventDate,
-      upload_expiry: event.uploadExpiry,
       photo_expiry: event.photoExpiry,
       totalPhotos,
       totalVideos,
@@ -462,11 +480,11 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       totalUsers,
       desktopCroppedUrl: deskCropped?.url || null,
       mobileCroppedUrl: mobCropped?.url || null,
+      originalUrl: origBackground?.url || null,
       backgrounds: backgroundRows,
       // camelCase aliases for convenience
       eventDate: event.eventDate,
       weddingDate: event.eventDate,
-      uploadExpiry: event.uploadExpiry,
       photoExpiry: event.photoExpiry,
       totalUploaders: totalUsers,
       totalBytes,
@@ -487,7 +505,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       schema: {
         tags: ['Events'],
         summary: 'Get Event Stats by Public Token',
-        description: 'Retrieves event stats (id, event_date, upload_expiry, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers) by event token.',
+        description: 'Retrieves event stats (id, event_date, photo_expiry, totalPhotos, totalVideos, totalGigabytes, totalUsers) by event token.',
         params: {
           type: 'object',
           required: ['token'],
@@ -728,99 +746,90 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       if (Array.isArray(body?.items)) {
         itemsToProcess.push(...body.items);
       } else {
+        if (body?.original) itemsToProcess.push({ type: 'original', ...body.original });
         if (body?.mobileOriginal) itemsToProcess.push({ type: 'mobile_original', ...body.mobileOriginal });
         if (body?.mobileCropped) itemsToProcess.push({ type: 'mobile_cropped', ...body.mobileCropped });
         if (body?.desktopOriginal) itemsToProcess.push({ type: 'desktop_original', ...body.desktopOriginal });
         if (body?.desktopCropped) itemsToProcess.push({ type: 'desktop_cropped', ...body.desktopCropped });
       }
 
-      const savedResults: any[] = [];
-
-      for (const item of itemsToProcess) {
-        if (!item.type) continue;
-
-        let finalUrl = item.url || '';
-        let storageKey = '';
-        let mimeType = 'image/jpeg';
-        let fileSize = 0;
-
-        if (item.dataUrl && item.dataUrl.startsWith('data:')) {
-          const match = item.dataUrl.match(/^data:([A-Za-z0-9\/\-+.]+);base64,(.+)$/);
-          if (match) {
-            mimeType = match[1];
-            const base64Data = match[2];
-            const buffer = Buffer.from(base64Data, 'base64');
-            fileSize = buffer.length;
-
-            const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
-            const cleanName = (item.fileName || `${item.type}.${ext}`).replace(/[^a-zA-Z0-9.-]/g, '_');
-            const uniqueKey = `${R2_ROOT_FOLDER}/events/${event.token || event.id}/backgrounds/${Date.now()}_${item.type}_${cleanName}`;
-            storageKey = uniqueKey;
-
-            try {
-              finalUrl = await R2Service.putObject(uniqueKey, buffer, mimeType);
-            } catch (r2Err: any) {
-              request.log.error({ err: r2Err.message }, 'Failed to upload event photo to R2 storage');
-              return reply.status(500).send({
-                error: 'R2StorageError',
-                message: `Failed to upload ${item.type} background photo to R2 storage: ${r2Err.message}`,
-              });
-            }
-          }
-        }
-
-        const existing = await db.query.eventPhotos.findFirst({
-          where: and(
-            eq(eventPhotos.eventId, event.id),
-            eq(eventPhotos.type, item.type)
-          ),
+      if (itemsToProcess.length === 0) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'No background items provided for upload',
         });
+      }
 
-        if (existing) {
-          // If replacing with a new image and existing had an R2 key, delete the old R2 object
-          if (existing.storageKey && storageKey && existing.storageKey !== storageKey) {
-            try {
-              await R2Service.deleteObject(existing.storageKey);
-            } catch (delErr) {
-              request.log.warn({ err: delErr }, `Failed to delete old R2 background object: ${existing.storageKey}`);
-            }
+      const jobId = crypto.randomUUID();
+
+      await enqueueBackgroundUploadJob({
+        jobId,
+        eventId: event.id,
+        eventToken: event.token || undefined,
+        items: itemsToProcess,
+        requestedAt: new Date().toISOString(),
+      });
+
+      request.log.info(`[BackgroundUpload] Enqueued background upload job ${jobId} for event ${event.id}`);
+
+      // If synchronous waiting is requested via ?sync=true, wait for job completion
+      if ((request.query as any)?.sync === 'true') {
+        const startTime = Date.now();
+        while (Date.now() - startTime < 60000) {
+          await new Promise((r) => setTimeout(r, 400));
+          const currentStatus = await getBackgroundUploadJobStatus(jobId);
+          if (currentStatus.status === 'completed') {
+            return reply.send({
+              success: true,
+              message: 'Event background photos saved successfully to R2 storage',
+              backgrounds: currentStatus.result?.savedResults || [],
+              jobId,
+            });
           }
-
-          const [updated] = await db
-            .update(eventPhotos)
-            .set({
-              url: finalUrl || existing.url,
-              storageKey: storageKey || existing.storageKey,
-              fileName: item.fileName || existing.fileName,
-              fileSize: fileSize || existing.fileSize,
-              mimeType: mimeType || existing.mimeType,
-              cropData: item.cropData !== undefined ? item.cropData : existing.cropData,
-            })
-            .where(eq(eventPhotos.id, existing.id))
-            .returning();
-          savedResults.push(updated);
-        } else {
-          const [created] = await db
-            .insert(eventPhotos)
-            .values({
-              eventId: event.id,
-              url: finalUrl,
-              storageKey,
-              fileName: item.fileName || `${item.type}.jpg`,
-              fileSize,
-              mimeType,
-              type: item.type,
-              cropData: item.cropData || null,
-            })
-            .returning();
-          savedResults.push(created);
+          if (currentStatus.status === 'failed') {
+            return reply.status(500).send({
+              error: 'BackgroundProcessingFailed',
+              message: currentStatus.error || 'Failed to process background photos in queue',
+              jobId,
+            });
+          }
         }
       }
 
-      return reply.send({
-        message: 'Event background photos saved successfully to R2 storage',
-        backgrounds: savedResults,
+      return reply.status(202).send({
+        success: true,
+        message: 'Event background upload queued successfully in BullMQ',
+        jobId,
+        status: 'queued',
+        statusUrl: `/api/events/${event.id}/backgrounds/status/${jobId}`,
+        eventId: event.id,
       });
+    }
+  );
+
+  // GET /:id/backgrounds/status/:jobId - Poll background upload job progress
+  app.get(
+    '/:id/backgrounds/status/:jobId',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Events'],
+        summary: 'Check Background Upload Job Status',
+        description: 'Polls the status and progress of an asynchronous event background upload job in BullMQ',
+        params: {
+          type: 'object',
+          required: ['id', 'jobId'],
+          properties: {
+            id: { type: 'string' },
+            jobId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { jobId } = request.params as any;
+      const statusData = await getBackgroundUploadJobStatus(jobId);
+      return reply.send(statusData);
     }
   );
 
@@ -902,6 +911,8 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         userId: event.userId,
         token: event.token,
         name: event.name,
+        eventCategory: event.eventCategory,
+        paymentStatus: event.paymentStatus,
         brideFirstname: event.brideFirstname,
         brideLastname: event.brideLastname,
         groomFirstname: event.groomFirstname,
@@ -909,7 +920,6 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         maxGuest: event.maxGuest,
         price: event.price,
         isUnlimited: event.isUnlimited,
-        uploadExpiry: event.uploadExpiry,
         photoExpiry: event.photoExpiry,
         invitationDeadline: event.invitationDeadline,
         eventDate: event.eventDate,
@@ -938,6 +948,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           properties: {
             name: { type: 'string' },
             token: { type: 'string' },
+            eventCategory: { type: 'string' },
+            event_category: { type: 'string' },
+            paymentStatus: { type: 'string' },
+            payment_status: { type: 'string' },
             brideFirstname: { type: 'string' },
             brideLastname: { type: 'string' },
             groomFirstname: { type: 'string' },
@@ -945,9 +959,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
-            uploadExpiry: { type: 'string' },
             photoExpiry: { type: 'string' },
             isUnlimited: { type: 'boolean' },
+            is_unlimited: { type: 'boolean' },
             maxGuest: { type: 'integer' },
             price: { type: ['string', 'number'] },
             userId: { type: 'integer' },
@@ -970,21 +984,23 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       const generatedToken = body.token || crypto.randomBytes(4).toString('hex');
       const targetEventDate = body.eventDate || body.weddingDate || null;
 
-      let uploadExpiry: string | null = body.uploadExpiry || body.upload_expiry || null;
       let photoExpiry: string | null = body.photoExpiry || body.photo_expiry || null;
 
       if (targetEventDate) {
         const eventDateObj = new Date(targetEventDate);
         if (!isNaN(eventDateObj.getTime())) {
-          const uploadExpiryDate = new Date(eventDateObj);
-          uploadExpiryDate.setDate(uploadExpiryDate.getDate() + 30);
-          uploadExpiry = uploadExpiryDate.toISOString();
-
           const photoExpiryDate = new Date(eventDateObj);
           photoExpiryDate.setDate(photoExpiryDate.getDate() + 60);
           photoExpiry = photoExpiryDate.toISOString();
         }
       }
+
+      const isUnlimitedVal =
+        body.isUnlimited !== undefined && body.isUnlimited !== null
+          ? Boolean(body.isUnlimited)
+          : body.is_unlimited !== undefined && body.is_unlimited !== null
+            ? Boolean(body.is_unlimited)
+            : false;
 
       const [newEvent] = await db
         .insert(events)
@@ -992,15 +1008,16 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           userId: targetUserId,
           token: generatedToken,
           name: body.name,
-          brideFirstname: body.brideFirstname || null,
-          brideLastname: body.brideLastname || null,
-          groomFirstname: body.groomFirstname || null,
-          groomLastname: body.groomLastname || null,
+          eventCategory: body.eventCategory || body.event_category || 'Wedding',
+          paymentStatus: body.paymentStatus || body.payment_status || 'pending',
+          brideFirstname: body.brideFirstname || body.bride_firstname || null,
+          brideLastname: body.brideLastname || body.bride_lastname || null,
+          groomFirstname: body.groomFirstname || body.groom_firstname || null,
+          groomLastname: body.groomLastname || body.groom_lastname || null,
           invitationDeadline: body.invitationDeadline || null,
           eventDate: targetEventDate,
-          uploadExpiry: uploadExpiry,
           photoExpiry: photoExpiry,
-          isUnlimited: body.isUnlimited !== undefined && body.isUnlimited !== null ? Boolean(body.isUnlimited) : false,
+          isUnlimited: isUnlimitedVal,
           maxGuest: body.maxGuest !== undefined && body.maxGuest !== null ? Number(body.maxGuest) : null,
           price: body.price !== undefined && body.price !== null ? String(body.price) : null,
         })
@@ -1012,8 +1029,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           id: newEvent.id,
           name: newEvent.name,
           token: newEvent.token,
+          eventCategory: newEvent.eventCategory,
+          paymentStatus: newEvent.paymentStatus,
           eventDate: newEvent.eventDate,
-          uploadExpiry: newEvent.uploadExpiry,
           photoExpiry: newEvent.photoExpiry,
           isUnlimited: newEvent.isUnlimited,
         },
@@ -1043,6 +1061,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
           type: 'object',
           properties: {
             name: { type: 'string' },
+            eventCategory: { type: 'string' },
+            event_category: { type: 'string' },
+            paymentStatus: { type: 'string' },
+            payment_status: { type: 'string' },
             brideFirstname: { type: 'string' },
             brideLastname: { type: 'string' },
             groomFirstname: { type: 'string' },
@@ -1050,9 +1072,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
             invitationDeadline: { type: 'string' },
             eventDate: { type: 'string' },
             weddingDate: { type: 'string' },
-            uploadExpiry: { type: 'string' },
             photoExpiry: { type: 'string' },
             isUnlimited: { type: 'boolean' },
+            is_unlimited: { type: 'boolean' },
             maxGuest: { type: 'integer' },
             price: { type: ['string', 'number'] },
           },
@@ -1081,6 +1103,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
       const updatePayload: Partial<NewEvent> = {};
       if (body.name !== undefined) updatePayload.name = body.name;
+      if (body.eventCategory !== undefined) updatePayload.eventCategory = body.eventCategory;
+      if (body.event_category !== undefined) updatePayload.eventCategory = body.event_category;
+      if (body.paymentStatus !== undefined) updatePayload.paymentStatus = body.paymentStatus;
+      if (body.payment_status !== undefined) updatePayload.paymentStatus = body.payment_status;
       if (body.brideFirstname !== undefined) updatePayload.brideFirstname = body.brideFirstname;
       if (body.brideLastname !== undefined) updatePayload.brideLastname = body.brideLastname;
       if (body.groomFirstname !== undefined) updatePayload.groomFirstname = body.groomFirstname;
@@ -1092,18 +1118,12 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         if (newEventDate) {
           const eventDateObj = new Date(newEventDate);
           if (!isNaN(eventDateObj.getTime())) {
-            const uploadExpiryDate = new Date(eventDateObj);
-            uploadExpiryDate.setDate(uploadExpiryDate.getDate() + 30);
-            updatePayload.uploadExpiry = uploadExpiryDate.toISOString();
-
             const photoExpiryDate = new Date(eventDateObj);
             photoExpiryDate.setDate(photoExpiryDate.getDate() + 60);
             updatePayload.photoExpiry = photoExpiryDate.toISOString();
           }
         }
       }
-      if (body.uploadExpiry !== undefined) updatePayload.uploadExpiry = body.uploadExpiry;
-      if (body.upload_expiry !== undefined) updatePayload.uploadExpiry = body.upload_expiry;
       if (body.photoExpiry !== undefined) updatePayload.photoExpiry = body.photoExpiry;
       if (body.photo_expiry !== undefined) updatePayload.photoExpiry = body.photo_expiry;
       if (body.isUnlimited !== undefined) updatePayload.isUnlimited = Boolean(body.isUnlimited);
@@ -1166,7 +1186,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         });
         for (const p of bgPhotos) {
           if (p.storageKey) {
-            await R2Service.deleteObject(p.storageKey).catch(() => {});
+            await R2Service.deleteObject(p.storageKey).catch(() => { });
           }
         }
       } catch (r2Err) {

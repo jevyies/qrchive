@@ -23,19 +23,25 @@ const isSaving = ref(false)
 
 // Editable Form Fields (all event details EXCEPT payment details)
 const name = ref('')
+const eventCategory = ref('Wedding')
+const eventCategoryOptions = ['Wedding', 'Anniversary', 'Others']
 const eventDate = ref('')
 const brideFirstname = ref('')
 const brideLastname = ref('')
 const groomFirstname = ref('')
 const groomLastname = ref('')
 const invitationDeadline = ref('')
-const uploadExpiry = ref('')
 const photoExpiry = ref('')
+
+const isCoupleCategory = computed(() => {
+  return eventCategory.value === 'Wedding' || eventCategory.value === 'Anniversary'
+})
 
 // Initialize fields from props.eventData
 const initFormData = () => {
   const d = props.eventData || {}
   name.value = d.name || ''
+  eventCategory.value = d.eventCategory || d.event_category || 'Wedding'
 
   // Format date strings to YYYY-MM-DD for date inputs
   const parseDateForInput = (val) => {
@@ -55,7 +61,6 @@ const initFormData = () => {
   groomFirstname.value = d.groomFirstname || d.groom_firstname || ''
   groomLastname.value = d.groomLastname || d.groom_lastname || ''
   invitationDeadline.value = parseDateForInput(d.invitationDeadline || d.invitation_deadline)
-  uploadExpiry.value = parseDateForInput(d.uploadExpiry || d.upload_expiry)
   photoExpiry.value = parseDateForInput(d.photoExpiry || d.photo_expiry)
 }
 
@@ -88,6 +93,11 @@ const priceDisplay = computed(() => {
   return isNaN(num) ? `₱${p}` : `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
 })
 
+const paymentStatusDisplay = computed(() => {
+  const raw = props.eventData?.paymentStatus || props.eventData?.payment_status || 'pending'
+  return `Payment: ${raw.charAt(0).toUpperCase() + raw.slice(1)}`
+})
+
 const handleSubmit = async () => {
   if (!name.value.trim()) {
     toast.show({
@@ -101,14 +111,14 @@ const handleSubmit = async () => {
   try {
     const payload = {
       name: name.value.trim(),
+      eventCategory: eventCategory.value,
       eventDate: eventDate.value ? new Date(eventDate.value).toISOString() : null,
       weddingDate: eventDate.value ? new Date(eventDate.value).toISOString() : null,
-      brideFirstname: brideFirstname.value.trim() || null,
-      brideLastname: brideLastname.value.trim() || null,
-      groomFirstname: groomFirstname.value.trim() || null,
-      groomLastname: groomLastname.value.trim() || null,
+      brideFirstname: isCoupleCategory.value ? (brideFirstname.value.trim() || null) : null,
+      brideLastname: isCoupleCategory.value ? (brideLastname.value.trim() || null) : null,
+      groomFirstname: isCoupleCategory.value ? (groomFirstname.value.trim() || null) : null,
+      groomLastname: isCoupleCategory.value ? (groomLastname.value.trim() || null) : null,
       invitationDeadline: invitationDeadline.value ? new Date(invitationDeadline.value).toISOString() : null,
-      uploadExpiry: uploadExpiry.value ? new Date(uploadExpiry.value).toISOString() : null,
       photoExpiry: photoExpiry.value ? new Date(photoExpiry.value).toISOString() : null,
     }
 
@@ -155,6 +165,7 @@ const handleSubmit = async () => {
           <span class="readonly-pill">{{ packageLabel }}</span>
           <span class="readonly-pill readonly-pill--gold">{{ maxGuestDisplay }}</span>
           <span class="readonly-pill readonly-pill--price">{{ priceDisplay }}</span>
+          <span class="readonly-pill readonly-pill--status">{{ paymentStatusDisplay }}</span>
         </div>
         <p class="payment-readonly-note">
           <span class="material-symbols-outlined lock-icon">lock</span>
@@ -175,88 +186,62 @@ const handleSubmit = async () => {
         <div class="form-grid">
           <div class="form-group form-group--full">
             <label class="form-label" for="eventName">Celebration / Event Name *</label>
-            <input
-              id="eventName"
-              v-model="name"
-              type="text"
-              class="form-input"
-              placeholder="e.g. Keann & Jenny's Wedding Celebration"
-              required
-            />
+            <input id="eventName" v-model="name" type="text" class="form-input"
+              placeholder="e.g. Keann & Jenny's Wedding Celebration" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="eventCategory">Event Category *</label>
+            <div class="select-container">
+              <select id="eventCategory" v-model="eventCategory" class="form-input custom-select" required>
+                <option v-for="cat in eventCategoryOptions" :key="cat" :value="cat">
+                  {{ cat }}
+                </option>
+              </select>
+              <span class="material-symbols-outlined select-arrow">expand_more</span>
+            </div>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="eventDate">Celebration Date</label>
-            <input
-              id="eventDate"
-              v-model="eventDate"
-              type="date"
-              class="form-input"
-            />
+            <input id="eventDate" v-model="eventDate" type="date" class="form-input" />
           </div>
 
-          <div class="form-group">
+          <div class="form-group form-group--full">
             <label class="form-label" for="invitationDeadline">RSVP / Invitation Deadline</label>
-            <input
-              id="invitationDeadline"
-              v-model="invitationDeadline"
-              type="date"
-              class="form-input"
-            />
+            <input id="invitationDeadline" v-model="invitationDeadline" type="date" class="form-input" />
           </div>
         </div>
       </div>
 
-      <!-- Section 2: Couple / Celebrants -->
-      <div class="form-section">
+      <!-- Section 2: Couple / Celebrants (Only for Wedding & Anniversary) -->
+      <div v-if="isCoupleCategory" class="form-section">
         <h3 class="form-section-title">
           <span class="material-symbols-outlined section-icon">favorite</span>
-          <span>Celebrated Couple</span>
+          <span>Celebrated Couple Details</span>
         </h3>
 
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label" for="brideFirstname">Bride / Partner 1 First Name</label>
-            <input
-              id="brideFirstname"
-              v-model="brideFirstname"
-              type="text"
-              class="form-input"
-              placeholder="First name"
-            />
+            <input id="brideFirstname" v-model="brideFirstname" type="text" class="form-input"
+              placeholder="First name" />
           </div>
 
           <div class="form-group">
             <label class="form-label" for="brideLastname">Bride / Partner 1 Last Name</label>
-            <input
-              id="brideLastname"
-              v-model="brideLastname"
-              type="text"
-              class="form-input"
-              placeholder="Last name"
-            />
+            <input id="brideLastname" v-model="brideLastname" type="text" class="form-input" placeholder="Last name" />
           </div>
 
           <div class="form-group">
             <label class="form-label" for="groomFirstname">Groom / Partner 2 First Name</label>
-            <input
-              id="groomFirstname"
-              v-model="groomFirstname"
-              type="text"
-              class="form-input"
-              placeholder="First name"
-            />
+            <input id="groomFirstname" v-model="groomFirstname" type="text" class="form-input"
+              placeholder="First name" />
           </div>
 
           <div class="form-group">
             <label class="form-label" for="groomLastname">Groom / Partner 2 Last Name</label>
-            <input
-              id="groomLastname"
-              v-model="groomLastname"
-              type="text"
-              class="form-input"
-              placeholder="Last name"
-            />
+            <input id="groomLastname" v-model="groomLastname" type="text" class="form-input" placeholder="Last name" />
           </div>
         </div>
       </div>
@@ -269,25 +254,9 @@ const handleSubmit = async () => {
         </h3>
 
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label" for="uploadExpiry">Upload Window Expiry</label>
-            <input
-              id="uploadExpiry"
-              v-model="uploadExpiry"
-              type="date"
-              class="form-input"
-            />
-            <span class="form-hint">Date until guests can upload new media to the live vault</span>
-          </div>
-
-          <div class="form-group">
+          <div class="form-group form-group--full">
             <label class="form-label" for="photoExpiry">Archive Storage Expiry</label>
-            <input
-              id="photoExpiry"
-              v-model="photoExpiry"
-              type="date"
-              class="form-input"
-            />
+            <input id="photoExpiry" v-model="photoExpiry" type="date" class="form-input" />
             <span class="form-hint">Date until the high-res gallery remains hosted for download</span>
           </div>
         </div>
@@ -295,14 +264,7 @@ const handleSubmit = async () => {
 
       <!-- Submit Row -->
       <div class="form-actions">
-        <JBtn
-          type="submit"
-          color="primary"
-          size="md"
-          :loading="isSaving"
-          :disabled="isSaving"
-          class="save-btn"
-        >
+        <JBtn type="submit" color="primary" size="md" :loading="isSaving" :disabled="isSaving" class="save-btn">
           <span class="material-symbols-outlined btn-icon">save</span>
           <span>Save Changes</span>
         </JBtn>
@@ -403,6 +365,12 @@ const handleSubmit = async () => {
       font-weight: 700;
       color: var(--primary, #c5a059);
     }
+
+    &--status {
+      font-weight: 600;
+      color: var(--text-secondary, #4e4639);
+      background: var(--bg-surface-tonal, rgba(197, 160, 89, 0.08));
+    }
   }
 
   .payment-readonly-note {
@@ -502,6 +470,27 @@ const handleSubmit = async () => {
   &:focus {
     border-color: var(--border-color-focus, var(--primary, #c5a059));
     box-shadow: 0 0 0 3px var(--ring-color, rgba(197, 160, 89, 0.2));
+  }
+}
+
+.select-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  .custom-select {
+    appearance: none;
+    padding-right: 2.25rem;
+    cursor: pointer;
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 0.75rem;
+    pointer-events: none;
+    font-size: 1.25rem;
+    color: var(--text-muted, #7f7667);
   }
 }
 

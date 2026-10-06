@@ -116,18 +116,11 @@ const handleAction = () => {
 </script>
 
 <template>
-  <div
-    :class="toastClasses"
-    role="alert"
-    aria-live="polite"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-  >
+  <div :class="toastClasses" role="alert" aria-live="polite" @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave">
     <div class="toast-content-wrapper">
       <!-- Toast Leading Icon -->
-      <div v-if="icon" class="toast-icon-wrapper" aria-hidden="true">
-        <span>{{ icon }}</span>
-      </div>
+      <JIcon :name="icon" :size="30" :color="color" v-if="icon" class="me-2" />
 
       <!-- Toast Body -->
       <div class="toast-body">
@@ -137,13 +130,8 @@ const handleAction = () => {
         <!-- Optional Action Slot / Button -->
         <div v-if="action || $slots.action" class="toast-actions">
           <slot name="action">
-            <button
-              v-if="action"
-              type="button"
-              class="btn btn-xs"
-              :class="variant === 'solid' ? 'btn-tonal-neutral' : `btn-${color}`"
-              @click.stop="handleAction"
-            >
+            <button v-if="action" type="button" class="btn btn-xs"
+              :class="variant === 'solid' ? 'btn-tonal-neutral' : `btn-${color}`" @click.stop="handleAction">
               {{ action.label }}
             </button>
           </slot>
@@ -151,23 +139,14 @@ const handleAction = () => {
       </div>
 
       <!-- Dismiss Button -->
-      <button
-        v-if="dismissible"
-        type="button"
-        class="toast-dismiss-btn"
-        aria-label="Close notification"
-        @click.stop="handleDismiss"
-      >
+      <button v-if="dismissible" type="button" class="toast-dismiss-btn" aria-label="Close notification"
+        @click.stop="handleDismiss">
         <span aria-hidden="true">✕</span>
       </button>
     </div>
 
     <!-- Countdown Progress Bar -->
-    <div
-      v-if="showProgress && timeout > 0"
-      class="toast-progress-bar animating"
-      :class="{ 'is-paused': isPaused }"
-      :style="{ animationDuration: `${timeout}ms` }"
-    />
+    <div v-if="showProgress && timeout > 0" class="toast-progress-bar animating" :class="{ 'is-paused': isPaused }"
+      :style="{ animationDuration: `${timeout}ms` }" />
   </div>
 </template>

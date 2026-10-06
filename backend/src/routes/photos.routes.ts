@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
-import { db, snapPhotos, snapGuests, snapChecklist, photos, events, snapPhotoLikes, eventPhotos, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
+import { db, snapPhotos, snapGuests, snapChecklist, events, snapPhotoLikes, eventPhotos, SnapPhoto, NewSnapPhoto, SnapGuest, NewSnapGuest } from '../db';
 import { R2Service, R2_PUBLIC_DOMAIN } from '../services/r2.service';
 import { BatchUploadService } from '../services/batchUpload.service';
 import { photoUploadQueue } from '../queues/photoUpload.queue';
@@ -588,8 +588,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       }
 
       // Check photo record in DB
-      const photo = await db.query.photos.findFirst({
-        where: eq(photos.id, photoId),
+      const photo = await db.query.snapPhotos.findFirst({
+        where: eq(snapPhotos.id, photoId),
       });
 
       if (!photo) {
@@ -704,8 +704,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { photoId, uploadId, parts } = request.body as any;
 
-      const photo = await db.query.photos.findFirst({
-        where: eq(photos.id, Number(photoId)),
+      const photo = await db.query.snapPhotos.findFirst({
+        where: eq(snapPhotos.id, Number(photoId)),
       });
 
       if (!photo) {
@@ -778,12 +778,12 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
 
       // Update record in database: status = completed, url
       const [updatedPhoto] = await db
-        .update(photos)
+        .update(snapPhotos)
         .set({
           url: photoUrl,
           status: 'completed',
         })
-        .where(eq(photos.id, photo.id))
+        .where(eq(snapPhotos.id, photo.id))
         .returning();
 
       // If part of a Redis batch, update batch progress
@@ -881,8 +881,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { photoId, uploadId } = request.body as any;
 
-      const photo = await db.query.photos.findFirst({
-        where: eq(photos.id, Number(photoId)),
+      const photo = await db.query.snapPhotos.findFirst({
+        where: eq(snapPhotos.id, Number(photoId)),
       });
 
       if (!photo) {
@@ -909,9 +909,9 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
 
       // Mark record as failed
       await db
-        .update(photos)
+        .update(snapPhotos)
         .set({ status: 'failed' })
-        .where(eq(photos.id, photo.id));
+        .where(eq(snapPhotos.id, photo.id));
 
       return reply.send({
         message: 'Photo upload aborted successfully',
@@ -1872,8 +1872,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       const { id } = request.params as any;
       const photoId = Number(id);
 
-      const photo = await db.query.photos.findFirst({
-        where: eq(photos.id, photoId),
+      const photo = await db.query.snapPhotos.findFirst({
+        where: eq(snapPhotos.id, photoId),
       });
 
       if (!photo || !photo.storageKey) {
@@ -1987,8 +1987,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       const { id } = request.params as any;
       const photoId = Number(id);
 
-      const photo = await db.query.photos.findFirst({
-        where: eq(photos.id, photoId),
+      const photo = await db.query.snapPhotos.findFirst({
+        where: eq(snapPhotos.id, photoId),
       });
 
       if (!photo) {
@@ -2008,7 +2008,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       }
 
       // Delete from database
-      await db.delete(photos).where(eq(photos.id, photoId));
+      await db.delete(snapPhotos).where(eq(snapPhotos.id, photoId));
 
       // Broadcast photo deletion via WebSocket
       if (photo.uploadedBy) {

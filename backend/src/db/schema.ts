@@ -339,9 +339,6 @@ export const snapChecklistRelations = relations(snapChecklist, ({ one, many }) =
   photos: many(snapPhotos),
 }));
 
-// Backward-compatibility alias
-export const snapChecklistsRelations = snapChecklistRelations;
-
 export const snapPhotosRelations = relations(snapPhotos, ({ one, many }) => ({
   guest: one(snapGuests, {
     fields: [snapPhotos.uploadedBy],
@@ -361,17 +358,12 @@ export const snapPhotoLikesRelations = relations(snapPhotoLikes, ({ one }) => ({
   }),
 }));
 
-export const photoLikesRelations = snapPhotoLikesRelations;
-
 export const eventPhotosRelations = relations(eventPhotos, ({ one }) => ({
   event: one(events, {
     fields: [eventPhotos.eventId],
     references: [events.id],
   }),
 }));
-
-// Backward-compatibility alias
-export const photosRelations = snapPhotosRelations;
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
   event: one(events, {

@@ -186,8 +186,7 @@ onBeforeUnmount(() => {
 
                     <!-- Video Duration / Play Badge -->
                     <div v-if="item.type === 'video'" class="vault-card__video-badge">
-                        <span class="material-symbols-outlined">play_arrow</span>
-                        <span class="vault-card__video-duration">{{ item.duration || '0:30' }}</span>
+                        <JIcon name="player-play" />
                     </div>
 
                     <!-- Like Button -->

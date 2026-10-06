@@ -241,3 +241,42 @@ export async function clearDemoData() {
     memoryFallback.quick = []
     memoryFallback.checklist = {}
 }
+
+/**
+ * Delete a quick capture snapshot from local database by ID
+ */
+export async function deleteDemoQuickPhoto(id) {
+    if (!id) return
+    try {
+        const db = await openDB()
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_QUICK], 'readwrite')
+            const store = tx.objectStore(STORE_QUICK)
+            const req = store.delete(id)
+            req.onsuccess = () => resolve()
+            req.onerror = () => reject(req.error)
+        })
+    } catch (err) {
+        memoryFallback.quick = memoryFallback.quick.filter((p) => p.id !== id)
+    }
+}
+
+/**
+ * Delete a checklist moment capture from local database by checklistId
+ */
+export async function deleteDemoChecklistMoment(checklistId) {
+    if (checklistId === undefined || checklistId === null) return
+    const cid = Number(checklistId)
+    try {
+        const db = await openDB()
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_CHECKLIST], 'readwrite')
+            const store = tx.objectStore(STORE_CHECKLIST)
+            const req = store.delete(cid)
+            req.onsuccess = () => resolve()
+            req.onerror = () => reject(req.error)
+        })
+    } catch (err) {
+        delete memoryFallback.checklist[cid]
+    }
+}

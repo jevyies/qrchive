@@ -940,6 +940,40 @@
   letter-spacing: 0.08em;
 }
 
+.vault-lightbox__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.vault-lightbox__delete {
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #f43f5e;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+
+  &:hover {
+    background: rgba(244, 63, 94, 0.28);
+    border-color: rgba(244, 63, 94, 0.6);
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  .jui {
+    font-size: 1.15rem;
+  }
+}
+
 .vault-lightbox__close {
   background: rgba(255, 255, 255, 0.15);
   border: none;

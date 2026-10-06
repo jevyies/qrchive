@@ -2,6 +2,7 @@
 const props = defineProps({
     eventDetails: Object,
     isPressed: Boolean,
+    isCoupleEvent: Boolean
 })
 const emit = defineEmits(['homepage', 'get-started'])
 const isHovered = ref(false);
@@ -24,6 +25,11 @@ const displayDate = computed(() => {
 <template>
     <div class="event-hero-card">
         <!-- Haute Editorial Moniker & Names -->
+        <div class="vault-hero__eyebrow" v-if="isCoupleEvent">
+            <span class="vault-hero__eyebrow-dot"></span>
+            <span class="vault-hero__eyebrow-text">The Wedding of</span>
+            <span class="vault-hero__eyebrow-dot"></span>
+        </div>
         <h1 class="event-hero-title">
             {{ eventDetails.name }}
         </h1>

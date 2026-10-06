@@ -45,6 +45,7 @@ const eventBoardRef = ref(null)
 const isLightboxOpen = ref(false);
 const lightboxItems = ref([]);
 const lightboxIndex = ref(0);
+const isLightboxDeletable = ref(false);
 const activeMoment = ref(null)
 const fileInput = ref(null);
 const captureMode = ref('quick')
@@ -64,6 +65,13 @@ const bannerImage = computed(() => {
 })
 const eventMaxGuest = computed(() => {
     return eventDetails.value?.maxGuest || 0;
+})
+const isCoupleEvent = computed(() => {
+    const category = eventDetails.value?.eventCategory?.toLowerCase();
+    if (category && (category.includes('wedding') || category.includes('anniversary'))) {
+        return true;
+    }
+    return false;
 })
 const isUnlimited = computed(() => {
     return eventDetails.value?.isUnlimited || false;
@@ -765,8 +773,10 @@ const toggleLightboxLike = async (item, event) => {
     await eventVaultStore.toggleLike(item, event)
 }
 const openQuickPhotoLightbox = (index) => {
+    isLightboxDeletable.value = true
     lightboxItems.value = uploadedQuickPhotos.value.map((p) => ({
         id: p.id,
+        photoId: p.id,
         url: p.fullUrl || p.url,
         thumbnailUrl: p.thumbnailUrl || p.url,
         isVideo: Boolean(p.isVideo),
@@ -781,9 +791,12 @@ const openQuickPhotoLightbox = (index) => {
     isLightboxOpen.value = true
 }
 const openMomentLightbox = (moment) => {
+    isLightboxDeletable.value = true
     const capturedMoments = moments.value.filter((m) => m.captured)
     lightboxItems.value = capturedMoments.map((m) => ({
-        id: m.id,
+        id: m.photoId || m.id,
+        photoId: m.photoId || m.id,
+        checklistId: m.id,
         url: m.fullImage || m.image,
         thumbnailUrl: m.image,
         isVideo: Boolean(m.isVideo),
@@ -799,9 +812,38 @@ const openMomentLightbox = (moment) => {
     isLightboxOpen.value = true
 }
 const openGalleryLightbox = ({ items, index }) => {
+    isLightboxDeletable.value = false
     lightboxItems.value = items
     lightboxIndex.value = index
     isLightboxOpen.value = true
+}
+const handleDeletePhoto = async (item) => {
+    if (!item) return
+    const confirmed = window.confirm('Are you sure you want to delete this photo?')
+    if (!confirmed) return
+
+    try {
+        const itemPhotoId = item.photoId || item.id
+        const itemChecklistId = item.checklistId
+
+        await eventVaultStore.deletePhoto(item)
+
+        lightboxItems.value = lightboxItems.value.filter(
+            (p) =>
+                String(p.id) !== String(itemPhotoId) &&
+                String(p.photoId) !== String(itemPhotoId) &&
+                (!itemChecklistId || String(p.checklistId) !== String(itemChecklistId))
+        )
+
+        if (lightboxItems.value.length === 0) {
+            isLightboxOpen.value = false
+        } else if (lightboxIndex.value >= lightboxItems.value.length) {
+            lightboxIndex.value = Math.max(0, lightboxItems.value.length - 1)
+        }
+    } catch (err) {
+        console.error('[EventPage] Failed to delete photo:', err)
+        alert('Failed to delete photo. Please try again.')
+    }
 }
 const handleFileChange = async (e) => {
     const fileList = e.target.files
@@ -936,10 +978,11 @@ onMounted(async () => {
         eventDetails.value = {
             id: 'demo-event',
             token: 'demo-event',
-            name: `Jev & Jean Wedding Celebration`,
+            name: `Jev & Jean`,
             eventDate: new Date().toISOString(),
             guestCode: 'demo-guest',
             guestName: 'You',
+            eventCategory: 'Wedding',
             photos: [],
         }
         await eventVaultStore.fetchInitialGuestData('demo-event', 'demo-guest')
@@ -1062,7 +1105,8 @@ onMounted(async () => {
             :quick-photos-left="quickPhotosLeft" :uploaded-quick-photos="uploadedQuickPhotos" :isUnlimited="isUnlimited"
             @close="handleCameraClose" @capture="handleCameraCapture" @open-gallery="openGalleryPicker" />
         <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"
-            @close="isLightboxOpen = false" @like="toggleLightboxLike" />
+            :can-delete="isLightboxDeletable"
+            @close="isLightboxOpen = false" @like="toggleLightboxLike" @delete="handleDeletePhoto" />
     </div>
 </template>
 <route lang="yaml">

@@ -5,6 +5,8 @@ import {
     getAllDemoPhotos,
     saveDemoQuickPhoto,
     saveDemoChecklistMoment,
+    deleteDemoQuickPhoto,
+    deleteDemoChecklistMoment,
     getDemoPhotosCount,
     getDemoQuickPhotos,
     getDemoChecklistMoments,
@@ -1205,11 +1207,19 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         }
 
         try {
+            const userIdentifier = getGuestIdentifier(targetId)
+            const headers = {}
+            if (userIdentifier && userIdentifier !== 'guest') {
+                headers['X-Guest-Code'] = userIdentifier
+            }
+
             const { data } = await axiosInstance.get(`/api/photos/events/${targetId}`, {
                 params: {
                     page,
                     limit,
+                    userIdentifier: userIdentifier || undefined,
                 },
+                headers,
             })
 
             const photosList = Array.isArray(data) ? data : data?.photos || []
@@ -1374,6 +1384,90 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         if (quickIdx !== -1) {
             uploadedQuickPhotos.value.splice(quickIdx, 1)
         }
+
+        // Reset checklist moment if this photo was captured for a moment
+        if (Array.isArray(moments.value)) {
+            const foundMoment = moments.value.find((m) =>
+                String(m.photoId) === idStr ||
+                String(m.id) === idStr ||
+                (m.checklistId && String(m.checklistId) === idStr)
+            )
+            if (foundMoment && foundMoment.captured) {
+                foundMoment.captured = false
+                foundMoment.image = null
+                foundMoment.fullImage = null
+                foundMoment.photoId = null
+                foundMoment.storageKey = null
+                foundMoment.storage_key = null
+                foundMoment.isVideo = false
+                foundMoment.videoUrl = null
+                foundMoment.videoBlob = null
+                foundMoment.likes = 0
+                foundMoment.isLiked = false
+                foundMoment.uploadPercent = 0
+                foundMoment.isUploading = false
+                foundMoment.showSuccessCheck = false
+            }
+        }
+    }
+
+    // Delete photo completely across backend/R2 or local IndexedDB
+    const deletePhoto = async (photoOrItem) => {
+        if (!photoOrItem) return false
+        const photoId = photoOrItem.photoId || photoOrItem.id
+        const checklistId = photoOrItem.checklistId
+        const idStr = String(photoId)
+
+        try {
+            if (isDemo.value) {
+                if (checklistId || idStr.startsWith('demo_moment_') || idStr.startsWith('demo_quest_')) {
+                    const cid = checklistId || (photoOrItem.id && !isNaN(Number(photoOrItem.id)) ? Number(photoOrItem.id) : null)
+                    if (cid) {
+                        await deleteDemoChecklistMoment(cid)
+                    }
+                }
+                await deleteDemoQuickPhoto(photoId)
+                removePhotoById(photoId)
+                if (checklistId) {
+                    removePhotoById(checklistId)
+                }
+                if (photoOrItem.id && photoOrItem.id !== photoId) {
+                    removePhotoById(photoOrItem.id)
+                }
+                demoDbCount.value = await getDemoPhotosCount().catch(() => Math.max(0, (demoDbCount.value || 1) - 1))
+                return true
+            }
+
+            const eventCode = currentEventId.value || ''
+            const guestCode = currentGuestCode.value || getGuestIdentifier(eventCode) || ''
+
+            await axiosInstance.delete(`/api/photos/${photoId}`, {
+                headers: {
+                    'x-event-id': String(eventCode),
+                    'x-event-code': String(eventCode),
+                    'x-guest-code': String(guestCode),
+                },
+            })
+
+            removePhotoById(photoId)
+            if (checklistId) {
+                removePhotoById(checklistId)
+            }
+            if (photoOrItem.id && photoOrItem.id !== photoId) {
+                removePhotoById(photoOrItem.id)
+            }
+            return true
+        } catch (err) {
+            console.error('[EventVaultStore] Failed to delete photo:', err)
+            removePhotoById(photoId)
+            if (checklistId) {
+                removePhotoById(checklistId)
+            }
+            if (photoOrItem.id && photoOrItem.id !== photoId) {
+                removePhotoById(photoOrItem.id)
+            }
+            throw err
+        }
     }
 
     // Add newly uploaded photo immediately to store
@@ -1422,10 +1516,19 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         }
 
         // Prepend to mediaItems for Live Vault
-        const existsInMedia = mediaItems.value.some((m) => String(m.id) === String(photo.id))
-        if (!existsInMedia) {
+        const existingIndex = mediaItems.value.findIndex((m) => String(m.id) === String(photo.id))
+        if (existingIndex === -1) {
             mediaItems.value.unshift(mappedMedia)
             totalPhotos.value += 1
+        } else {
+            // Preserve user's local like state if already present
+            const prev = mediaItems.value[existingIndex]
+            if (prev.isLiked) {
+                mappedMedia.isLiked = true
+                mappedMedia.likes = Math.max(Number(mappedMedia.likes || 0), Number(prev.likes || 0))
+                mappedMedia.likesCount = mappedMedia.likes
+            }
+            mediaItems.value[existingIndex] = mappedMedia
         }
 
         // If quick capture, prepend or update in uploadedQuickPhotos
@@ -1568,21 +1671,29 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         if (inMedia) {
             inMedia.likes = likes
             inMedia.likesCount = likes
-            inMedia.isLiked = isLiked
+            if (isLiked !== undefined) {
+                inMedia.isLiked = isLiked
+            }
         }
 
         // Sync in uploadedQuickPhotos
         const inQuick = uploadedQuickPhotos.value.find((q) => q.id === photoId)
         if (inQuick) {
             inQuick.likes = likes
-            inQuick.isLiked = isLiked
+            inQuick.likesCount = likes
+            if (isLiked !== undefined) {
+                inQuick.isLiked = isLiked
+            }
         }
 
         // Sync in moments
         const inMoment = moments.value.find((m) => m.id === photoId || m.photoId === photoId)
         if (inMoment) {
             inMoment.likes = likes
-            inMoment.isLiked = isLiked
+            inMoment.likesCount = likes
+            if (isLiked !== undefined) {
+                inMoment.isLiked = isLiked
+            }
         }
     }
 
@@ -1599,12 +1710,21 @@ export const useEventVaultStore = defineStore('eventVault', () => {
                 })
             } else if ((message.type === 'photo_deleted' || message.type === 'delete_photo') && message.data) {
                 const pid = message.data.photoId || message.data.id
+                const cid = message.data.checklistId
                 if (pid) {
                     removePhotoById(pid)
                 }
+                if (cid) {
+                    removePhotoById(cid)
+                }
             } else if (message.type === 'photo_liked' && message.data) {
-                const { photoId, likesCount } = message.data
-                syncLikeState(photoId, likesCount, undefined)
+                const { photoId, likesCount, userIdentifier: likerIdentifier } = message.data
+                const myIdentifier = getGuestIdentifier(currentEventId.value)
+                const isMine =
+                    likerIdentifier &&
+                    myIdentifier &&
+                    String(likerIdentifier).trim().toLowerCase() === String(myIdentifier).trim().toLowerCase()
+                syncLikeState(photoId, likesCount, isMine ? true : undefined)
             }
         } catch (err) {
             console.warn('[EventVaultStore] Error handling WS message:', err)
@@ -1726,6 +1846,7 @@ export const useEventVaultStore = defineStore('eventVault', () => {
         fetchInitialDataByGuest,
         addUploadedPhoto,
         removePhotoById,
+        deletePhoto,
         toggleLike,
         syncLikeState,
         handleWebSocketMessage,

@@ -726,6 +726,16 @@ export const allIcons = [
     ]
   },
   {
+    "name": "player-play",
+    "category": "Action",
+    "tags": [
+      "player",
+      "play",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "plus",
     "category": "Action",
     "tags": [

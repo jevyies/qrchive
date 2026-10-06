@@ -106,6 +106,8 @@ export function formatSimplifiedGuestPhoto(photo: {
   fileName?: string | null;
   mimeType?: string | null;
   thumbnailUrl?: string | null;
+  likesCount?: number | null;
+  isLiked?: boolean | null;
 }) {
   const rawKey = photo.storageKey || (photo as any).storage_key || photo.url || '';
   const cleanKey = R2Service.cleanStorageKey(rawKey);
@@ -152,6 +154,8 @@ export function formatSimplifiedGuestPhoto(photo: {
     mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
     isVideo,
     type: isVideo ? 'video' : 'photo',
+    likesCount: photo.likesCount ?? 0,
+    isLiked: Boolean(photo.isLiked),
   };
 }
 
@@ -249,10 +253,11 @@ async function togglePhotoLike(photoId: number, userIdentifier: string) {
 
   if (!photo) return null;
 
+  const cleanIdentifier = String(userIdentifier || '').trim();
   const existing = await db.query.snapPhotoLikes.findFirst({
     where: and(
       eq(snapPhotoLikes.photoId, photoId),
-      eq(snapPhotoLikes.userIdentifier, userIdentifier)
+      sql`LOWER(TRIM(${snapPhotoLikes.userIdentifier})) = LOWER(TRIM(${cleanIdentifier}))`
     ),
   });
 
@@ -263,7 +268,7 @@ async function togglePhotoLike(photoId: number, userIdentifier: string) {
   } else {
     await db.insert(snapPhotoLikes).values({
       photoId,
-      userIdentifier,
+      userIdentifier: cleanIdentifier,
     });
     isLiked = true;
   }
@@ -1241,12 +1246,13 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       const limitNum = Number(limit) || 10;
       const offset = (pageNum - 1) * limitNum;
 
-      const userIdentifier =
+      const rawUserIdentifier =
         qUserIdentifier ||
         (request.headers['x-guest-code'] as string) ||
         (request.headers['x-device-serial'] as string) ||
         (request.user ? String(request.user.id) : null) ||
         '';
+      const userIdentifier = String(rawUserIdentifier).trim();
 
       const whereClause = and(
         eq(snapGuests.eventId, numEventId),
@@ -1277,7 +1283,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           createdAt: snapPhotos.createdAt,
           likesCount: sql<number>`(SELECT count(*)::int FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id})`.as('likes_count'),
           isLiked: userIdentifier
-            ? sql<boolean>`EXISTS (SELECT 1 FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id} AND snap_photo_likes.user_identifier = ${userIdentifier})`.as('is_liked')
+            ? sql<boolean>`EXISTS (SELECT 1 FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id} AND LOWER(TRIM(snap_photo_likes.user_identifier)) = LOWER(TRIM(${userIdentifier})))`.as('is_liked')
             : sql<boolean>`false`.as('is_liked'),
         })
         .from(snapPhotos)
@@ -1382,6 +1388,10 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           storageKey: snapPhotos.storageKey,
           status: snapPhotos.status,
           createdAt: snapPhotos.createdAt,
+          likesCount: sql<number>`(SELECT count(*)::int FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id})`.as('likes_count'),
+          isLiked: targetGuestCode
+            ? sql<boolean>`EXISTS (SELECT 1 FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id} AND LOWER(TRIM(snap_photo_likes.user_identifier)) = LOWER(TRIM(${String(targetGuestCode)})))`.as('is_liked')
+            : sql<boolean>`false`.as('is_liked'),
         })
         .from(snapPhotos)
         .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
@@ -1398,6 +1408,8 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           checklistId: p.checklistId,
           fileName: p.fileName,
           mimeType: p.mimeType,
+          likesCount: p.likesCount,
+          isLiked: p.isLiked,
         })
       );
 
@@ -1968,12 +1980,11 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     '/:id',
     {
-      preHandler: [authenticate],
+      preHandler: [optionalAuthenticate],
       schema: {
         tags: ['Photos'],
         summary: 'Delete Photo',
         description: 'Deletes photo from Cloudflare R2 bucket and removes database record.',
-        security: [{ bearerAuth: [] }],
         params: {
           type: 'object',
           required: ['id'],
@@ -1987,6 +1998,13 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       const { id } = request.params as any;
       const photoId = Number(id);
 
+      if (isNaN(photoId)) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Invalid photo ID',
+        });
+      }
+
       const photo = await db.query.snapPhotos.findFirst({
         where: eq(snapPhotos.id, photoId),
       });
@@ -1998,25 +2016,35 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      // Delete from R2 bucket
+      // Delete from R2 bucket (both original file and thumbnail if present)
       if (photo.storageKey) {
         try {
           await R2Service.deleteObject(photo.storageKey);
+          const ext = path.extname(photo.storageKey);
+          if (ext) {
+            const thumbKey = photo.storageKey.replace(/\.[^.]+$/, '_thumb.jpg');
+            await R2Service.deleteObject(thumbKey).catch(() => {});
+          }
         } catch (err) {
           request.log.warn(err, `Failed to delete R2 object: ${photo.storageKey}`);
         }
       }
 
+      // Delete likes explicitly if any
+      await db.delete(snapPhotoLikes).where(eq(snapPhotoLikes.photoId, photoId)).catch(() => {});
+
       // Delete from database
       await db.delete(snapPhotos).where(eq(snapPhotos.id, photoId));
 
       // Broadcast photo deletion via WebSocket
+      let broadcastSent = false;
       if (photo.uploadedBy) {
         const guest = await db.query.snapGuests.findFirst({
           where: eq(snapGuests.id, photo.uploadedBy),
           with: { event: true },
         });
         if (guest) {
+          broadcastSent = true;
           wsManager.broadcastToEvent(guest.eventId, {
             type: 'photo_deleted',
             data: { photoId: photo.id, checklistId: photo.checklistId },
@@ -2029,6 +2057,21 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
             });
           }
         }
+      }
+
+      const headerEventId = (request.headers['x-event-id'] || request.headers['event-id']) as string;
+      const headerEventCode = (request.headers['x-event-code'] || request.headers['event-code']) as string;
+      if (headerEventId && !broadcastSent) {
+        wsManager.broadcastToEvent(headerEventId, {
+          type: 'photo_deleted',
+          data: { photoId: photo.id, checklistId: photo.checklistId },
+        });
+      }
+      if (headerEventCode && headerEventCode !== headerEventId) {
+        wsManager.broadcastToEvent(headerEventCode, {
+          type: 'photo_deleted',
+          data: { photoId: photo.id, checklistId: photo.checklistId },
+        });
       }
 
       return reply.send({

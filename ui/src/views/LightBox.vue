@@ -26,6 +26,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canDelete: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 const emit = defineEmits([
@@ -34,6 +38,7 @@ const emit = defineEmits([
     'close',
     'like',
     'change',
+    'delete',
 ])
 
 const isVisible = computed(() => Boolean(props.isOpen || props.modelValue))
@@ -298,6 +303,11 @@ const handleKeyDown = (e) => {
     }
 }
 
+const handleDelete = () => {
+    if (!activeLightbox.value) return
+    emit('delete', activeLightbox.value)
+}
+
 onMounted(() => {
     if (isVisible.value && typeof window !== 'undefined') {
         window.addEventListener('keydown', handleKeyDown)
@@ -328,9 +338,14 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
                 </div>
-                <button aria-label="Close Lightbox" class="vault-lightbox__close" type="button" @click="closeLightbox">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
+                <div class="vault-lightbox__header-actions">
+                    <button v-if="canDelete" aria-label="Delete Photo" class="vault-lightbox__delete" type="button" @click="handleDelete">
+                        <JIcon name="trash" color="danger" />
+                    </button>
+                    <button aria-label="Close Lightbox" class="vault-lightbox__close" type="button" @click="closeLightbox">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
             </header>
 
             <!-- Lightbox Swipe Body -->

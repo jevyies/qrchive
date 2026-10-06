@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
 import { useIntersectionObserver } from '@vueuse/core'
 import { useEventVaultStore, extractPhotoCategoryKey } from '@/stores/eventVault'
 
@@ -17,11 +16,9 @@ const props = defineProps({
 
 const emit = defineEmits(['open-lightbox'])
 
-const route = useRoute()
 const eventVaultStore = useEventVaultStore()
 
 // State from centralized store
-const isDemo = computed(() => props.isDemo || eventVaultStore.isDemo || route.params?.id === 'demo-event')
 const categories = computed(() => eventVaultStore.categories)
 const totalMomentsCount = computed(() => eventVaultStore.totalMomentsCount)
 
@@ -34,7 +31,7 @@ const filteredMedia = computed(() => {
     let list = eventVaultStore.mediaItems
 
     if (selectedCategory.value !== 'all') {
-        if (isDemo.value) {
+        if (props.isDemo) {
             if (selectedCategory.value === 'quick-capture') {
                 list = list.filter((item) => item.category === 'quick-capture' || item.category === 'quick-snaps')
             } else {
@@ -113,7 +110,7 @@ const handleWindowScroll = () => {
         !eventVaultStore.hasMore ||
         eventVaultStore.isLoadingMore ||
         eventVaultStore.isLoadingPhotos ||
-        isDemo.value
+        props.isDemo
     ) {
         return
     }

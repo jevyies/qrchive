@@ -12,6 +12,7 @@ import { useAuthStore } from '../stores/auth.js'
 export const ROLE_MENUS = {
   admin: [
     { id: 'dashboard', path: '/dashboard', name: 'Dashboard', icon: '❖' },
+    { id: 'events', path: '/events', name: 'Events', icon: '📅' },
     { id: 'stores', path: '/stores', name: 'Stores', icon: '🏬' },
     { id: 'users', path: '/users', name: 'Users', icon: '👥' },
     { id: 'settings', path: '/settings', name: 'Settings', icon: '⚙️' },

@@ -110,7 +110,7 @@ const currentRouteTitle = computed(() => {
       <!-- Brand Logo in Top Navbar Mode or on Mobile -->
       <RouterLink to="/dashboard" class="navbar-brand me-1 flex-shrink-0" title="QRchive Dashboard">
         <AppLogo :width="28" :height="21" class="navbar-brand-logo" />
-        <span class="font-bold d-none d-xs-inline text-sm text-md-base">QRchive</span>
+        <span class="font-bold text-sm text-md-base">QRchive Events</span>
       </RouterLink>
 
       <!-- Breadcrumbs (Desktop & Tablet: Sidebar mode OR Navbar Menu-Bar mode) -->

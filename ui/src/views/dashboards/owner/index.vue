@@ -121,39 +121,30 @@ const navigateTo = (path) => {
       <div class="flex flex-wrap items-center gap-space-xs pt-1">
         <span
           class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
-          <span class="material-symbols-outlined text-[13px] text-primary"
-            style="font-variation-settings: 'FILL' 1;">check_circle</span> Couple &amp; Event Identity
+          <JIcon name="circle-check" size="sm" color="primary" /> Couple &amp; Event Identity
         </span>
         <span
           class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
-          <span class="material-symbols-outlined text-[13px] text-primary"
-            style="font-variation-settings: 'FILL' 1;">check_circle</span> Styling &amp; Palette Motif
+          <JIcon name="circle-check" size="sm" color="primary" /> QR Code Generation
         </span>
         <span
           class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
-          <span class="material-symbols-outlined text-[13px] text-primary"
-            style="font-variation-settings: 'FILL' 1;">check_circle</span> Scavenger Hunt Checklist
+          <JIcon name="circle-check" size="sm" color="primary" /> Event Checklist
         </span>
         <span
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-fixed/30 text-on-primary-fixed font-label-sm text-label-sm ring-1 ring-primary/20">
-          <span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Remaining: Select Vault Archival Tier &amp; Delivery
-          Details
+          class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
+          <JIcon name="circle-check" size="sm" color="primary" /> Event Checklist
         </span>
       </div>
       <div class="pt-1 flex justify-end">
         <button type="button"
-          class="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-primary-container via-primary to-primary text-on-primary text-xs uppercase tracking-wider font-semibold shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border-none"
+          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-primary-container via-primary to-primary text-on-primary text-xs uppercase tracking-wider font-semibold shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border-none"
           @click="openAccountInfoModal">
           <span>Complete Final Step</span>
           <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
         </button>
       </div>
     </JCard>
-
-    <!-- ============================================================ -->
-    <!-- ACTIVE OWNER DASHBOARD                                      -->
-    <!-- Displayed when owner status !== 'pending'                    -->
-    <!-- ============================================================ -->
     <div v-else class="d-flex flex-column gap-4">
       <EventDashboard />
     </div>

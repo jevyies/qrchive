@@ -4,6 +4,9 @@ import { useAuthStore } from '@/stores/auth'
 import JModal from '@/@core/components/JModal.vue'
 import JBtn from '@/@core/components/JBtn.vue'
 import JInput from '@/@core/components/JInput.vue'
+import gcashImg from '@/assets/images/payments/gcash.jpg'
+import maribankImg from '@/assets/images/payments/maribank.jpg'
+import mayaImg from '@/assets/images/payments/maya.jpg'
 
 const props = defineProps({
   modelValue: {
@@ -22,13 +25,17 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  initialStep: {
+    type: Number,
+    default: 1,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'close', 'submit'])
 
 const authStore = useAuthStore()
 
-// Wizard State (Step 1: Pricing, Step 2: Event Details)
+// Wizard State (Step 1: Pricing, Step 2: Event Details, Step 3: Payment)
 const currentStep = ref(1)
 
 // Pricing Selection State ('standard' | 'unlimited')
@@ -114,7 +121,15 @@ const resolvedPricing = computed(() => {
 // Current selected tier object
 const currentSelectedTier = computed(() => {
   const cap = selectedGroup.value === 'standard' ? selectedStandardCap.value : selectedUnlimitedCap.value
-  return resolvedPricing.value[selectedGroup.value]?.[cap] || null
+  const tier = resolvedPricing.value[selectedGroup.value]?.[cap] || null
+  if (props.initialData?.price && tier) {
+    return {
+      ...tier,
+      price: props.initialData.price,
+      formattedPrice: formatPrice(props.initialData.price),
+    }
+  }
+  return tier
 })
 
 // Current selected capacity key
@@ -122,11 +137,12 @@ const currentSelectedCap = computed(() => {
   return selectedGroup.value === 'standard' ? selectedStandardCap.value : selectedUnlimitedCap.value
 })
 
+const isViewingExistingEvent = computed(() => {
+  return Boolean(props.initialData?.id || props.initialData?.token)
+})
+
 const resetForm = () => {
-  currentStep.value = 1
-  selectedGroup.value = 'unlimited'
-  selectedStandardCap.value = '100'
-  selectedUnlimitedCap.value = '100'
+  currentStep.value = props.initialStep || 1
   eventName.value = props.initialData?.name || props.initialData?.title || ''
   eventCategory.value = props.initialData?.eventCategory || props.initialData?.event_category || 'Wedding'
   brideFirstname.value = props.initialData?.brideFirstname || props.initialData?.bride_firstname || ''
@@ -135,6 +151,29 @@ const resetForm = () => {
   groomLastname.value = props.initialData?.groomLastname || props.initialData?.groom_lastname || ''
   eventDate.value = props.initialData?.event_date || props.initialData?.eventDate || props.initialData?.date || ''
   errorMessage.value = ''
+
+  if (props.initialData?.isUnlimited !== undefined || props.initialData?.is_unlimited !== undefined) {
+    const isUnlim = Boolean(props.initialData?.isUnlimited ?? props.initialData?.is_unlimited)
+    selectedGroup.value = isUnlim ? 'unlimited' : 'standard'
+  } else {
+    selectedGroup.value = 'unlimited'
+  }
+
+  const mg = props.initialData?.maxGuest ?? props.initialData?.max_guest
+  let capKey = '100'
+  if (mg === 300) {
+    capKey = '300'
+  } else if (!mg || mg > 300) {
+    capKey = 'plus'
+  } else {
+    capKey = '100'
+  }
+
+  if (selectedGroup.value === 'standard') {
+    selectedStandardCap.value = capKey
+  } else {
+    selectedUnlimitedCap.value = capKey
+  }
 }
 
 watch(
@@ -145,6 +184,15 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => props.initialStep,
+  (newStep) => {
+    if (newStep) {
+      currentStep.value = newStep
+    }
+  }
 )
 
 const handleClose = () => {
@@ -167,6 +215,58 @@ const handleSelectTier = (group, cap, autoAdvance = false) => {
   }
 }
 
+// Step 3 Payment Details Configuration
+const paymentMethods = [
+  {
+    id: 'gcash',
+    name: 'GCash',
+    image: gcashImg,
+    badge: 'E-Wallet',
+    badgeClass: 'gcash-badge',
+    accountName: 'JE*Y A.',
+    accountNumber: '0965 470 ••••',
+  },
+  {
+    id: 'maribank',
+    name: 'MariBank',
+    image: maribankImg,
+    badge: 'Digital Bank',
+    badgeClass: 'maribank-badge',
+    accountName: 'JEVY ABABA',
+    accountNumber: '••••9646',
+  },
+  {
+    id: 'maya',
+    name: 'Maya',
+    image: mayaImg,
+    badge: 'E-Wallet / Bank',
+    badgeClass: 'maya-badge',
+    accountName: 'Jevy Ababa',
+    accountNumber: '+63 ••• ••• 6349',
+  },
+]
+
+// Zoom Lightbox State
+const activeZoomImage = ref(null)
+const openZoom = (method) => {
+  activeZoomImage.value = method
+}
+const closeZoom = () => {
+  activeZoomImage.value = null
+}
+
+const formatEventDate = (dateStr) => {
+  if (!dateStr) return 'Date TBD'
+  try {
+    const d = new Date(dateStr)
+    return isNaN(d.getTime())
+      ? dateStr
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
 // Step 1 -> Step 2
 const handleStep1Next = () => {
   errorMessage.value = ''
@@ -179,8 +279,8 @@ const handleStep2Back = () => {
   currentStep.value = 1
 }
 
-// Submit Wizard Form
-const handleStep2Submit = () => {
+// Step 2 -> Step 3 (Payment)
+const handleStep2Next = () => {
   errorMessage.value = ''
 
   if (!eventName.value.trim()) {
@@ -190,6 +290,31 @@ const handleStep2Submit = () => {
 
   if (!eventDate.value) {
     errorMessage.value = 'Please select a celebration date.'
+    return
+  }
+
+  currentStep.value = 3
+}
+
+// Step 3 -> Back to Step 2
+const handleStep3Back = () => {
+  errorMessage.value = ''
+  currentStep.value = 2
+}
+
+// Submit Wizard Form from Step 3 (Payment -> Submit Event with pending status)
+const handleStep3Submit = () => {
+  errorMessage.value = ''
+
+  if (!eventName.value.trim()) {
+    errorMessage.value = 'Please enter a celebration name.'
+    currentStep.value = 2
+    return
+  }
+
+  if (!eventDate.value) {
+    errorMessage.value = 'Please select a celebration date.'
+    currentStep.value = 2
     return
   }
 
@@ -223,6 +348,8 @@ const handleStep2Submit = () => {
     groomFirstname: isCoupleCategory.value ? groomFirstname.value.trim() || null : null,
     groom_lastname: isCoupleCategory.value ? groomLastname.value.trim() || null : null,
     groomLastname: isCoupleCategory.value ? groomLastname.value.trim() || null : null,
+    payment_status: 'pending',
+    paymentStatus: 'pending',
   }
 
   emit('submit', payload)
@@ -262,11 +389,24 @@ const handleStep2Submit = () => {
           <div class="stepper-line" :class="{ filled: currentStep >= 2 }"></div>
 
           <!-- Step 2 Indicator -->
-          <div class="stepper-node" :class="{ active: currentStep === 2 }">
+          <div class="stepper-node" :class="{ active: currentStep === 2, completed: currentStep > 2 }"
+            @click="currentStep > 2 && (currentStep = 2)">
             <div class="stepper-circle">
-              <span>2</span>
+              <span v-if="currentStep > 2" class="material-symbols-outlined check-icon">check</span>
+              <span v-else>2</span>
             </div>
             <span class="stepper-label">Event Details</span>
+          </div>
+
+          <!-- Connector Line 2-3 -->
+          <div class="stepper-line" :class="{ filled: currentStep >= 3 }"></div>
+
+          <!-- Step 3 Indicator -->
+          <div class="stepper-node" :class="{ active: currentStep === 3 }">
+            <div class="stepper-circle">
+              <span>3</span>
+            </div>
+            <span class="stepper-label">Payment</span>
           </div>
         </div>
       </div>
@@ -277,22 +417,27 @@ const handleStep2Submit = () => {
         <div class="archival-subbadge">
           <span class="material-symbols-outlined diamond-icon">diamond</span>
           <span class="subbadge-text">
-            Curate Celebration • Step {{ currentStep }} of 2
+            Curate Celebration • Step {{ currentStep }} of 3
           </span>
         </div>
 
         <!-- Dynamic Headline & Editorial Lead per Step -->
         <h2 class="modal-headline">
           <template v-if="currentStep === 1">Choose Your Celebration Package</template>
-          <template v-else>Celebration Particulars</template>
+          <template v-else-if="currentStep === 2">Celebration Particulars</template>
+          <template v-else>Settlement &amp; Payment</template>
         </h2>
         <p class="modal-editorial-lead">
           <template v-if="currentStep === 1">
             Simple per-celebration flat pricing tailored to your guest size with zero surprise fees. Grouped by tier
             category.
           </template>
-          <template v-else>
+          <template v-else-if="currentStep === 2">
             Enter your celebration name and celebration date to curate your unique archival vault register.
+          </template>
+          <template v-else>
+            Scan or send payment using GCash, MariBank, or Maya. Your celebration vault will be submitted with pending
+            status until verified.
           </template>
         </p>
       </div>
@@ -463,7 +608,7 @@ const handleStep2Submit = () => {
       <!-- STEP 2: EVENT DETAILS (Only 'name', 'event_date')                   -->
       <!-- =================================================================== -->
       <div v-else-if="currentStep === 2" class="wizard-step step-2">
-        <form id="step2-form" class="profile-form" @submit.prevent="handleStep2Submit">
+        <form id="step2-form" class="profile-form" @submit.prevent="handleStep2Next">
           <!-- Selected Tier Summary Pill -->
           <div class="tier-summary-banner">
             <div class="tier-summary-info">
@@ -483,7 +628,7 @@ const handleStep2Submit = () => {
           <div class="form-section">
             <div class="section-label-row">
               <span class="section-label">Archival Register Particulars</span>
-              <span class="section-step-indicator">Step 2 of 2</span>
+              <span class="section-step-indicator">Step 2 of 3</span>
             </div>
 
             <!-- Input 1: name -->
@@ -507,7 +652,8 @@ const handleStep2Submit = () => {
                 <span class="label-with-req">Event Category <span class="required-star">*</span></span>
               </label>
               <div class="category-select-wrapper">
-                <select id="event-category" v-model="eventCategory" class="profile-input-control custom-category-select" required>
+                <select id="event-category" v-model="eventCategory" class="profile-input-control custom-category-select"
+                  required>
                   <option v-for="cat in eventCategoryOptions" :key="cat" :value="cat">
                     {{ cat }}
                   </option>
@@ -525,27 +671,23 @@ const handleStep2Submit = () => {
               <div class="couple-names-grid">
                 <div class="field-item">
                   <JInput id="bride-firstname" v-model="brideFirstname" label="Bride / Partner 1 First Name"
-                    placeholder="First name" autocomplete="off"
-                    container-class="profile-input-container" input-class="profile-input-control"
-                    label-class="profile-field-label" />
+                    placeholder="First name" autocomplete="off" container-class="profile-input-container"
+                    input-class="profile-input-control" label-class="profile-field-label" />
                 </div>
                 <div class="field-item">
                   <JInput id="bride-lastname" v-model="brideLastname" label="Bride / Partner 1 Last Name"
-                    placeholder="Last name" autocomplete="off"
-                    container-class="profile-input-container" input-class="profile-input-control"
-                    label-class="profile-field-label" />
+                    placeholder="Last name" autocomplete="off" container-class="profile-input-container"
+                    input-class="profile-input-control" label-class="profile-field-label" />
                 </div>
                 <div class="field-item">
                   <JInput id="groom-firstname" v-model="groomFirstname" label="Groom / Partner 2 First Name"
-                    placeholder="First name" autocomplete="off"
-                    container-class="profile-input-container" input-class="profile-input-control"
-                    label-class="profile-field-label" />
+                    placeholder="First name" autocomplete="off" container-class="profile-input-container"
+                    input-class="profile-input-control" label-class="profile-field-label" />
                 </div>
                 <div class="field-item">
                   <JInput id="groom-lastname" v-model="groomLastname" label="Groom / Partner 2 Last Name"
-                    placeholder="Last name" autocomplete="off"
-                    container-class="profile-input-container" input-class="profile-input-control"
-                    label-class="profile-field-label" />
+                    placeholder="Last name" autocomplete="off" container-class="profile-input-container"
+                    input-class="profile-input-control" label-class="profile-field-label" />
                 </div>
               </div>
             </div>
@@ -570,12 +712,128 @@ const handleStep2Submit = () => {
               <span>Back to Pricing</span>
             </button>
 
-            <JBtn id="submit-event-btn" type="submit" class="submit-profile-btn flex-grow" :loading="loading">
-              <span>Generate QR Vault</span>
-              <span class="material-symbols-outlined submit-arrow">qr_code_2</span>
+            <JBtn id="step2-next-btn" type="submit" class="submit-profile-btn flex-grow">
+              <span>Continue to Payment</span>
+              <span class="material-symbols-outlined submit-arrow">arrow_forward</span>
             </JBtn>
           </div>
         </form>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- STEP 3: PAYMENT DETAILS (GCash, MariBank, Maya)                     -->
+      <!-- =================================================================== -->
+      <div v-else-if="currentStep === 3" class="wizard-step step-3">
+        <!-- Selected Tier Summary Banner -->
+        <div class="tier-summary-banner">
+          <div class="tier-summary-info">
+            <span class="tier-summary-tag">
+              <span class="material-symbols-outlined text-[15px]">verified</span>
+              <span>{{ selectedGroup === 'unlimited' ? 'Unlimited Snap' : 'Standard Snap' }}</span>
+            </span>
+            <span class="tier-summary-detail">
+              {{ currentSelectedTier?.label }} • <strong>{{ currentSelectedTier?.formattedPrice }}</strong>
+            </span>
+          </div>
+          <button type="button" class="tier-change-btn" @click="currentStep = 1">
+            Change Tier
+          </button>
+        </div>
+
+        <!-- Event Particulars Summary -->
+        <div class="step3-event-summary">
+          <div class="event-summary-item">
+            <span class="material-symbols-outlined summary-icon">celebration</span>
+            <span class="summary-text">{{ eventName }}</span>
+          </div>
+          <div class="event-summary-divider">•</div>
+          <div class="event-summary-item">
+            <span class="material-symbols-outlined summary-icon">calendar_month</span>
+            <span class="summary-text">{{ formatEventDate(eventDate) }}</span>
+          </div>
+          <div class="event-summary-divider">•</div>
+          <div class="event-summary-item">
+            <span class="material-symbols-outlined summary-icon">category</span>
+            <span class="summary-text">{{ eventCategory }}</span>
+          </div>
+        </div>
+
+        <!-- 3 Payment QR Picture Cards Grid -->
+        <div class="payment-channels-container">
+          <div class="section-label-row mb-3">
+            <span class="section-label">Payment Channels (Scan to Pay)</span>
+            <span class="section-step-indicator">Step 3 of 3</span>
+          </div>
+
+          <div class="payment-grid">
+            <div v-for="method in paymentMethods" :key="method.id" class="payment-channel-card"
+              @click="openZoom(method)">
+              <div class="payment-channel-header">
+                <span class="payment-badge" :class="method.badgeClass">{{ method.name }}</span>
+                <span class="payment-channel-type">{{ method.badge }}</span>
+              </div>
+
+              <div class="payment-img-frame">
+                <img :src="method.image" :alt="`${method.name} Payment QR`" class="payment-img" />
+                <div class="payment-img-zoom-hint">
+                  <span class="material-symbols-outlined">zoom_in</span>
+                  <span>Enlarge</span>
+                </div>
+              </div>
+
+              <div class="payment-channel-info">
+                <div class="payment-info-line">
+                  <span class="info-label">Account:</span>
+                  <span class="info-val">{{ method.accountName }}</span>
+                </div>
+                <div class="payment-info-line">
+                  <span class="info-label">Details:</span>
+                  <span class="info-val font-mono">{{ method.accountNumber }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending Payment Verification Notice -->
+        <div class="pending-notice-banner">
+          <div class="pending-notice-icon-box">
+            <span class="material-symbols-outlined pending-icon">hourglass_top</span>
+          </div>
+          <div class="pending-notice-body">
+            <div class="pending-notice-title">Status: Pending Verification</div>
+            <p class="pending-notice-desc">
+              <template v-if="isViewingExistingEvent">
+                This celebration vault is currently in <strong>pending</strong> payment status. Scan or transfer
+                <strong>{{ currentSelectedTier?.formattedPrice }}</strong> using any account above to activate all archival features.
+              </template>
+              <template v-else>
+                Your celebration vault will be submitted with <strong>pending</strong> payment status. Once your payment
+                of
+                <strong>{{ currentSelectedTier?.formattedPrice }}</strong> is verified, all features will be unlocked.
+              </template>
+            </p>
+          </div>
+        </div>
+
+        <!-- Navigation Actions -->
+        <div class="step-actions-row dual-action">
+          <button type="button" id="step3-back-btn" class="back-step-btn" :disabled="loading" @click="handleStep3Back">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Back to Details</span>
+          </button>
+
+          <JBtn v-if="isViewingExistingEvent" id="close-view-payment-btn" type="button" class="submit-profile-btn flex-grow"
+            @click="handleClose">
+            <span>Done / Close</span>
+            <span class="material-symbols-outlined submit-arrow">check_circle</span>
+          </JBtn>
+          <JBtn v-else id="submit-event-btn" type="button" class="submit-profile-btn flex-grow" :loading="loading"
+            @click="handleStep3Submit">
+            <span>Generate QR Vault</span>
+            <span class="material-symbols-outlined submit-arrow">qr_code_2</span>
+          </JBtn>
+        </div>
       </div>
 
       <!-- Microcopy Footer -->
@@ -583,6 +841,27 @@ const handleStep2Submit = () => {
         <span class="material-symbols-outlined lock-icon">verified_user</span>
         <span>Each event generates a unique encrypted upload token and printable table placards.</span>
       </div>
+
+      <!-- Lightbox Zoom for Payment QRs -->
+      <Teleport to="body">
+        <div v-if="activeZoomImage" class="qr-zoom-modal-overlay" @click="closeZoom">
+          <div class="qr-zoom-modal-dialog" @click.stop>
+            <button type="button" class="qr-zoom-close-btn" aria-label="Close Preview" @click="closeZoom">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="qr-zoom-card">
+              <div class="qr-zoom-title">{{ activeZoomImage.name }} QR Code</div>
+              <div class="qr-zoom-img-wrapper">
+                <img :src="activeZoomImage.image" :alt="`${activeZoomImage.name} QR Code`" class="qr-zoomed-img" />
+              </div>
+              <div class="qr-zoom-caption">
+                <p class="qr-zoom-account-name">{{ activeZoomImage.accountName }}</p>
+                <p class="qr-zoom-account-number">{{ activeZoomImage.accountNumber }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </JModal>
 </template>
@@ -708,7 +987,7 @@ const handleStep2Submit = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 320px;
+  max-width: 440px;
   margin: 0 auto;
   position: relative;
 }
@@ -1375,7 +1654,7 @@ const handleStep2Submit = () => {
   font-size: 13px !important;
   font-weight: 700 !important;
   letter-spacing: 0.02em !important;
-  padding: 0.5rem 1.15rem !important;
+  padding: 0.75rem 1.15rem !important;
   box-shadow: 0 4px 14px rgba(119, 90, 25, 0.28) !important;
   transition: all 0.25s ease !important;
   display: inline-flex !important;
@@ -1396,6 +1675,334 @@ const handleStep2Submit = () => {
 
   &:hover .submit-arrow {
     transform: translateX(3px);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// STEP 3: PAYMENT PARTICULARS & QR CODES
+// ----------------------------------------------------------------------------
+.step3-event-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  margin-bottom: 1.25rem;
+  border-radius: 10px;
+  background-color: var(--bg-surface-tonal, #fcf2ec);
+  border: 1px solid var(--border-color-subtle, #ebe0db);
+  font-size: 12px;
+  color: var(--text-secondary, #4e4639);
+
+  .event-summary-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    .summary-icon {
+      font-size: 15px;
+      color: var(--primary, #c5a059);
+    }
+
+    .summary-text {
+      font-weight: 600;
+      color: var(--text-primary, #1f1b18);
+    }
+  }
+
+  .event-summary-divider {
+    color: var(--border-color, #d1c5b4);
+  }
+}
+
+.payment-channels-container {
+  margin-bottom: 1.25rem;
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.payment-channel-card {
+  background: var(--bg-surface-tonal, #faf6f0);
+  border: 1.5px solid var(--border-color-subtle, #e8dfd5);
+  border-radius: 16px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--primary, #c5a059);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(119, 90, 25, 0.12);
+
+    .payment-img-zoom-hint {
+      opacity: 1;
+    }
+  }
+}
+
+.payment-channel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.payment-badge {
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+
+  &.gcash-badge {
+    background: #007dfe;
+    color: #ffffff;
+  }
+
+  &.maribank-badge {
+    background: #ff5722;
+    color: #ffffff;
+  }
+
+  &.maya-badge {
+    background: #00b050;
+    color: #ffffff;
+  }
+}
+
+.payment-channel-type {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted, #7f7667);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.payment-img-frame {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--border-color-subtle, #e8dfd5);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem;
+}
+
+.payment-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.payment-img-zoom-hint {
+  position: absolute;
+  bottom: 0.45rem;
+  right: 0.45rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(4px);
+
+  .material-symbols-outlined {
+    font-size: 13px;
+  }
+}
+
+.payment-channel-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 11px;
+  border-top: 1px dashed var(--border-color-subtle, #e8dfd5);
+  padding-top: 0.5rem;
+}
+
+.payment-info-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+
+  .info-label {
+    color: var(--text-muted, #7f7667);
+    font-size: 10.5px;
+  }
+
+  .info-val {
+    color: var(--text-primary, #1f1b18);
+    font-weight: 600;
+    text-align: right;
+  }
+}
+
+.pending-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background-color: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  margin-bottom: 1.25rem;
+
+  .pending-notice-icon-box {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+    background-color: rgba(245, 158, 11, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    .pending-icon {
+      font-size: 17px;
+      color: #d97706;
+    }
+  }
+
+  .pending-notice-body {
+    flex: 1;
+
+    .pending-notice-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #b45309;
+      margin-bottom: 0.15rem;
+    }
+
+    .pending-notice-desc {
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--text-secondary, #4e4639);
+      margin: 0;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// LIGHTBOX MODAL FOR QR PREVIEW
+// ----------------------------------------------------------------------------
+.qr-zoom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.qr-zoom-modal-dialog {
+  position: relative;
+  max-width: 440px;
+  width: 100%;
+}
+
+.qr-zoom-close-btn {
+  position: absolute;
+  top: -2.75rem;
+  right: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: scale(1.05);
+  }
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+}
+
+.qr-zoom-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.qr-zoom-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #1f1b18;
+}
+
+.qr-zoom-img-wrapper {
+  max-height: 60vh;
+  overflow: hidden;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  background: #fbfbfb;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.qr-zoomed-img {
+  max-width: 100%;
+  max-height: 55vh;
+  object-fit: contain;
+  display: block;
+}
+
+.qr-zoom-caption {
+  font-size: 12px;
+  color: #4e4639;
+
+  .qr-zoom-account-name {
+    font-weight: 700;
+    margin: 0 0 0.2rem 0;
+    color: #1f1b18;
+    font-size: 13px;
+  }
+
+  .qr-zoom-account-number {
+    margin: 0;
+    color: #7f7667;
   }
 }
 

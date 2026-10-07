@@ -70,20 +70,18 @@ const isButtonDisabled = computed(() => {
 const buttonIcon = computed(() => {
     if (isProcessingFiles.value) return 'spinner';
     if (isOpenCameraDisabled.value) return 'lock';
-    return isPastEvent.value ? 'upload' : 'camera';
+    return isPastEvent.value && !props.isDemo ? 'upload' : 'camera';
 })
 const buttonText = computed(() => {
     if (isProcessingFiles.value) return 'Processing...';
     if (isOpenCameraDisabled.value) return 'Photo Limit Reached';
-    return isPastEvent.value ? 'Upload Now' : 'Snap & Share Now';
+    return isPastEvent.value && !props.isDemo ? 'Upload Photos from Gallery' : 'Snap & Share Now';
 })
 
 const handleButtonClick = () => {
     if (isButtonDisabled.value) return
-    if (isPastEvent.value) {
-        if (galleryFileInput.value) {
-            galleryFileInput.value.click()
-        }
+    if (isPastEvent.value && !props.isDemo && galleryFileInput.value) {
+        galleryFileInput.value.click()
     } else {
         handleOpenCamera()
     }
@@ -250,6 +248,16 @@ const successResetDemo = () => {
         isResettingDemo.value = false;
     }, 2200)
 }
+const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    try {
+        const d = new Date(dateStr)
+        if (isNaN(d.getTime())) return dateStr
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    } catch {
+        return dateStr
+    }
+}
 defineExpose({
     successResetDemo
 })
@@ -257,11 +265,18 @@ defineExpose({
 <template>
     <div id="quick-capture-section" class="checklist-quick-section">
         <div class="checklist-quick-card__actions">
-            <button class="checklist-quick-card__submit-btn" type="button" :disabled="isButtonDisabled"
-                @click="handleButtonClick">
-                <JIcon :name="buttonIcon" size="20" :spin="isProcessingFiles" />
-                <span>{{ buttonText }}</span>
-            </button>
+            <div :class="{ 'quick-uploaded-stream-container': !isDemo }">
+                <p class="event-ended__text text-center mb-4" v-if="isPastEvent && !isDemo">
+                    The event has ended but you
+                    can still
+                    upload your
+                    captured photos from the event until {{ formatDate(eventDetails?.photoExpiry) }}</p>
+                <button class="checklist-quick-card__submit-btn" type="button" :disabled="isButtonDisabled"
+                    @click="handleButtonClick">
+                    <JIcon :name="buttonIcon" size="20" :spin="isProcessingFiles" />
+                    <span>{{ buttonText }}</span>
+                </button>
+            </div>
             <input ref="galleryFileInput" type="file" accept="image/*,video/*" multiple class="checklist-hidden-input"
                 @change="handleGalleryFilesSelected" />
         </div>

@@ -599,7 +599,7 @@ onUnmounted(() => {
             <span class="event-detail__stat-label">Active Contributors</span>
             <div class="event-detail__stat-row">
               <span class="event-detail__stat-value event-detail__stat-value--primary">{{ totalActiveContributors
-                }}</span>
+              }}</span>
               <span class="event-detail__stat-unit">
                 {{ totalActiveContributors === 1 ? 'Beloved Guest' : 'Beloved Guests' }}
               </span>
@@ -632,7 +632,7 @@ onUnmounted(() => {
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab2' }"
           @click="activeTab = 'tab2'">
           <span class="material-symbols-outlined tab-icon">photo_library</span>
-          <span>Guest Photos &amp; Checklists</span>
+          <span>Guest Photos</span>
         </button>
 
         <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab3' }"
@@ -651,7 +651,7 @@ onUnmounted(() => {
 
     <!-- TAB 2: Guest Photos & Albums -->
     <EventPhotosTab v-else-if="activeTab === 'tab2'" :albums="albums" :is-loading-albums="isLoadingAlbums"
-      @action="handleAction" />
+      :event-code="eventCode" :event-data="eventData" @action="handleAction" />
 
 
     <!-- TAB 3: 5x7" Table Placard Templates -->

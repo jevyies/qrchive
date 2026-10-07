@@ -240,7 +240,8 @@ const resetDemo = async () => {
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('guestName')
         }
-        hasGuestAuth.value = null;
+        hasGuestAuth.value = false;
+        alreadyLoaded.value = false;
         eventBoardRef.value?.successDemoReset();
     } catch (err) {
         console.error('[Quests] Failed to reset demo data:', err)
@@ -979,7 +980,7 @@ onMounted(async () => {
             id: 'demo-event',
             token: 'demo-event',
             name: `Jev & Jean`,
-            eventDate: new Date().toISOString(),
+            eventDate: '04-20-2024',
             guestCode: 'demo-guest',
             guestName: 'You',
             eventCategory: 'Wedding',
@@ -1046,7 +1047,7 @@ onMounted(async () => {
                             <Transition name="slide-down">
                                 <template v-if="alreadyLoaded && hasGuestAuth">
                                     <div class="vault-hero__content">
-                                        <div class="vault-hero__eyebrow">
+                                        <div class="vault-hero__eyebrow" v-if="isCoupleEvent">
                                             <span class="vault-hero__eyebrow-dot"></span>
                                             <span class="vault-hero__eyebrow-text">The Wedding of</span>
                                             <span class="vault-hero__eyebrow-dot"></span>
@@ -1079,7 +1080,8 @@ onMounted(async () => {
                             </header>
                         </Transition>
                         <EventWelcomePage v-if="eventDetails?.token && !hasGuestAuth" :eventDetails="eventDetails"
-                            :isPressed="isPressed" @homepage="goToHomePage" @get-started="handleGetStarted" />
+                            :isCoupleEvent="isCoupleEvent" :isPressed="isPressed" @homepage="goToHomePage"
+                            @get-started="handleGetStarted" />
                         <template v-else-if="eventDetails?.token && hasGuestAuth">
                             <input id="photo-upload-input" ref="fileInput" accept="image/*,video/*" multiple
                                 class="checklist-hidden-input" type="file" @change="handleFileChange">
@@ -1105,8 +1107,8 @@ onMounted(async () => {
             :quick-photos-left="quickPhotosLeft" :uploaded-quick-photos="uploadedQuickPhotos" :isUnlimited="isUnlimited"
             @close="handleCameraClose" @capture="handleCameraCapture" @open-gallery="openGalleryPicker" />
         <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"
-            :can-delete="isLightboxDeletable"
-            @close="isLightboxOpen = false" @like="toggleLightboxLike" @delete="handleDeletePhoto" />
+            :can-delete="isLightboxDeletable" @close="isLightboxOpen = false" @like="toggleLightboxLike"
+            @delete="handleDeletePhoto" />
     </div>
 </template>
 <route lang="yaml">

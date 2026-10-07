@@ -1,5 +1,5 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { eq, desc, and, or, sql } from 'drizzle-orm';
+import { eq, desc, and, or, sql, isNull, inArray } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -35,6 +35,7 @@ export function formatSimplifiedPhoto(photo: {
   likesCount?: number;
   isLiked?: boolean;
   checklistId?: number | null;
+  checklistName?: string | null;
   fileName?: string | null;
   mimeType?: string | null;
   thumbnailUrl?: string | null;
@@ -84,6 +85,7 @@ export function formatSimplifiedPhoto(photo: {
     storageKey: cleanKey || photo.storageKey || null,
     storage_key: cleanKey || photo.storageKey || null,
     checklistId: photo.checklistId || null,
+    checklistName: photo.checklistName || null,
     fileName: photo.fileName || null,
     mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
     isVideo,
@@ -103,6 +105,7 @@ export function formatSimplifiedGuestPhoto(photo: {
   uploadedBy?: string | null;
   createdAt: string | Date;
   checklistId?: number | null;
+  checklistName?: string | null;
   fileName?: string | null;
   mimeType?: string | null;
   thumbnailUrl?: string | null;
@@ -150,6 +153,7 @@ export function formatSimplifiedGuestPhoto(photo: {
     storageKey: cleanKey || photo.storageKey || null,
     storage_key: cleanKey || photo.storageKey || null,
     checklistId: photo.checklistId || null,
+    checklistName: photo.checklistName || null,
     fileName: photo.fileName || null,
     mimeType: photo.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
     isVideo,
@@ -1197,8 +1201,123 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
   );
 
   // =========================================================================
-  // 6. LIST PHOTOS FOR EVENT (GET /events/:eventId)
+  // 6. LIST PHOTOS FOR EVENT (GET /events/:eventId & GET /token/:token/photos)
   // =========================================================================
+  const listEventPhotosHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+    const rawEventId = (request.params as any)?.eventId || (request.params as any)?.token;
+    const {
+      page = 1,
+      limit = 10,
+      status = 'completed',
+      userIdentifier: qUserIdentifier,
+      checklistId,
+    } = (request.query as any) || {};
+
+    let resolvedEventId = Number(rawEventId);
+    if (isNaN(resolvedEventId) || resolvedEventId <= 0) {
+      let ev = await db.query.events.findFirst({
+        where: eq(events.token, String(rawEventId)),
+      });
+      if (!ev && String(rawEventId) === 'demo-event') {
+        ev = await db.query.events.findFirst();
+      }
+      resolvedEventId = ev ? ev.id : 0;
+    }
+
+    const numEventId = resolvedEventId;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const offset = (pageNum - 1) * limitNum;
+
+    const rawUserIdentifier =
+      qUserIdentifier ||
+      (request.headers['x-guest-code'] as string) ||
+      (request.headers['x-device-serial'] as string) ||
+      (request.user ? String(request.user.id) : null) ||
+      '';
+    const userIdentifier = String(rawUserIdentifier).trim();
+
+    let checklistCondition = undefined;
+    if (checklistId !== undefined && checklistId !== '' && checklistId !== 'all') {
+      if (checklistId === 'candid' || checklistId === 'null') {
+        checklistCondition = isNull(snapPhotos.checklistId);
+      } else {
+        const cid = Number(checklistId);
+        if (!isNaN(cid)) {
+          checklistCondition = eq(snapPhotos.checklistId, cid);
+        }
+      }
+    }
+
+    const whereClause = and(
+      eq(snapGuests.eventId, numEventId),
+      status && status !== 'all' ? eq(snapPhotos.status, status) : undefined,
+      checklistCondition
+    );
+
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(snapPhotos)
+      .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
+      .where(whereClause);
+
+    const rows = await db
+      .select({
+        id: snapPhotos.id,
+        checklistId: snapPhotos.checklistId,
+        checklistName: snapChecklist.name,
+        url: snapPhotos.url,
+        uploadedBy: snapGuests.name,
+        guestId: snapGuests.id,
+        deviceSerial: snapGuests.deviceSerial,
+        deviceName: snapGuests.deviceName,
+        uploadedAt: snapPhotos.createdAt,
+        fileName: snapPhotos.fileName,
+        fileSize: snapPhotos.fileSize,
+        mimeType: snapPhotos.mimeType,
+        storageKey: snapPhotos.storageKey,
+        status: snapPhotos.status,
+        createdAt: snapPhotos.createdAt,
+        likesCount: sql<number>`(SELECT count(*)::int FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id})`.as('likes_count'),
+        isLiked: userIdentifier
+          ? sql<boolean>`EXISTS (SELECT 1 FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id} AND LOWER(TRIM(snap_photo_likes.user_identifier)) = LOWER(TRIM(${userIdentifier})))`.as('is_liked')
+          : sql<boolean>`false`.as('is_liked'),
+      })
+      .from(snapPhotos)
+      .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
+      .leftJoin(snapChecklist, eq(snapPhotos.checklistId, snapChecklist.id))
+      .where(whereClause)
+      .orderBy(desc(snapPhotos.createdAt))
+      .limit(limitNum)
+      .offset(offset);
+
+    const formattedPhotos = rows.map((p: any) =>
+      formatSimplifiedPhoto({
+        id: p.id,
+        url: p.url,
+        storageKey: p.storageKey,
+        uploadedBy: p.uploadedBy,
+        createdAt: p.createdAt,
+        likesCount: p.likesCount,
+        isLiked: p.isLiked,
+        checklistId: p.checklistId,
+        checklistName: p.checklistName || (p.checklistId ? `Checklist #${p.checklistId}` : 'Quick Captures'),
+        fileName: p.fileName,
+        mimeType: p.mimeType,
+      })
+    );
+
+    const total = totalResult?.count || 0;
+    return reply.send({
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+      hasMore: offset + rows.length < total,
+      photos: formattedPhotos,
+    });
+  };
+
   app.get(
     '/events/:eventId',
     {
@@ -1206,7 +1325,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       schema: {
         tags: ['Photos'],
         summary: 'List Photos for Event',
-        description: 'Retrieves all photos uploaded for an event, ordered newest first.',
+        description: 'Retrieves photos uploaded for an event ordered newest first, with optional checklist filter and pagination limit 10.',
         params: {
           type: 'object',
           required: ['eventId'],
@@ -1221,103 +1340,24 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
             limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
             status: { type: 'string', default: 'completed' },
             userIdentifier: { type: 'string' },
+            checklistId: { type: ['integer', 'string'] },
           },
         },
       },
     },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { eventId } = request.params as any;
-      const { page = 1, limit = 10, status = 'completed', userIdentifier: qUserIdentifier } =
-        (request.query as any) || {};
+    listEventPhotosHandler
+  );
 
-      let resolvedEventId = Number(eventId);
-      if (isNaN(resolvedEventId) || resolvedEventId <= 0) {
-        let ev = await db.query.events.findFirst({
-          where: eq(events.token, String(eventId)),
-        });
-        if (!ev && String(eventId) === 'demo-event') {
-          ev = await db.query.events.findFirst();
-        }
-        resolvedEventId = ev ? ev.id : 0;
-      }
-
-      const numEventId = resolvedEventId;
-      const pageNum = Number(page) || 1;
-      const limitNum = Number(limit) || 10;
-      const offset = (pageNum - 1) * limitNum;
-
-      const rawUserIdentifier =
-        qUserIdentifier ||
-        (request.headers['x-guest-code'] as string) ||
-        (request.headers['x-device-serial'] as string) ||
-        (request.user ? String(request.user.id) : null) ||
-        '';
-      const userIdentifier = String(rawUserIdentifier).trim();
-
-      const whereClause = and(
-        eq(snapGuests.eventId, numEventId),
-        status ? eq(snapPhotos.status, status) : undefined
-      );
-
-      const [totalResult] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(snapPhotos)
-        .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
-        .where(whereClause);
-
-      const rows = await db
-        .select({
-          id: snapPhotos.id,
-          checklistId: snapPhotos.checklistId,
-          url: snapPhotos.url,
-          uploadedBy: snapGuests.name,
-          guestId: snapGuests.id,
-          deviceSerial: snapGuests.deviceSerial,
-          deviceName: snapGuests.deviceName,
-          uploadedAt: snapPhotos.createdAt,
-          fileName: snapPhotos.fileName,
-          fileSize: snapPhotos.fileSize,
-          mimeType: snapPhotos.mimeType,
-          storageKey: snapPhotos.storageKey,
-          status: snapPhotos.status,
-          createdAt: snapPhotos.createdAt,
-          likesCount: sql<number>`(SELECT count(*)::int FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id})`.as('likes_count'),
-          isLiked: userIdentifier
-            ? sql<boolean>`EXISTS (SELECT 1 FROM snap_photo_likes WHERE snap_photo_likes.photo_id = ${snapPhotos.id} AND LOWER(TRIM(snap_photo_likes.user_identifier)) = LOWER(TRIM(${userIdentifier})))`.as('is_liked')
-            : sql<boolean>`false`.as('is_liked'),
-        })
-        .from(snapPhotos)
-        .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
-        .where(whereClause)
-        .orderBy(desc(snapPhotos.createdAt))
-        .limit(limitNum)
-        .offset(offset);
-
-      const formattedPhotos = rows.map((p: any) =>
-        formatSimplifiedPhoto({
-          id: p.id,
-          url: p.url,
-          storageKey: p.storageKey,
-          uploadedBy: p.uploadedBy,
-          createdAt: p.createdAt,
-          likesCount: p.likesCount,
-          isLiked: p.isLiked,
-          checklistId: p.checklistId,
-          fileName: p.fileName,
-          mimeType: p.mimeType,
-        })
-      );
-
-      const total = totalResult?.count || 0;
-      return reply.send({
-        total,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
-        hasMore: offset + rows.length < total,
-        photos: formattedPhotos,
-      });
-    }
+  app.get(
+    '/token/:token/photos',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'List Photos by Event Token',
+      },
+    },
+    listEventPhotosHandler
   );
 
   // =========================================================================
@@ -1325,18 +1365,19 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
   // =========================================================================
   const getGuestPhotosHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { eventId, guestCode, guest_code } = (request.params as any) || {};
+      const rawEventId = (request.params as any)?.eventId || (request.params as any)?.token;
+      const { guestCode, guest_code } = (request.params as any) || {};
       const { status = 'completed', guestCode: qGuestCode, guest_code: qGuest_code } =
         (request.query as any) || {};
 
-      let resolvedEventId = Number(eventId);
+      let resolvedEventId = Number(rawEventId);
       if (isNaN(resolvedEventId) || resolvedEventId <= 0) {
         const [ev] = await db
           .select({ id: events.id })
           .from(events)
-          .where(eq(events.token, String(eventId)))
+          .where(eq(events.token, String(rawEventId)))
           .limit(1);
-        if (!ev && String(eventId) === 'demo-event') {
+        if (!ev && String(rawEventId) === 'demo-event') {
           const [firstEv] = await db.select({ id: events.id }).from(events).limit(1);
           resolvedEventId = firstEv ? firstEv.id : 0;
         } else {
@@ -1355,7 +1396,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       if (!targetGuestCode) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: 'guest_code is required to fetch guest photos.',
+          message: 'guest_code or guestId is required to fetch guest photos.',
         });
       }
 
@@ -1366,9 +1407,16 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
+      const numericTargetId = Number(targetGuestCode);
+      const isNumTarget = !isNaN(numericTargetId) && numericTargetId > 0;
+
+      const guestMatchCondition = isNumTarget
+        ? or(eq(snapGuests.guestCode, String(targetGuestCode).trim()), eq(snapGuests.id, numericTargetId))
+        : eq(snapGuests.guestCode, String(targetGuestCode).trim());
+
       const whereClause = and(
         eq(snapGuests.eventId, numEventId),
-        eq(snapGuests.guestCode, String(targetGuestCode).trim()),
+        guestMatchCondition,
         status && status !== 'all' ? eq(snapPhotos.status, status) : undefined
       );
 
@@ -1376,6 +1424,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         .select({
           id: snapPhotos.id,
           checklistId: snapPhotos.checklistId,
+          checklistName: snapChecklist.name,
           url: snapPhotos.url,
           uploadedBy: snapGuests.name,
           guestId: snapGuests.id,
@@ -1395,6 +1444,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
         })
         .from(snapPhotos)
         .innerJoin(snapGuests, eq(snapPhotos.uploadedBy, snapGuests.id))
+        .leftJoin(snapChecklist, eq(snapPhotos.checklistId, snapChecklist.id))
         .where(whereClause)
         .orderBy(desc(snapPhotos.createdAt));
 
@@ -1406,6 +1456,7 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
           uploadedBy: p.uploadedBy,
           createdAt: p.createdAt,
           checklistId: p.checklistId,
+          checklistName: p.checklistName || (p.checklistId ? `Checklist #${p.checklistId}` : 'Quick Captures'),
           fileName: p.fileName,
           mimeType: p.mimeType,
           likesCount: p.likesCount,
@@ -1435,8 +1486,6 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       schema: {
         tags: ['Photos'],
         summary: 'List All Photos for Specific Guest in Event',
-        description:
-          'Retrieves all photos uploaded by a guest (linking eventId and guest_code to snap_guests), returning all items without limit and excluding like data.',
         params: {
           type: 'object',
           required: ['eventId', 'guestCode'],
@@ -1454,6 +1503,159 @@ export const photoRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     getGuestPhotosHandler
+  );
+
+  app.get(
+    '/token/:token/guests/:guestCode',
+    {
+      preHandler: [optionalAuthenticate],
+      schema: {
+        tags: ['Photos'],
+        summary: 'List All Photos for Specific Guest by Event Token',
+      },
+    },
+    getGuestPhotosHandler
+  );
+
+  // =========================================================================
+  // 6d. LIST GUEST UPLOADERS FOR EVENT (GET /events/:eventId/uploaders & GET /token/:token/uploaders)
+  // =========================================================================
+  const getEventUploadersHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const rawParam = (request.params as any)?.token || (request.params as any)?.eventId;
+      const { sort = 'alphabetical' } = (request.query as any) || {};
+
+      let resolvedEventId = 0;
+      if (rawParam) {
+        const [ev] = await db
+          .select({ id: events.id })
+          .from(events)
+          .where(eq(events.token, String(rawParam)))
+          .limit(1);
+
+        if (ev) {
+          resolvedEventId = ev.id;
+        } else if (String(rawParam) === 'demo-event') {
+          const [firstEv] = await db.select({ id: events.id }).from(events).limit(1);
+          resolvedEventId = firstEv ? firstEv.id : 0;
+        } else {
+          const numId = Number(rawParam);
+          if (!isNaN(numId) && numId > 0) {
+            const [evById] = await db
+              .select({ id: events.id })
+              .from(events)
+              .where(eq(events.id, numId))
+              .limit(1);
+            resolvedEventId = evById ? evById.id : 0;
+          }
+        }
+      }
+
+      if (!resolvedEventId) {
+        return reply.send({ total: 0, uploaders: [] });
+      }
+
+      const rows = await db
+        .select({
+          id: snapGuests.id,
+          name: snapGuests.name,
+          guestCode: snapGuests.guestCode,
+          deviceSerial: snapGuests.deviceSerial,
+          deviceName: snapGuests.deviceName,
+          createdAt: snapGuests.createdAt,
+          totalMedia: sql<number>`count(${snapPhotos.id})::int`.as('total_media'),
+          totalPhotos: sql<number>`count(case when ${snapPhotos.mimeType} not like 'video/%' and coalesce(${snapPhotos.fileName}, '') not like '%.mp4' and coalesce(${snapPhotos.fileName}, '') not like '%.webm' then 1 else null end)::int`.as('total_photos'),
+          totalVideos: sql<number>`count(case when ${snapPhotos.mimeType} like 'video/%' or coalesce(${snapPhotos.fileName}, '') like '%.mp4' or coalesce(${snapPhotos.fileName}, '') like '%.webm' then 1 else null end)::int`.as('total_videos'),
+          totalLikes: sql<number>`coalesce((SELECT count(*)::int FROM snap_photo_likes spl INNER JOIN snap_photos sp ON sp.id = spl.photo_id WHERE sp.uploaded_by = ${snapGuests.id}), 0)`.as('total_likes'),
+          firstUploadedAt: sql<string>`min(${snapPhotos.createdAt})`.as('first_uploaded_at'),
+          latestUploadedAt: sql<string>`max(${snapPhotos.createdAt})`.as('latest_uploaded_at'),
+          firstChecklistUploadedAt: sql<string>`min(case when ${snapPhotos.checklistId} is not null then ${snapPhotos.createdAt} else null end)`.as('first_checklist_uploaded_at'),
+          checklistsCompletedCount: sql<number>`count(distinct ${snapPhotos.checklistId})::int`.as('checklists_completed_count'),
+        })
+        .from(snapGuests)
+        .innerJoin(snapPhotos, and(eq(snapPhotos.uploadedBy, snapGuests.id), eq(snapPhotos.status, 'completed')))
+        .where(eq(snapGuests.eventId, resolvedEventId))
+        .groupBy(snapGuests.id, snapGuests.name, snapGuests.guestCode, snapGuests.deviceSerial, snapGuests.deviceName, snapGuests.createdAt);
+
+      const uploaderIds = rows.map((r) => r.id);
+      const coverPhotoMap = new Map<number, string>();
+      if (uploaderIds.length > 0) {
+        const photoRows = await db
+          .select({
+            uploadedBy: snapPhotos.uploadedBy,
+            url: snapPhotos.url,
+            storageKey: snapPhotos.storageKey,
+          })
+          .from(snapPhotos)
+          .where(and(eq(snapPhotos.status, 'completed'), inArray(snapPhotos.uploadedBy, uploaderIds)))
+          .orderBy(desc(snapPhotos.createdAt));
+
+        for (const pr of photoRows) {
+          if (pr.uploadedBy && !coverPhotoMap.has(pr.uploadedBy)) {
+            const rawKey = pr.storageKey || pr.url || '';
+            const cleanKey = R2Service.cleanStorageKey(rawKey);
+            const domain = R2_PUBLIC_DOMAIN || 'https://photos.qrchive-events.com';
+            const fullUrl = cleanKey ? `${domain}/${cleanKey}` : pr.url;
+            coverPhotoMap.set(pr.uploadedBy, fullUrl);
+          }
+        }
+      }
+
+      const formatted = rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        guestCode: r.guestCode,
+        deviceName: r.deviceName,
+        deviceSerial: r.deviceSerial,
+        createdAt: r.createdAt,
+        totalMedia: r.totalMedia,
+        totalPhotos: r.totalPhotos,
+        totalVideos: r.totalVideos,
+        totalLikes: r.totalLikes,
+        firstUploadedAt: r.firstUploadedAt,
+        latestUploadedAt: r.latestUploadedAt,
+        firstChecklistUploadedAt: r.firstChecklistUploadedAt,
+        checklistsCompletedCount: r.checklistsCompletedCount,
+        coverPhoto: coverPhotoMap.get(r.id) || null,
+      }));
+
+      if (sort === 'likes') {
+        formatted.sort((a, b) => b.totalLikes - a.totalLikes || a.name.localeCompare(b.name));
+      } else if (sort === 'early') {
+        formatted.sort((a, b) => {
+          const aTime = a.firstChecklistUploadedAt || a.firstUploadedAt || '9999';
+          const bTime = b.firstChecklistUploadedAt || b.firstUploadedAt || '9999';
+          return aTime.localeCompare(bTime);
+        });
+      } else {
+        formatted.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      return reply.send({
+        total: formatted.length,
+        uploaders: formatted,
+      });
+    } catch (err: any) {
+      request.log.error(err, '[Photos] Error in getEventUploadersHandler:');
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: err.message || 'Failed to fetch event uploaders',
+        total: 0,
+        uploaders: [],
+      });
+    }
+  };
+
+  app.get(
+    '/events/:eventId/uploaders',
+    { preHandler: [optionalAuthenticate] },
+    getEventUploadersHandler
+  );
+
+  app.get(
+    '/token/:token/uploaders',
+    { preHandler: [optionalAuthenticate] },
+    getEventUploadersHandler
   );
 
   // =========================================================================

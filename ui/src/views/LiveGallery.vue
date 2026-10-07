@@ -143,9 +143,6 @@ onBeforeUnmount(() => {
 <template>
     <!-- Content Sheet Overlay (Slides over sticky hero) -->
     <div class="vault-content">
-        <div class="checklist-drawer-handle-bar" aria-hidden="true">
-            <span class="checklist-drawer-handle"></span>
-        </div>
         <!-- Filter & Sort Navigation with "All" as first tab -->
         <section class="vault-filter-section">
             <div class="vault-filter-header">

@@ -27,7 +27,7 @@ const displayDate = computed(() => {
         <!-- Haute Editorial Moniker & Names -->
         <div class="vault-hero__eyebrow" v-if="isCoupleEvent">
             <span class="vault-hero__eyebrow-dot"></span>
-            <span class="vault-hero__eyebrow-text">The Wedding of</span>
+            <span class="vault-hero__eyebrow-text" :style="{ color: '#ffdea5' }">The Wedding of</span>
             <span class="vault-hero__eyebrow-dot"></span>
         </div>
         <h1 class="event-hero-title">

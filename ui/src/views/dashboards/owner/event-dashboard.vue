@@ -54,14 +54,14 @@ const getPaymentStatusText = (event) => {
 
 const getPaymentBadgeClass = (event) => {
   const status = (event?.paymentStatus || event?.payment_status || 'pending').toLowerCase()
-  if (status === 'paid' || status === 'completed') return 'payment-badge--paid'
+  if (status === 'paid' || status === 'completed' || status === 'approved') return 'payment-badge--paid'
   if (status === 'cancelled' || status === 'refunded') return 'payment-badge--cancelled'
   return 'payment-badge--pending'
 }
 
 const getPaymentBadgeIcon = (event) => {
   const status = (event?.paymentStatus || event?.payment_status || 'pending').toLowerCase()
-  if (status === 'paid' || status === 'completed') return 'check_circle'
+  if (status === 'paid' || status === 'completed' || status === 'approved') return 'check_circle'
   if (status === 'cancelled' || status === 'refunded') return 'cancel'
   return 'hourglass_top'
 }

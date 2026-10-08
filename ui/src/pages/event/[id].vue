@@ -203,6 +203,7 @@ const submitGuest = async (guestName) => {
         eventDetails.value.guestCode = response;
         eventDetails.value.guestName = guestName;
         alreadyLoaded.value = true;
+        await eventVaultStore.fetchInitialGuestData(route.params.id, response)
     } catch (error) {
         if (error?.response?.data?.message?.includes('Max Guest')) {
             maxGuest.value = true;
@@ -1111,9 +1112,8 @@ onMounted(async () => {
             :quick-photos-left="quickPhotosLeft" :uploaded-quick-photos="uploadedQuickPhotos" :isUnlimited="isUnlimited"
             @close="handleCameraClose" @capture="handleCameraCapture" @open-gallery="openGalleryPicker" />
         <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"
-            :can-delete="isLightboxDeletable" :can-download="isLightboxDownloadable"
-            @close="isLightboxOpen = false" @like="toggleLightboxLike"
-            @delete="handleDeletePhoto" />
+            :can-delete="isLightboxDeletable" :can-download="isLightboxDownloadable" @close="isLightboxOpen = false"
+            @like="toggleLightboxLike" @delete="handleDeletePhoto" />
     </div>
 </template>
 <route lang="yaml">

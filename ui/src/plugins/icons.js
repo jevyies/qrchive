@@ -813,6 +813,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "sparkles",
+    "category": "Action",
+    "tags": [
+      "sparkles",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "spinner",
     "category": "Action",
     "tags": [
@@ -847,6 +856,16 @@ export const allIcons = [
     "category": "Action",
     "tags": [
       "t",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "thumbs-up",
+    "category": "Action",
+    "tags": [
+      "thumbs",
+      "up",
       "action",
       "control"
     ]

@@ -1,7 +1,18 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+  isNavigationFailure,
+  NavigationFailureType,
+} from 'vue-router'
 import routes from '~pages'
 import { hasAuthToken } from '../@core/utils/cookies'
-import { getCurrentAuthPosition, getCurrentAuthStatus, ROLE_MENUS, getMenusForRole } from '../navigations'
+import {
+  getCurrentAuthPosition,
+  getCurrentAuthStatus,
+  ROLE_MENUS,
+  getMenusForRole,
+} from '../navigations'
+import { useProgressBar } from '../composables/useProgressBar'
 
 // ============================================================================
 // ROLE-BASED ROUTE PERMISSIONS
@@ -67,6 +78,15 @@ const router = createRouter({
   },
 })
 
+const { start: startProgress, finish: finishProgress, fail: failProgress } = useProgressBar()
+
+// 0. Top Progress Bar Hook: Trigger thin loading bar on route navigation
+router.beforeEach((to, from) => {
+  if (to.fullPath !== from.fullPath) {
+    startProgress()
+  }
+})
+
 // Authentication & Role-Based Route Guard:
 // 1. If user visits public routes (/, /login, /register), allow access.
 // 2. If token is saved in cookie and user navigates to /login or /register, route goes to /dashboard.
@@ -98,7 +118,10 @@ router.beforeEach((to) => {
   if (!authenticated) {
     return {
       path: '/login',
-      query: to.fullPath && to.fullPath !== '/' && to.fullPath !== '/dashboard' ? { redirect: to.fullPath } : undefined,
+      query:
+        to.fullPath && to.fullPath !== '/' && to.fullPath !== '/dashboard'
+          ? { redirect: to.fullPath }
+          : undefined,
     }
   }
 
@@ -108,7 +131,9 @@ router.beforeEach((to) => {
   // Strict restriction: If owner has pending status, only /dashboard is accessible
   if (currentRole === 'owner' && currentStatus === 'pending') {
     if (to.path !== '/dashboard') {
-      console.warn(`[RouteGuard] Owner status is pending. Access to '${to.path}' denied. Redirecting to /dashboard.`)
+      console.warn(
+        `[RouteGuard] Owner status is pending. Access to '${to.path}' denied. Redirecting to /dashboard.`,
+      )
       return '/dashboard'
     }
     return true
@@ -118,11 +143,31 @@ router.beforeEach((to) => {
   const allowedRoles = ROUTE_PERMISSIONS[to.path]
 
   if (allowedRoles && !allowedRoles.includes(currentRole)) {
-    console.warn(`[RouteGuard] Access denied to ${to.path} for role '${currentRole}'. Redirecting to /dashboard.`)
+    console.warn(
+      `[RouteGuard] Access denied to ${to.path} for role '${currentRole}'. Redirecting to /dashboard.`,
+    )
     return '/dashboard'
   }
 
   return true
+})
+
+// Complete progress bar when route navigation finishes
+router.afterEach((to, from, failure) => {
+  if (isNavigationFailure(failure, NavigationFailureType.redirected)) {
+    return
+  }
+  if (isNavigationFailure(failure, NavigationFailureType.aborted)) {
+    failProgress()
+    return
+  }
+  finishProgress()
+})
+
+// Complete progress bar with failure state on navigation errors
+router.onError((error) => {
+  console.error('[RouteGuard] Navigation error:', error)
+  failProgress()
 })
 
 export { ROLE_MENUS, getMenusForRole, getCurrentAuthPosition, getCurrentAuthStatus }

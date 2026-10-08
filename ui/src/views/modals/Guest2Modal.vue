@@ -12,19 +12,37 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'enter'])
 const isSubmitting = ref(false);
 const guestName = ref('')
+const errorMessage = ref('')
+
 watch(
     () => props.modelValue,
     (isOpen) => {
-        if (isOpen && localStorage.getItem('guestName')) {
-            guestName.value = localStorage.getItem('guestName');
+        if (isOpen) {
+            errorMessage.value = '';
+            if (localStorage.getItem('guestName')) {
+                guestName.value = localStorage.getItem('guestName');
+            }
         }
     }
 )
+
+watch(guestName, (val) => {
+    if (val && val.trim() && errorMessage.value) {
+        errorMessage.value = '';
+    }
+})
+
 const handleClose = () => {
     emit('update:modelValue', false)
 }
 const handleEnterCelebration = () => {
-    emit('enter', guestName.value)
+    const trimmed = guestName.value?.trim()
+    if (!trimmed) {
+        errorMessage.value = 'Please enter your name'
+        return
+    }
+    errorMessage.value = ''
+    emit('enter', trimmed)
 }
 </script>
 <template>
@@ -35,12 +53,13 @@ const handleEnterCelebration = () => {
         <div id="guestModalCard" class="guest-modal-inner">
             <!-- Close Button (Properly inset at top: 1rem, right: 1rem) -->
             <button aria-label="Close modal" class="guest-modal-close-btn" type="button" @click="handleClose">
-                <span class="material-symbols-outlined">close</span>
+                <JIcon name="xmark" />
             </button>
 
             <!-- Sparkle Emblem Badge -->
             <div class="guest-modal-badge">
-                <span class="material-symbols-outlined">auto_awesome</span>
+
+                <JIcon name="sparkles" size="24" type="outlined" />
             </div>
 
             <!-- Couple Ribbon Header -->
@@ -58,9 +77,9 @@ const handleEnterCelebration = () => {
                 <JInput id="guestNameInput" v-model="guestName" label="Guest NAME" placeholder="Enter Your Name"
                     pattern="boxed" container-class="guest-input-container" label-class="guest-input-label"
                     input-class="guest-input-control" @keydown.enter.prevent="handleEnterCelebration"
-                    autocomplete="off">
+                    autocomplete="off" required :error="errorMessage">
                     <template #append-inner>
-                        <span class="material-symbols-outlined guest-input-icon">edit</span>
+                        <JIcon name="pen" />
                     </template>
                 </JInput>
             </div>

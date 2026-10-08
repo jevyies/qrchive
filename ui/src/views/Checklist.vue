@@ -164,27 +164,26 @@ const openMomentLightbox = (item) => {
                             <!-- Video Play Badge if Video -->
                             <div v-if="item.isVideo && item.captured && !item.isUploading && !item.showSuccessCheck"
                                 class="moment-item__video-badge">
-                                <span class="material-symbols-outlined">play_arrow</span>
+                                <JIcon name="player-play" />
                             </div>
 
                             <!-- Check in the center of the image after successful upload, disappears after 1 second -->
                             <transition name="center-check-pop">
                                 <div v-if="item.showSuccessCheck" class="moment-item__center-check">
-                                    <span class="material-symbols-outlined check-icon">check</span>
+                                    <JIcon name="check" />
                                 </div>
                             </transition>
 
                             <!-- Regular corner badge when completed and not showing center check -->
                             <div v-if="item.captured && !item.isUploading && !item.showSuccessCheck"
                                 class="moment-item__thumb-badge">
-                                <span class="material-symbols-outlined"
-                                    style="font-variation-settings: 'FILL' 1;">check</span>
+                                <JIcon name="check" />
                             </div>
                         </div>
 
                         <!-- Placeholder if pending -->
                         <div v-else class="moment-item__placeholder-wrap">
-                            <span class="material-symbols-outlined">broken_image</span>
+                            <JIcon name="photo-question" size="30" />
                         </div>
                     </div>
 
@@ -192,8 +191,7 @@ const openMomentLightbox = (item) => {
                     <div class="moment-item__details">
                         <div class="moment-item__meta">
                             <span v-if="item.captured" class="moment-item__status-verified">
-                                <span class="material-symbols-outlined"
-                                    style="font-variation-settings: 'FILL' 1;">verified</span>
+                                <JIcon name="verified" size="18" />
                                 1/1 Uploaded
                             </span>
                             <span v-else class="moment-item__category-label">
@@ -208,25 +206,19 @@ const openMomentLightbox = (item) => {
                 <!-- Button Actions -->
                 <button v-if="item.captured" class="moment-item__btn moment-item__btn--replace" type="button"
                     :disabled="item.isUploading" @click="handleAction(item, true)">
-                    <span class="material-symbols-outlined">{{ isPastEvent ? 'upload' : 'sync' }}</span>
+                    <JIcon name="spinner" size="20" />
                     <span>REPLACE ENTRY</span>
                 </button>
 
-                <button v-else class="moment-item__btn moment-item__btn--add" type="button"
-                    :disabled="item.isUploading" @click="handleAction(item, false)">
-                    <span class="material-symbols-outlined"
-                        style="font-variation-settings: 'FILL' 1;">{{ isPastEvent ? 'cloud_upload' : 'photo_camera' }}</span>
+                <button v-else class="moment-item__btn moment-item__btn--add" type="button" :disabled="item.isUploading"
+                    @click="handleAction(item, false)">
+                    <JIcon :name="isPastEvent ? 'cloud-upload' : 'camera-up'" size="20" />
                     <span>{{ isPastEvent ? 'UPLOAD ENTRY' : 'ADD ENTRY' }}</span>
                 </button>
             </div>
         </div>
 
-        <input
-            ref="checklistFileInput"
-            type="file"
-            accept="image/*,video/*"
-            class="checklist-hidden-input"
-            @change="handleFileSelected"
-        />
+        <input ref="checklistFileInput" type="file" accept="image/*,video/*" class="checklist-hidden-input"
+            @change="handleFileSelected" />
     </div>
 </template>

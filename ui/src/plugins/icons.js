@@ -190,6 +190,16 @@ export const allIcons = [
     ]
   },
   {
+    "name": "camera-up",
+    "category": "Action",
+    "tags": [
+      "camera",
+      "up",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "cart",
     "category": "Commerce",
     "tags": [
@@ -367,6 +377,16 @@ export const allIcons = [
     "category": "Action",
     "tags": [
       "cloud",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "cloud-upload",
+    "category": "Action",
+    "tags": [
+      "cloud",
+      "upload",
       "action",
       "control"
     ]
@@ -670,6 +690,25 @@ export const allIcons = [
     ]
   },
   {
+    "name": "library-photo",
+    "category": "Action",
+    "tags": [
+      "library",
+      "photo",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "loader",
+    "category": "Action",
+    "tags": [
+      "loader",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "lock",
     "category": "System",
     "tags": [
@@ -684,6 +723,16 @@ export const allIcons = [
     "category": "Action",
     "tags": [
       "m",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "menu-3",
+    "category": "Action",
+    "tags": [
+      "menu",
+      "3",
       "action",
       "control"
     ]
@@ -761,6 +810,16 @@ export const allIcons = [
       "write",
       "pencil",
       "modify"
+    ]
+  },
+  {
+    "name": "photo-question",
+    "category": "Action",
+    "tags": [
+      "photo",
+      "question",
+      "action",
+      "control"
     ]
   },
   {
@@ -1021,6 +1080,15 @@ export const allIcons = [
     "category": "Action",
     "tags": [
       "v",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "verified",
+    "category": "Action",
+    "tags": [
+      "verified",
       "action",
       "control"
     ]

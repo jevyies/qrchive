@@ -191,6 +191,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "celebration",
+    "category": "Action",
+    "tags": [
+      "celebration",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "chart",
     "category": "Commerce",
     "tags": [
@@ -572,6 +581,16 @@ export const allIcons = [
     "category": "Action",
     "tags": [
       "home copy",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "hourglass-top",
+    "category": "Action",
+    "tags": [
+      "hourglass",
+      "top",
       "action",
       "control"
     ]

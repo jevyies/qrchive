@@ -114,7 +114,7 @@ const normalizedType = computed(() => {
                 <!-- ============================================== -->
                 <template v-else-if="normalizedType === 'notstarted'">
                     <div class="error-status-pill error-status-pill--gold">
-                        <span class="material-symbols-outlined status-icon">hourglass_top</span>
+                        <JIcon name="hourglass-top" />
                         <span class="status-text">Celebration Countdown</span>
                     </div>
 
@@ -131,12 +131,12 @@ const normalizedType = computed(() => {
                     </p>
 
                     <div class="error-footnote">
-                        <span class="material-symbols-outlined footnote-icon">celebration</span>
+                        <JIcon name="celebration" />
                         <span>Get ready to snap and preserve memories with the couple!</span>
                     </div>
 
                     <button type="button" class="error-cta-btn" @click="emit('homepage')">
-                        <span class="material-symbols-outlined cta-icon">home</span>
+                        <JIcon name="home" />
                         <span class="cta-text">Return to Homepage</span>
                     </button>
                 </template>

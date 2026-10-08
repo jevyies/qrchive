@@ -183,12 +183,13 @@ const handleEnterCelebration = async () => {
     <div id="guestModalCard" class="guest-modal-inner">
       <!-- Close Button (Properly inset at top: 1rem, right: 1rem) -->
       <button aria-label="Close modal" class="guest-modal-close-btn" type="button" @click="handleClose">
-        <span class="material-symbols-outlined">close</span>
+        <!-- <span class="material-symbols-outlined">close</span> -->
+        <JIcon name="close" size="20" />
       </button>
 
       <!-- Sparkle Emblem Badge -->
       <div class="guest-modal-badge">
-        <span class="material-symbols-outlined">auto_awesome</span>
+        <JIcon name="sparkles" size="20" />
       </div>
 
       <!-- Couple Ribbon Header -->

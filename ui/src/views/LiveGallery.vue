@@ -148,7 +148,7 @@ onBeforeUnmount(() => {
             <div class="vault-filter-header">
                 <span class="vault-filter-count"></span>
                 <button id="sortToggleBtn" class="vault-sort-toggle" type="button" @click="toggleSort">
-                    <span class="material-symbols-outlined">sort</span>
+                    <JIcon name="menu-3" />
                     <span>{{ sortBy === 'recent' ? 'Recent' : 'Most Loved' }}</span>
                 </button>
             </div>
@@ -189,7 +189,7 @@ onBeforeUnmount(() => {
                     <!-- Like Button -->
                     <button aria-label="Like moment" class="vault-card__like-btn" :class="{ 'is-liked': item.isLiked }"
                         type="button" @click.stop="eventVaultStore.toggleLike(item, $event)">
-                        <span class="material-symbols-outlined vault-card__like-icon">favorite</span>
+                        <JIcon name="heart" :type="item.isLiked ? 'filled' : 'outlined'" />
                         <span class="vault-card__like-count">{{ item.likes }}</span>
                     </button>
 
@@ -203,14 +203,14 @@ onBeforeUnmount(() => {
 
             <!-- Empty State if no moments match filter -->
             <div v-else class="vault-empty">
-                <span class="material-symbols-outlined vault-empty__icon">photo_library</span>
+                <JIcon name="library-photo" />
                 <h2 class="vault-empty__title">No moments in this category yet</h2>
             </div>
 
             <!-- Infinite Scroll Loading Indicator (shown only when actively loading) -->
             <div v-if="eventVaultStore.isLoadingMore" class="vault-loading-container">
                 <div class="vault-loading-indicator">
-                    <span class="material-symbols-outlined vault-spinner">progress_activity</span>
+                    <JIcon name="loader" />
                     <span>Loading more moments...</span>
                 </div>
             </div>

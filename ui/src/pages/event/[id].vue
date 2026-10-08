@@ -114,11 +114,19 @@ const galleryCount = computed(() => {
     const localGalleryCount = galleryPhotos.value.length
     return quickCount + checklistCount + localGalleryCount
 })
+const toDateOnly = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
 const diffInDays = (dateStr) => {
-    const today = new Date();
-    const eventDate = new Date(dateStr);
+    const today = toDateOnly(new Date());
+    const eventDate = toDateOnly(dateStr);
+    if (!today || !eventDate) return 0;
     const diffInMs = eventDate - today;
-    const days = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+    const days = Math.round(diffInMs / (1000 * 60 * 60 * 24));
     return days;
 }
 const goToHomePage = () => {
@@ -135,12 +143,12 @@ const getEventData = async (eventToken) => {
             notFound.value = true;
             return;
         }
-        if (new Date(response.eventDate) > new Date()) {
+        if (response.eventDate && toDateOnly(response.eventDate) > toDateOnly(new Date())) {
             daysToGo.value = diffInDays(response.eventDate)
             hasNotStartedYet.value = true;
             return;
         }
-        if (new Date(response.photoExpiry) < new Date()) {
+        if (response.photoExpiry && toDateOnly(response.photoExpiry) < toDateOnly(new Date())) {
             notFound.value = true;
             return;
         }
@@ -1003,7 +1011,7 @@ onMounted(async () => {
     if (storedSessions) {
         hasGuestAuth.value = true;
         eventDetails.value = storedSessions;
-        if (new Date(eventDetails.value.photoExpiry) < new Date()) {
+        if (eventDetails.value.photoExpiry && toDateOnly(eventDetails.value.photoExpiry) < toDateOnly(new Date())) {
             notFound.value = true;
             return;
         }

@@ -164,11 +164,15 @@ export function useNavSections() {
   })
 
   const isPendingOwner = computed(() => {
-    return currentRole.value?.toLowerCase() === 'owner' && currentStatus.value?.toLowerCase() === 'pending'
+    if (authStore) return authStore.isPendingOwner
+    const isAuth = !!getRawToken()
+    return isAuth && currentRole.value?.toLowerCase() === 'owner' && currentStatus.value?.toLowerCase() === 'pending'
   })
 
   const isOwner = computed(() => {
-    return currentRole.value?.toLowerCase() === 'owner'
+    if (authStore) return authStore.isOwner
+    const isAuth = !!getRawToken()
+    return isAuth && currentRole.value?.toLowerCase() === 'owner'
   })
 
   const navSections = computed(() => getNavSections(currentRole.value, currentStatus.value))

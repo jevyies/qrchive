@@ -60,17 +60,17 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value?.status) {
       return user.value.status.toLowerCase()
     }
-    return 'pending'
+    return isAuthenticated.value ? 'pending' : null
   })
 
   // True if user is an owner with pending status
   const isPendingOwner = computed(() => {
-    return authPosition.value?.toLowerCase() === 'owner' && status.value?.toLowerCase() === 'pending'
+    return isAuthenticated.value && authPosition.value?.toLowerCase() === 'owner' && status.value?.toLowerCase() === 'pending'
   })
 
   // True if user's authPosition is owner
   const isOwner = computed(() => {
-    return authPosition.value?.toLowerCase() === 'owner'
+    return isAuthenticated.value && authPosition.value?.toLowerCase() === 'owner'
   })
 
   const setAuthPositionOverride = (pos) => {
@@ -429,6 +429,8 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       clearAuthCookies()
       clearOAuthPending()
+      setAuthPositionOverride(null)
+      setStatusOverride(null)
       token.value = null
       user.value = null
       if (typeof window !== 'undefined') {

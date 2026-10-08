@@ -10,11 +10,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { isMobile } = useDisplay()
 
-// Dynamic display name for user greeting
-const displayName = computed(() => {
-  return authStore.user?.fullname || authStore.userFullname || 'there'
-})
-
 // Account Info Profile Modal State
 const isAccountInfoModalOpen = ref(false)
 const isSavingProfile = ref(false)

@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { axiosInstance, API_BASE_URL } from '../../plugins/axios'
 import { getCookie, getAuthToken, getRefreshToken } from '../../@core/utils/cookies'

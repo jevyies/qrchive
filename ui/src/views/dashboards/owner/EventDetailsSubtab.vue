@@ -246,22 +246,6 @@ const handleSubmit = async () => {
         </div>
       </div>
 
-      <!-- Section 3: Archival Access Windows -->
-      <div class="form-section">
-        <h3 class="form-section-title">
-          <span class="material-symbols-outlined section-icon">schedule</span>
-          <span>Archival Timeline &amp; Windows</span>
-        </h3>
-
-        <div class="form-grid">
-          <div class="form-group form-group--full">
-            <label class="form-label" for="photoExpiry">Archive Storage Expiry</label>
-            <input id="photoExpiry" v-model="photoExpiry" type="date" class="form-input" />
-            <span class="form-hint">Date until the high-res gallery remains hosted for download</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Submit Row -->
       <div class="form-actions">
         <JBtn type="submit" color="primary" size="md" :loading="isSaving" :disabled="isSaving" class="save-btn">

@@ -34,7 +34,7 @@ const activeSubTab = ref('users')
 
 // Resolved event identifier
 const resolvedEventCode = computed(() => {
-  return props.eventCode || props.eventData?.token || route.params.id || 'demo-event'
+  return props.eventData?.token || props.eventData?.id || props.eventCode || route.params.id || 'demo-event'
 })
 
 // ============================================================================
@@ -121,6 +121,8 @@ const deriveMockUploadersFromAlbums = () => {
         totalPhotos: (idx + 1) * 3,
         totalVideos: 2,
         totalLikes: (uniqueAuthors.length - idx) * 14 + 5,
+        maxPhotoLikes: (uniqueAuthors.length - idx) * 9 + 4,
+        topPhotoLikes: (uniqueAuthors.length - idx) * 9 + 4,
         firstUploadedAt: baseDate.toISOString(),
         firstChecklistUploadedAt: baseDate.toISOString(),
         coverPhoto: albumMatch?.img || null,
@@ -159,7 +161,12 @@ const sortedUploaders = computed(() => {
     return list.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   }
   if (userSort.value === 'likes') {
-    return list.sort((a, b) => (b.totalLikes || 0) - (a.totalLikes || 0))
+    // Return the guest that has the picture/snap photo with the most likes, not the total count of likes
+    return list.sort((a, b) => {
+      const aMax = Number(a.maxPhotoLikes ?? a.topPhotoLikes ?? 0)
+      const bMax = Number(b.maxPhotoLikes ?? b.topPhotoLikes ?? 0)
+      return bMax - aMax || (b.totalLikes || 0) - (a.totalLikes || 0) || (a.name || '').localeCompare(b.name || '')
+    })
   }
   if (userSort.value === 'early') {
     return list.sort((a, b) => {
@@ -331,27 +338,15 @@ onUnmounted(() => {
     <!-- Sub-Tabs Navigation Header -->
     <div class="subtabs-navigation-bar">
       <div class="subtabs-pills" role="tablist">
-        <button
-          type="button"
-          class="subtab-pill"
-          :class="{ 'is-active': activeSubTab === 'users' }"
-          role="tab"
-          :aria-selected="activeSubTab === 'users'"
-          @click="activeSubTab = 'users'"
-        >
+        <button type="button" class="subtab-pill" :class="{ 'is-active': activeSubTab === 'users' }" role="tab"
+          :aria-selected="activeSubTab === 'users'" @click="activeSubTab = 'users'">
           <span class="material-symbols-outlined subtab-icon">group</span>
           <span>Photos By User</span>
           <span v-if="uploaders.length" class="subtab-badge">{{ uploaders.length }}</span>
         </button>
 
-        <button
-          type="button"
-          class="subtab-pill"
-          :class="{ 'is-active': activeSubTab === 'checklists' }"
-          role="tab"
-          :aria-selected="activeSubTab === 'checklists'"
-          @click="activeSubTab = 'checklists'"
-        >
+        <button type="button" class="subtab-pill" :class="{ 'is-active': activeSubTab === 'checklists' }" role="tab"
+          :aria-selected="activeSubTab === 'checklists'" @click="activeSubTab = 'checklists'">
           <span class="material-symbols-outlined subtab-icon">photo_library</span>
           <span>Photos By Checklist</span>
           <span v-if="albums.length" class="subtab-badge">{{ albums.length }}</span>
@@ -373,19 +368,13 @@ onUnmounted(() => {
         <div class="event-users__controls">
           <!-- Sort Dropdown -->
           <div ref="userSortDropdownRef" class="event-albums__filter-dropdown">
-            <button
-              type="button"
-              class="event-albums__filter-pill event-albums__filter-pill--dropdown"
-              @click.stop="toggleUserSortDropdown"
-              :aria-expanded="isUserSortDropdownOpen"
-              title="Sort contributing guests"
-            >
+            <button type="button" class="event-albums__filter-pill event-albums__filter-pill--dropdown"
+              @click.stop="toggleUserSortDropdown" :aria-expanded="isUserSortDropdownOpen"
+              title="Sort contributing guests">
               <span class="material-symbols-outlined" style="font-size: 1.05rem; color: var(--primary);">sort</span>
               <span class="dropdown-pill-text">{{ userSortLabel }}</span>
-              <span
-                class="material-symbols-outlined dropdown-pill-arrow"
-                :class="{ 'is-flipped': isUserSortDropdownOpen }"
-              >
+              <span class="material-symbols-outlined dropdown-pill-arrow"
+                :class="{ 'is-flipped': isUserSortDropdownOpen }">
                 keyboard_arrow_down
               </span>
             </button>
@@ -395,11 +384,9 @@ onUnmounted(() => {
               <div class="event-albums__dropdown-header">Sort Guests By</div>
 
               <!-- Option a: Alphabetical -->
-              <button
-                type="button"
+              <button type="button"
                 :class="['event-albums__dropdown-item', { 'is-selected': userSort === 'alphabetical' }]"
-                @click="selectUserSort('alphabetical')"
-              >
+                @click="selectUserSort('alphabetical')">
                 <div class="dropdown-item-left">
                   <span class="material-symbols-outlined sort-item-icon">sort_by_alpha</span>
                   <span class="album-title">Alphabetical (A–Z)</span>
@@ -410,11 +397,8 @@ onUnmounted(() => {
               </button>
 
               <!-- Option b: Most liked -->
-              <button
-                type="button"
-                :class="['event-albums__dropdown-item', { 'is-selected': userSort === 'likes' }]"
-                @click="selectUserSort('likes')"
-              >
+              <button type="button" :class="['event-albums__dropdown-item', { 'is-selected': userSort === 'likes' }]"
+                @click="selectUserSort('likes')">
                 <div class="dropdown-item-left">
                   <span class="material-symbols-outlined sort-item-icon heart-color">favorite</span>
                   <span class="album-title">Most Liked</span>
@@ -425,11 +409,8 @@ onUnmounted(() => {
               </button>
 
               <!-- Option c: Guest who uploaded the checklist early -->
-              <button
-                type="button"
-                :class="['event-albums__dropdown-item', { 'is-selected': userSort === 'early' }]"
-                @click="selectUserSort('early')"
-              >
+              <button type="button" :class="['event-albums__dropdown-item', { 'is-selected': userSort === 'early' }]"
+                @click="selectUserSort('early')">
                 <div class="dropdown-item-left">
                   <span class="material-symbols-outlined sort-item-icon early-color">alarm_on</span>
                   <span class="album-title">Uploaded Checklist Early</span>
@@ -451,21 +432,12 @@ onUnmounted(() => {
 
       <!-- Guest Cards Grid -->
       <div v-else-if="sortedUploaders.length" class="guest-uploaders-grid">
-        <div
-          v-for="(guest, index) in sortedUploaders"
-          :key="guest.id || index"
-          class="guest-card"
-          @click="openGuestModal(guest)"
-        >
+        <div v-for="(guest, index) in sortedUploaders" :key="guest.id || index" class="guest-card"
+          @click="openGuestModal(guest)">
           <!-- Card Header & Avatar -->
           <div class="guest-card__header">
             <div class="guest-card__avatar-wrap">
-              <img
-                v-if="guest.coverPhoto"
-                :src="guest.coverPhoto"
-                :alt="guest.name"
-                class="guest-card__avatar-img"
-              />
+              <img v-if="guest.coverPhoto" :src="guest.coverPhoto" :alt="guest.name" class="guest-card__avatar-img" />
               <div v-else class="guest-card__avatar-fallback">
                 {{ getGuestInitials(guest.name) }}
               </div>
@@ -479,15 +451,19 @@ onUnmounted(() => {
               </span>
             </div>
 
-            <!-- Early Uploader Rank Badge -->
-            <div
-              v-if="userSort === 'early' && index < 3"
-              class="early-rank-badge"
+            <!-- Most Liked Photo Rank Badge -->
+            <div v-if="userSort === 'likes' && index < 3" class="early-rank-badge early-rank-badge--likes"
               :class="`early-rank-badge--${index + 1}`"
-              :title="`#${index + 1} Early Checklist Uploader`"
-            >
+              :title="`#${index + 1} Guest with Most Liked Photo (${guest.maxPhotoLikes ?? guest.topPhotoLikes ?? 0} likes)`">
+              <span class="material-symbols-outlined" style="font-size: 0.95rem;">favorite</span>
+              <span>#{{ index + 1 }} Top Shot</span>
+            </div>
+
+            <!-- Early Uploader Rank Badge -->
+            <div v-else-if="userSort === 'early' && index < 3" class="early-rank-badge"
+              :class="`early-rank-badge--${index + 1}`" :title="`#${index + 1} Early Checklist Uploader`">
               <span class="material-symbols-outlined" style="font-size: 0.95rem;">military_tech</span>
-              <span>#{{ index + 1 }}</span>
+              <span>#{{ index + 1 }} Early</span>
             </div>
           </div>
 
@@ -495,17 +471,24 @@ onUnmounted(() => {
           <div class="guest-card__stats">
             <div class="stat-pill">
               <span class="material-symbols-outlined stat-icon">photo_library</span>
-              <span><strong>{{ guest.totalMedia || (guest.totalPhotos + guest.totalVideos) || 0 }}</strong> uploads</span>
+              <span><strong>{{ guest.totalMedia || (guest.totalPhotos + guest.totalVideos) || 0 }}</strong>
+                uploads</span>
             </div>
 
             <div class="stat-pill stat-pill--likes">
               <span class="material-symbols-outlined stat-icon stat-icon--heart">favorite</span>
-              <span><strong>{{ guest.totalLikes || 0 }}</strong> likes</span>
+              <span v-if="userSort === 'likes'">
+                <strong>{{ guest.maxPhotoLikes ?? guest.topPhotoLikes ?? 0 }}</strong> likes on most liked photo
+              </span>
+              <span v-else>
+                <strong>{{ guest.totalLikes || 0 }}</strong> total likes
+              </span>
             </div>
 
             <div v-if="guest.firstChecklistUploadedAt || guest.firstUploadedAt" class="stat-pill stat-pill--time">
               <span class="material-symbols-outlined stat-icon">schedule</span>
-              <span>First upload at {{ formatTimeShort(guest.firstChecklistUploadedAt || guest.firstUploadedAt) }}</span>
+              <span>First upload at {{ formatTimeShort(guest.firstChecklistUploadedAt || guest.firstUploadedAt)
+              }}</span>
             </div>
           </div>
 
@@ -527,8 +510,10 @@ onUnmounted(() => {
         <h3 style="font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--text-primary);">
           No Guest Uploads Yet
         </h3>
-        <p style="font-size: 0.875rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto; line-height: 1.6;">
-          Guests have not uploaded photos for this event yet. Once guests scan the QR code and begin contributing moments, they will appear here.
+        <p
+          style="font-size: 0.875rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto; line-height: 1.6;">
+          Guests have not uploaded photos for this event yet. Once guests scan the QR code and begin contributing
+          moments, they will appear here.
         </p>
       </div>
     </div>
@@ -545,38 +530,24 @@ onUnmounted(() => {
 
         <div class="event-albums__filters" v-if="albums.length">
           <!-- All Albums Button -->
-          <button
-            type="button"
-            class="event-albums__filter-pill"
-            :class="{ 'is-active': albumFilter === 'all' }"
-            @click="selectAllAlbums"
-          >
+          <button type="button" class="event-albums__filter-pill" :class="{ 'is-active': albumFilter === 'all' }"
+            @click="selectAllAlbums">
             All Checklists ({{ albums.length }})
           </button>
 
           <!-- Other Albums Dropdown -->
           <div ref="albumDropdownRef" class="event-albums__filter-dropdown">
-            <button
-              type="button"
-              class="event-albums__filter-pill event-albums__filter-pill--dropdown"
-              :class="{ 'is-active': albumFilter !== 'all' }"
-              @click.stop="toggleAlbumDropdown"
+            <button type="button" class="event-albums__filter-pill event-albums__filter-pill--dropdown"
+              :class="{ 'is-active': albumFilter !== 'all' }" @click.stop="toggleAlbumDropdown"
               :aria-expanded="isAlbumDropdownOpen"
-              :title="selectedAlbumFilter ? `Filtered by ${selectedAlbumFilter.title}` : 'Filter by other albums'"
-            >
+              :title="selectedAlbumFilter ? `Filtered by ${selectedAlbumFilter.title}` : 'Filter by other albums'">
               <span class="dropdown-pill-text">{{ dropdownButtonLabel }}</span>
-              <span
-                v-if="albumFilter !== 'all'"
-                class="dropdown-pill-clear"
-                title="Clear filter"
-                @click.stop="selectAllAlbums"
-              >
+              <span v-if="albumFilter !== 'all'" class="dropdown-pill-clear" title="Clear filter"
+                @click.stop="selectAllAlbums">
                 <span class="material-symbols-outlined clear-icon">close</span>
               </span>
-              <span
-                class="material-symbols-outlined dropdown-pill-arrow"
-                :class="{ 'is-flipped': isAlbumDropdownOpen }"
-              >
+              <span class="material-symbols-outlined dropdown-pill-arrow"
+                :class="{ 'is-flipped': isAlbumDropdownOpen }">
                 keyboard_arrow_down
               </span>
             </button>
@@ -585,11 +556,8 @@ onUnmounted(() => {
             <div :class="['event-albums__dropdown-menu', { show: isAlbumDropdownOpen }]">
               <div class="event-albums__dropdown-header">Filter by Specific Album</div>
 
-              <button
-                type="button"
-                :class="['event-albums__dropdown-item', { 'is-selected': albumFilter === 'all' }]"
-                @click="selectAllAlbums"
-              >
+              <button type="button" :class="['event-albums__dropdown-item', { 'is-selected': albumFilter === 'all' }]"
+                @click="selectAllAlbums">
                 <div class="dropdown-item-left">
                   <span class="album-dot"></span>
                   <span class="album-title">All Albums</span>
@@ -602,13 +570,9 @@ onUnmounted(() => {
 
               <div class="event-albums__dropdown-divider"></div>
 
-              <button
-                v-for="album in albums"
-                :key="album.id"
-                type="button"
+              <button v-for="album in albums" :key="album.id" type="button"
                 :class="['event-albums__dropdown-item', { 'is-selected': isAlbumSelected(album) }]"
-                @click="selectAlbum(album)"
-              >
+                @click="selectAlbum(album)">
                 <div class="dropdown-item-left">
                   <span class="album-dot" :class="{ 'album-dot--candid': album.isCandid }"></span>
                   <span class="album-title">{{ album.title }}</span>
@@ -629,16 +593,8 @@ onUnmounted(() => {
         <div v-for="album in regularFilteredAlbums" :key="album.id" class="event-album-card">
           <div @click="openAlbumModal(album)" style="cursor: pointer;">
             <div class="event-album-card__media">
-              <video
-                v-if="isVideoMedia(album)"
-                :src="album.img"
-                class="event-album-card__img"
-                muted
-                playsinline
-                autoplay
-                preload="metadata"
-                @timeupdate="handleVideoTimeUpdate"
-              ></video>
+              <video v-if="isVideoMedia(album)" :src="album.img" class="event-album-card__img" muted playsinline
+                autoplay preload="metadata" @timeupdate="handleVideoTimeUpdate"></video>
               <img v-else :src="album.img" :alt="album.title" class="event-album-card__img" loading="lazy" />
               <span class="event-album-card__badge-top">{{ album.chapter }}</span>
               <span class="event-album-card__badge-bottom">{{ album.photosCount }}</span>
@@ -664,23 +620,10 @@ onUnmounted(() => {
         <div v-if="isCandidVisible && candidAlbum" class="event-album-card event-album-card--candid">
           <div class="event-album-card__layout">
             <div class="event-album-card__media" @click="openAlbumModal(candidAlbum)" style="cursor: pointer;">
-              <video
-                v-if="isVideoMedia(candidAlbum)"
-                :src="candidAlbum.img"
-                class="event-album-card__img"
-                muted
-                playsinline
-                autoplay
-                preload="metadata"
-                @timeupdate="handleVideoTimeUpdate"
-              ></video>
-              <img
-                v-else
-                :src="candidAlbum.img"
-                :alt="candidAlbum.title"
-                class="event-album-card__img"
-                loading="lazy"
-              />
+              <video v-if="isVideoMedia(candidAlbum)" :src="candidAlbum.img" class="event-album-card__img" muted
+                playsinline autoplay preload="metadata" @timeupdate="handleVideoTimeUpdate"></video>
+              <img v-else :src="candidAlbum.img" :alt="candidAlbum.title" class="event-album-card__img"
+                loading="lazy" />
               <span class="event-album-card__badge-top event-album-card__badge-top--gold">Dedicated Candid Vault</span>
               <span class="event-album-card__badge-bottom">{{ candidAlbum.photosCount }}</span>
             </div>
@@ -688,12 +631,10 @@ onUnmounted(() => {
             <div class="event-album-card__content-candid">
               <div>
                 <div
-                  style="display: inline-flex; align-items: center; gap: 0.25rem; color: var(--primary); margin-bottom: 0.35rem;"
-                >
+                  style="display: inline-flex; align-items: center; gap: 0.25rem; color: var(--primary); margin-bottom: 0.35rem;">
                   <span class="material-symbols-outlined" style="font-size: 1.1rem;">auto_awesome</span>
                   <span
-                    style="font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;"
-                  >
+                    style="font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;">
                     Spontaneous &amp; Real
                   </span>
                 </div>
@@ -706,19 +647,15 @@ onUnmounted(() => {
                   }}
                 </p>
                 <p
-                  style="font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; margin-top: 0.75rem;"
-                >
+                  style="font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; margin-top: 0.75rem;">
                   <span class="material-symbols-outlined" style="font-size: 1rem; color: var(--primary);">group</span>
                   <span>Latest contributor: <strong>{{ candidAlbum.author }}</strong></span>
                 </p>
               </div>
 
               <div style="padding-top: 1.25rem;">
-                <button
-                  type="button"
-                  class="event-album-card__btn event-album-card__btn--primary"
-                  @click="openAlbumModal(candidAlbum)"
-                >
+                <button type="button" class="event-album-card__btn event-album-card__btn--primary"
+                  @click="openAlbumModal(candidAlbum)">
                   <span>Explore All Candids</span>
                   <span class="material-symbols-outlined btn-arrow">arrow_forward</span>
                 </button>
@@ -729,13 +666,15 @@ onUnmounted(() => {
 
         <!-- Empty state when no albums exist -->
         <div v-if="albums.length === 0 && !isLoadingAlbums" class="event-albums__empty">
-          <span class="material-symbols-outlined" style="font-size: 3rem; color: var(--primary, #c5a059); opacity: 0.8;">
+          <span class="material-symbols-outlined"
+            style="font-size: 3rem; color: var(--primary, #c5a059); opacity: 0.8;">
             photo_library
           </span>
           <h3 style="font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--text-primary);">
             No Media Uploaded Yet
           </h3>
-          <p style="font-size: 0.875rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto; line-height: 1.6;">
+          <p
+            style="font-size: 0.875rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto; line-height: 1.6;">
             Guests have not uploaded photos or checklist moments for this event yet. Once photos are taken via the live
             vault, they will appear here organized by chapter.
           </p>
@@ -747,20 +686,12 @@ onUnmounted(() => {
     <!-- MODALS (SEPARATE COMPONENT FILES)                                     -->
     <!-- ===================================================================== -->
     <!-- Modal 1: Photos By User (GuestPhotosModal.vue) -->
-    <GuestPhotosModal
-      v-model="isGuestModalOpen"
-      :guest="selectedGuest"
-      :event-code="resolvedEventCode"
-      @action="(msg, type) => emit('action', msg, type)"
-    />
+    <GuestPhotosModal v-model="isGuestModalOpen" :guest="selectedGuest" :event-code="resolvedEventCode"
+      @action="(msg, type) => emit('action', msg, type)" />
 
     <!-- Modal 2: Photos By Checklist (AlbumPhotosModal.vue with descending limit 10 + infinite scroll) -->
-    <AlbumPhotosModal
-      v-model="isAlbumModalOpen"
-      :album="selectedAlbumForModal"
-      :event-code="resolvedEventCode"
-      @action="(msg, type) => emit('action', msg, type)"
-    />
+    <AlbumPhotosModal v-model="isAlbumModalOpen" :album="selectedAlbumForModal" :event-code="resolvedEventCode"
+      @action="(msg, type) => emit('action', msg, type)" />
   </div>
 </template>
 
@@ -976,6 +907,24 @@ onUnmounted(() => {
   &--3 {
     background: linear-gradient(135deg, #d4a373, #a8764a);
     color: #ffffff;
+  }
+
+  &--likes {
+    &.early-rank-badge--1 {
+      background: linear-gradient(135deg, #ff4d6d, #c9184a);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(201, 24, 74, 0.35);
+    }
+
+    &.early-rank-badge--2 {
+      background: linear-gradient(135deg, #ff758f, #ff4d6d);
+      color: #ffffff;
+    }
+
+    &.early-rank-badge--3 {
+      background: linear-gradient(135deg, #ffb3c1, #ff758f);
+      color: #590d22;
+    }
   }
 }
 

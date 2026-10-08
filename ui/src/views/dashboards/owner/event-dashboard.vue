@@ -21,7 +21,6 @@ const handlePendingNotice = () => {
   toast.show({
     message: 'Payment is pending. Please complete payment to access and manage this celebration vault.',
     color: 'warning',
-    icon: 'triangle-exclamation',
   })
 }
 
@@ -113,7 +112,6 @@ const fetchMyEvents = async () => {
     toast.show({
       message: 'Failed to load your events. Please refresh.',
       color: 'danger',
-      icon: 'error',
     })
   } finally {
     isEventsLoading.value = false

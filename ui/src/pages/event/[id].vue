@@ -46,6 +46,7 @@ const isLightboxOpen = ref(false);
 const lightboxItems = ref([]);
 const lightboxIndex = ref(0);
 const isLightboxDeletable = ref(false);
+const isLightboxDownloadable = ref(false);
 const activeMoment = ref(null)
 const fileInput = ref(null);
 const captureMode = ref('quick')
@@ -775,6 +776,7 @@ const toggleLightboxLike = async (item, event) => {
 }
 const openQuickPhotoLightbox = (index) => {
     isLightboxDeletable.value = true
+    isLightboxDownloadable.value = false
     lightboxItems.value = uploadedQuickPhotos.value.map((p) => ({
         id: p.id,
         photoId: p.id,
@@ -793,6 +795,7 @@ const openQuickPhotoLightbox = (index) => {
 }
 const openMomentLightbox = (moment) => {
     isLightboxDeletable.value = true
+    isLightboxDownloadable.value = false
     const capturedMoments = moments.value.filter((m) => m.captured)
     lightboxItems.value = capturedMoments.map((m) => ({
         id: m.photoId || m.id,
@@ -814,6 +817,7 @@ const openMomentLightbox = (moment) => {
 }
 const openGalleryLightbox = ({ items, index }) => {
     isLightboxDeletable.value = false
+    isLightboxDownloadable.value = tabModel.value === 'gallery'
     lightboxItems.value = items
     lightboxIndex.value = index
     isLightboxOpen.value = true
@@ -1107,7 +1111,8 @@ onMounted(async () => {
             :quick-photos-left="quickPhotosLeft" :uploaded-quick-photos="uploadedQuickPhotos" :isUnlimited="isUnlimited"
             @close="handleCameraClose" @capture="handleCameraCapture" @open-gallery="openGalleryPicker" />
         <LightBox :is-open="isLightboxOpen" :items="lightboxItems" :initial-index="lightboxIndex"
-            :can-delete="isLightboxDeletable" @close="isLightboxOpen = false" @like="toggleLightboxLike"
+            :can-delete="isLightboxDeletable" :can-download="isLightboxDownloadable"
+            @close="isLightboxOpen = false" @like="toggleLightboxLike"
             @delete="handleDeletePhoto" />
     </div>
 </template>

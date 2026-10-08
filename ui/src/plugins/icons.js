@@ -180,6 +180,16 @@ export const allIcons = [
     ]
   },
   {
+    "name": "camera-sparkle",
+    "category": "Action",
+    "tags": [
+      "camera",
+      "sparkle",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "cart",
     "category": "Commerce",
     "tags": [
@@ -188,6 +198,15 @@ export const allIcons = [
       "basket",
       "buy",
       "checkout"
+    ]
+  },
+  {
+    "name": "celebration",
+    "category": "Action",
+    "tags": [
+      "celebration",
+      "action",
+      "control"
     ]
   },
   {
@@ -210,6 +229,15 @@ export const allIcons = [
       "success",
       "done",
       "ok"
+    ]
+  },
+  {
+    "name": "checklist",
+    "category": "Action",
+    "tags": [
+      "checklist",
+      "action",
+      "control"
     ]
   },
   {
@@ -332,6 +360,15 @@ export const allIcons = [
       "history",
       "watch",
       "duration"
+    ]
+  },
+  {
+    "name": "cloud",
+    "category": "Action",
+    "tags": [
+      "cloud",
+      "action",
+      "control"
     ]
   },
   {
@@ -572,6 +609,16 @@ export const allIcons = [
     "category": "Action",
     "tags": [
       "home copy",
+      "action",
+      "control"
+    ]
+  },
+  {
+    "name": "hourglass-top",
+    "category": "Action",
+    "tags": [
+      "hourglass",
+      "top",
       "action",
       "control"
     ]

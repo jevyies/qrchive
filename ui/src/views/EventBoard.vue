@@ -83,7 +83,7 @@ defineExpose({
                 <div class="checklist-experience-switcher__header">
                     <span class="checklist-experience-switcher__label">Select Capture Experience</span>
                     <span class="checklist-experience-switcher__badge">
-                        <span class="material-symbols-outlined">tune</span>
+                        <JIcon name="tune" />
                         Switch anytime
                     </span>
                 </div>
@@ -98,7 +98,7 @@ defineExpose({
                                 <JIcon name="camera-sparkle" />
                             </div>
                             <span class="checklist-experience-card__check-indicator">
-                                <JIcon name="checklist" v-if="captureMode === 'quick'" />
+                                <JIcon name="check" v-if="captureMode === 'quick'" />
                                 <span v-else class="checklist-experience-card__check-dot"></span>
                             </span>
                         </div>
@@ -115,10 +115,10 @@ defineExpose({
                         @click="switchExperience('checklist')">
                         <div class="checklist-experience-card__top">
                             <div class="checklist-experience-card__icon-wrap">
-                                <span class="material-symbols-outlined">checklist</span>
+                                <JIcon name="checklist" />
                             </div>
                             <span class="checklist-experience-card__check-indicator">
-                                <span v-if="captureMode === 'checklist'" class="material-symbols-outlined">check</span>
+                                <JIcon name="check" v-if="captureMode === 'checklist'" />
                                 <span v-else class="checklist-experience-card__check-dot"></span>
                             </span>
                         </div>

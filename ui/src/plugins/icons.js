@@ -961,6 +961,15 @@ export const allIcons = [
     ]
   },
   {
+    "name": "tune",
+    "category": "Action",
+    "tags": [
+      "tune",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "u",
     "category": "Action",
     "tags": [

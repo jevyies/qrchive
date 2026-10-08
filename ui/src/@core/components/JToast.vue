@@ -69,18 +69,17 @@ const isPaused = computed(() => props.toast?.isPaused ?? false)
 const action = computed(() => props.toast?.action ?? props.action)
 
 const icon = computed(() => {
-  const customIcon = props.toast?.icon ?? props.icon
-  if (customIcon === false || customIcon === '') return ''
+  const customIcon = props.icon
   if (typeof customIcon === 'string' && customIcon !== '') return customIcon
 
   const defaultIcons = {
-    primary: '✦',
-    secondary: '◈',
-    success: '✓',
-    warning: '⚠',
-    danger: '✕',
-    info: 'ℹ',
-    neutral: '🔔',
+    primary: 'sparkles',
+    secondary: 'thumbs-up',
+    success: 'check',
+    warning: 'triangle-exclamation',
+    danger: 'x',
+    info: 'circle-info',
+    neutral: 'bell',
   }
   return defaultIcons[color.value] || '✦'
 })

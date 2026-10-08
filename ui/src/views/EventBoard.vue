@@ -98,7 +98,7 @@ defineExpose({
                                 <JIcon name="camera-sparkle" />
                             </div>
                             <span class="checklist-experience-card__check-indicator">
-                                <JIcon name="check" v-if="captureMode === 'quick'" />
+                                <JIcon name="check" v-if="captureMode === 'quick'" size="12" />
                                 <span v-else class="checklist-experience-card__check-dot"></span>
                             </span>
                         </div>
@@ -118,7 +118,7 @@ defineExpose({
                                 <JIcon name="checklist" />
                             </div>
                             <span class="checklist-experience-card__check-indicator">
-                                <JIcon name="check" v-if="captureMode === 'checklist'" />
+                                <JIcon name="check" v-if="captureMode === 'checklist'" size="12" />
                                 <span v-else class="checklist-experience-card__check-dot"></span>
                             </span>
                         </div>

@@ -180,6 +180,16 @@ export const allIcons = [
     ]
   },
   {
+    "name": "camera-sparkle",
+    "category": "Action",
+    "tags": [
+      "camera",
+      "sparkle",
+      "action",
+      "control"
+    ]
+  },
+  {
     "name": "cart",
     "category": "Commerce",
     "tags": [
@@ -219,6 +229,15 @@ export const allIcons = [
       "success",
       "done",
       "ok"
+    ]
+  },
+  {
+    "name": "checklist",
+    "category": "Action",
+    "tags": [
+      "checklist",
+      "action",
+      "control"
     ]
   },
   {
@@ -341,6 +360,15 @@ export const allIcons = [
       "history",
       "watch",
       "duration"
+    ]
+  },
+  {
+    "name": "cloud",
+    "category": "Action",
+    "tags": [
+      "cloud",
+      "action",
+      "control"
     ]
   },
   {

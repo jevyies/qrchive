@@ -95,10 +95,10 @@ defineExpose({
                         @click="switchExperience('quick')">
                         <div class="checklist-experience-card__top">
                             <div class="checklist-experience-card__icon-wrap">
-                                <span class="material-symbols-outlined">shutter_speed</span>
+                                <JIcon name="camera-sparkle" />
                             </div>
                             <span class="checklist-experience-card__check-indicator">
-                                <span v-if="captureMode === 'quick'" class="material-symbols-outlined">check</span>
+                                <JIcon name="checklist" v-if="captureMode === 'quick'" />
                                 <span v-else class="checklist-experience-card__check-dot"></span>
                             </span>
                         </div>

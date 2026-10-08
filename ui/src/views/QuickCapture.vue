@@ -283,7 +283,7 @@ defineExpose({
         <div id="quick-uploaded-stream-container" class="quick-uploaded-stream-container">
             <div class="quick-uploaded-stream-header">
                 <div class="quick-uploaded-stream-title-group">
-                    <span class="material-symbols-outlined quick-uploaded-stream-icon">cloud_done</span>
+                    <JIcon name="cloud" color="info" />
                     <span class="quick-uploaded-stream-title">Uploaded Quick Captures</span>
                 </div>
                 <template v-if="!isUnlimited">

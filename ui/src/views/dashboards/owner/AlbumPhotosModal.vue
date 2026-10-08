@@ -3,6 +3,10 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { axiosInstance } from '@/plugins/axios'
 import JModal from '@/@core/components/JModal.vue'
 import JBtn from '@/@core/components/JBtn.vue'
+import { useEventSlideshow } from '@/composables/useEventSlideshow'
+import { downloadMediaFile } from '@/utils/media'
+
+const { isPhotoInSlideshow, togglePhotoInSlideshow, fetchSlideshow } = useEventSlideshow()
 
 const props = defineProps({
   modelValue: {
@@ -127,12 +131,27 @@ const fetchAlbumPhotos = async (isLoadMore = false) => {
   }
 }
 
+// Toggle slideshow selection for a photo
+const handleToggleSlideshow = async (photo) => {
+  const code = props.eventCode || props.eventId || 'demo-event'
+  const isSelected = await togglePhotoInSlideshow(photo, code)
+  emit(
+    'action',
+    isSelected ? 'Photo added to Live Slideshow' : 'Photo removed from Live Slideshow',
+    isSelected ? 'success' : 'info'
+  )
+}
+
 // Watch modal open and active album to trigger fetch
 watch(
   () => [props.modelValue, props.album?.id],
   ([newOpen, newAlbumId]) => {
-    if (newOpen && newAlbumId) {
-      fetchAlbumPhotos(false)
+    if (newOpen) {
+      const code = props.eventCode || props.eventId || 'demo-event'
+      fetchSlideshow(code)
+      if (newAlbumId) {
+        fetchAlbumPhotos(false)
+      }
     }
   },
   { immediate: true }
@@ -170,22 +189,80 @@ const formatUploadTime = (dateStr) => {
   }
 }
 
+// Download states & helpers
+const downloadingPhotoId = ref(null)
+const isDownloadingAlbum = ref(false)
+
 // Download single photo
-const downloadPhoto = (photo) => {
+const downloadPhoto = async (photo) => {
   if (!photo?.url) return
-  const link = document.createElement('a')
-  link.href = photo.url
-  link.download = photo.fileName || `album-photo-${photo.id}.jpg`
-  link.target = '_blank'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  emit('action', 'Photo downloaded successfully', 'success')
+  const idKey = photo.id || photo.url
+  if (downloadingPhotoId.value === idKey) return
+
+  downloadingPhotoId.value = idKey
+  emit('action', 'Downloading photo...', 'info')
+
+  try {
+    await downloadMediaFile({
+      id: photo.id,
+      url: photo.url,
+      storageKey: photo.storageKey || photo.storage_key,
+      fileName: photo.fileName,
+      defaultPrefix: `album-photo-${photo.id || 'snap'}`,
+      isVideo: photo.isVideo,
+    })
+    emit('action', 'Photo downloaded successfully', 'success')
+  } catch (err) {
+    console.warn('[AlbumPhotosModal] Direct download failed, falling back:', err)
+
+    // Fallback: If blob fetch is blocked by strict CORS, open in new tab
+    const link = document.createElement('a')
+    link.href = photo.url
+    link.download = photo.fileName || `album-photo-${photo.id || Date.now()}.jpg`
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    emit('action', 'Could not download directly; opened image in new tab', 'warning')
+  } finally {
+    downloadingPhotoId.value = null
+  }
 }
 
 // Download entire album
-const handleDownloadAlbum = () => {
-  emit('action', `Preparing download for ${props.album?.title || 'Album'}...`, 'success')
+const handleDownloadAlbum = async () => {
+  if (!photos.value?.length) {
+    emit('action', 'No photos in this album to download yet', 'info')
+    return
+  }
+  if (isDownloadingAlbum.value) return
+
+  isDownloadingAlbum.value = true
+  emit('action', `Downloading ${photos.value.length} photos from ${props.album?.title || 'Album'}...`, 'info')
+
+  let successCount = 0
+  for (const photo of photos.value) {
+    try {
+      await downloadMediaFile({
+        id: photo.id,
+        url: photo.url,
+        storageKey: photo.storageKey || photo.storage_key,
+        fileName: photo.fileName,
+        defaultPrefix: `album-${props.album?.id || 'chapter'}-${photo.id || Date.now()}`,
+        isVideo: photo.isVideo,
+      })
+      successCount++
+      // Brief pause between downloads to prevent browser throttling
+      await new Promise((r) => setTimeout(r, 350))
+    } catch (err) {
+      console.warn('Error downloading album photo:', err)
+    }
+  }
+
+  isDownloadingAlbum.value = false
+  emit('action', `Downloaded ${successCount} photo${successCount === 1 ? '' : 's'} successfully`, 'success')
 }
 </script>
 
@@ -211,7 +288,7 @@ const handleDownloadAlbum = () => {
           </div>
 
           <div class="album-actions-right">
-            <JBtn size="sm" color="primary" @click="handleDownloadAlbum">
+            <JBtn size="sm" color="primary" :loading="isDownloadingAlbum" @click="handleDownloadAlbum">
               <span class="material-symbols-outlined" style="font-size: 1.1rem; margin-right: 0.35rem;">download</span>
               Download Album
             </JBtn>
@@ -255,6 +332,19 @@ const handleDownloadAlbum = () => {
                   loading="lazy"
                 />
 
+                <!-- Circular Slideshow Selection Checkbox (Top Right) -->
+                <button
+                  type="button"
+                  class="photo-slideshow-checkbox"
+                  :class="{ 'is-selected': isPhotoInSlideshow(photo.id) }"
+                  :title="isPhotoInSlideshow(photo.id) ? 'Remove from Live Slideshow' : 'Add to Live Slideshow'"
+                  @click.stop="handleToggleSlideshow(photo)"
+                >
+                  <span class="material-symbols-outlined checkbox-icon">
+                    {{ isPhotoInSlideshow(photo.id) ? 'check' : '' }}
+                  </span>
+                </button>
+
                 <!-- Contributor Badge -->
                 <span class="card-contributor-badge">
                   <span class="material-symbols-outlined badge-icon">person</span>
@@ -281,10 +371,12 @@ const handleDownloadAlbum = () => {
                 <button
                   type="button"
                   class="download-photo-btn"
+                  :class="{ 'is-loading': downloadingPhotoId === (photo.id || photo.url) }"
+                  :disabled="downloadingPhotoId === (photo.id || photo.url)"
                   title="Download Photo"
                   @click.stop="downloadPhoto(photo)"
                 >
-                  <span class="material-symbols-outlined">download</span>
+                  <span class="material-symbols-outlined">{{ downloadingPhotoId === (photo.id || photo.url) ? 'hourglass_top' : 'download' }}</span>
                 </button>
               </div>
             </div>
@@ -354,7 +446,12 @@ const handleDownloadAlbum = () => {
 
           <div class="lightbox-actions">
             <JBtn size="sm" variant="tonal" @click="closeLightbox">Close</JBtn>
-            <JBtn size="sm" color="primary" @click="downloadPhoto(activePreviewPhoto)">
+            <JBtn
+              size="sm"
+              color="primary"
+              :loading="downloadingPhotoId === (activePreviewPhoto?.id || activePreviewPhoto?.url)"
+              @click="downloadPhoto(activePreviewPhoto)"
+            >
               <span class="material-symbols-outlined" style="font-size: 1.1rem; margin-right: 0.35rem;">download</span>
               Download
             </JBtn>
@@ -558,6 +655,12 @@ const handleDownloadAlbum = () => {
     color: var(--primary, #c5a059);
     background: rgba(197, 160, 89, 0.12);
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+    pointer-events: none;
+  }
 }
 
 // Loading & Empty States
@@ -691,5 +794,46 @@ const handleDownloadAlbum = () => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Circular Slideshow Selection Checkbox */
+.photo-slideshow-checkbox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(20, 18, 16, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
+  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.photo-slideshow-checkbox:hover {
+  background: rgba(20, 18, 16, 0.85);
+  border-color: #ffffff;
+  transform: scale(1.12);
+}
+
+.photo-slideshow-checkbox.is-selected {
+  background: linear-gradient(135deg, #e3c578, #c5a059);
+  border-color: #ffffff;
+  color: #1a1614;
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.6);
+  transform: scale(1.05);
+}
+
+.photo-slideshow-checkbox .checkbox-icon {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
 }
 </style>

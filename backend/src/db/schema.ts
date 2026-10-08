@@ -280,6 +280,23 @@ export const pricing = pgTable('pricing', {
 export const pricings = pricing;
 
 // ==========================================
+// 16. EVENT_SLIDESHOW_PHOTOS
+// ==========================================
+export const eventSlideshowPhotos = pgTable('event_slideshow_photos', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  eventId: bigint('event_id', { mode: 'number' })
+    .notNull()
+    .references(() => events.id, { onDelete: 'cascade' }),
+  photoId: bigint('photo_id', { mode: 'number' })
+    .notNull()
+    .references(() => snapPhotos.id, { onDelete: 'cascade' }),
+  displayOrder: integer('display_order').default(0).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+// ==========================================
 // DRIZZLE RELATIONS (For query API)
 // ==========================================
 
@@ -321,6 +338,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   snapGuests: many(snapGuests),
   snapChecklists: many(snapChecklist),
   eventPhotos: many(eventPhotos),
+  slideshowPhotos: many(eventSlideshowPhotos),
 }));
 
 export const snapGuestsRelations = relations(snapGuests, ({ one, many }) => ({
@@ -349,6 +367,18 @@ export const snapPhotosRelations = relations(snapPhotos, ({ one, many }) => ({
     references: [snapChecklist.id],
   }),
   likes: many(snapPhotoLikes),
+  slideshowEntries: many(eventSlideshowPhotos),
+}));
+
+export const eventSlideshowPhotosRelations = relations(eventSlideshowPhotos, ({ one }) => ({
+  event: one(events, {
+    fields: [eventSlideshowPhotos.eventId],
+    references: [events.id],
+  }),
+  photo: one(snapPhotos, {
+    fields: [eventSlideshowPhotos.photoId],
+    references: [snapPhotos.id],
+  }),
 }));
 
 export const snapPhotoLikesRelations = relations(snapPhotoLikes, ({ one }) => ({

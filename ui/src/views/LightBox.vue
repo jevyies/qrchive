@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { downloadMediaFile } from '@/utils/media'
 
 const props = defineProps({
     isOpen: {
@@ -30,6 +31,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canDownload: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 const emit = defineEmits([
@@ -39,6 +44,7 @@ const emit = defineEmits([
     'like',
     'change',
     'delete',
+    'download',
 ])
 
 const isVisible = computed(() => Boolean(props.isOpen || props.modelValue))
@@ -308,6 +314,35 @@ const handleDelete = () => {
     emit('delete', activeLightbox.value)
 }
 
+// Download active media
+const isDownloading = ref(false)
+
+const handleDownload = async () => {
+    if (!activeLightbox.value || isDownloading.value) return
+    isDownloading.value = true
+
+    try {
+        const item = activeLightbox.value
+        await downloadMediaFile({
+            id: item.photoId || item.id,
+            url: item.fullUrl || item.url || item.videoUrl || activeImageSrc.value,
+            storageKey: item.storageKey || item.storage_key,
+            fileName: item.fileName || item.title,
+            defaultPrefix: `gallery-${item.photoId || item.id || 'photo'}`,
+            isVideo: isActiveVideo.value,
+        })
+        emit('download', item)
+    } catch (err) {
+        console.warn('[LightBox] Download failed:', err)
+    } finally {
+        isDownloading.value = false
+    }
+}
+
+watch(currentIndex, () => {
+    isDownloading.value = false
+})
+
 onMounted(() => {
     if (isVisible.value && typeof window !== 'undefined') {
         window.addEventListener('keydown', handleKeyDown)
@@ -339,10 +374,16 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
                 <div class="vault-lightbox__header-actions">
-                    <button v-if="canDelete" aria-label="Delete Photo" class="vault-lightbox__delete" type="button" @click="handleDelete">
+                    <button v-if="canDownload" aria-label="Download Photo" class="vault-lightbox__download" type="button"
+                        :disabled="isDownloading" title="Download Photo" @click="handleDownload">
+                        <span class="material-symbols-outlined">{{ isDownloading ? 'hourglass_top' : 'download' }}</span>
+                    </button>
+                    <button v-if="canDelete" aria-label="Delete Photo" class="vault-lightbox__delete" type="button"
+                        @click="handleDelete">
                         <JIcon name="trash" color="danger" />
                     </button>
-                    <button aria-label="Close Lightbox" class="vault-lightbox__close" type="button" @click="closeLightbox">
+                    <button aria-label="Close Lightbox" class="vault-lightbox__close" type="button"
+                        @click="closeLightbox">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
@@ -356,8 +397,10 @@ onBeforeUnmount(() => {
                     transform: `translateX(${dragOffset}px)`,
                     opacity: `${1 - Math.abs(dragOffset) / 300}`,
                 }">
-                    <video v-if="isActiveVideo && !videoHasError" controls autoplay playsinline class="vault-lightbox__media" :src="activeVideoSrc" @error="onVideoError"></video>
-                    <img v-else-if="isActiveVideo && videoHasError" :alt="activeTitle" class="vault-lightbox__media" :src="activeFallbackSrc || activeImageSrc">
+                    <video v-if="isActiveVideo && !videoHasError" controls autoplay playsinline
+                        class="vault-lightbox__media" :src="activeVideoSrc" @error="onVideoError"></video>
+                    <img v-else-if="isActiveVideo && videoHasError" :alt="activeTitle" class="vault-lightbox__media"
+                        :src="activeFallbackSrc || activeImageSrc">
                     <img v-else :alt="activeTitle" class="vault-lightbox__media" :src="activeImageSrc"
                         @error="onImageError">
                 </div>

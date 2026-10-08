@@ -80,6 +80,19 @@ export async function initDbTables() {
       CREATE INDEX IF NOT EXISTS idx_snap_photo_likes_photo ON snap_photo_likes(photo_id);
     `;
     await client`
+      CREATE TABLE IF NOT EXISTS event_slideshow_photos (
+        id BIGSERIAL PRIMARY KEY,
+        event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        photo_id BIGINT NOT NULL REFERENCES snap_photos(id) ON DELETE CASCADE,
+        display_order INTEGER DEFAULT 0 NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT event_slideshow_photos_uq UNIQUE (event_id, photo_id)
+      );
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_event_slideshow_photos_ev ON event_slideshow_photos(event_id);
+    `;
+    await client`
       CREATE TABLE IF NOT EXISTS pricing (
         id BIGSERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,

@@ -9,10 +9,21 @@ import JModal from '@/@core/components/JModal.vue'
 import EventPhotosTab from '@/views/dashboards/owner/EventPhotosTab.vue'
 import EventManageTab from '@/views/dashboards/owner/EventManageTab.vue'
 import EventPlacardsTab from '@/views/dashboards/owner/EventPlacardsTab.vue'
+import LiveSlideshowModal from '@/views/dashboards/owner/LiveSlideshowModal.vue'
+import { useEventSlideshow } from '@/composables/useEventSlideshow'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+
+const { slideshowPhotos, fetchSlideshow } = useEventSlideshow()
+const isSlideshowModalOpen = ref(false)
+
+const openSlideshowModal = () => {
+  const code = eventData.value?.token || eventData.value?.id || eventCode.value
+  fetchSlideshow(code)
+  isSlideshowModalOpen.value = true
+}
 
 // Event code from route params
 const eventCode = computed(() => {
@@ -506,6 +517,7 @@ onMounted(() => {
   fetchEventStats()
   fetchChecklistPhotos()
   fetchBackgrounds()
+  fetchSlideshow(eventCode.value)
 })
 
 onUnmounted(() => {
@@ -535,9 +547,10 @@ onUnmounted(() => {
 
         <div class="event-detail__nav-actions">
           <button type="button" class="event-detail__action-btn event-detail__action-btn--tonal"
-            @click="handleAction('Opening Live Slideshow in full screen...')">
+            @click="openSlideshowModal">
             <span class="material-symbols-outlined" style="font-size: 1.1rem; color: var(--primary);">slideshow</span>
             <span>Live Slideshow</span>
+            <span v-if="slideshowPhotos.length" class="slideshow-counter-badge">{{ slideshowPhotos.length }}</span>
           </button>
           <button type="button" class="event-detail__action-btn event-detail__action-btn--primary"
             :disabled="isDownloadingZip" :style="isDownloadingZip ? 'opacity: 0.85; cursor: wait;' : ''"
@@ -690,6 +703,14 @@ onUnmounted(() => {
         </div>
       </div>
     </footer>
+
+    <!-- Live Slideshow Modal -->
+    <LiveSlideshowModal
+      v-model="isSlideshowModalOpen"
+      :event-code="eventData?.token || eventData?.id || eventCode"
+      :event-title="eventTitle"
+      @action="handleAction"
+    />
   </div>
 </template>
 
@@ -709,5 +730,20 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+.slideshow-counter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #1a1614;
+  background: linear-gradient(135deg, #e3c578, #c5a059);
+  border-radius: 9999px;
+  margin-left: 0.25rem;
 }
 </style>

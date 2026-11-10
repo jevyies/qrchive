@@ -315,7 +315,9 @@ onUnmounted(() => observer?.disconnect())
                             </tbody>
                         </table>
                     </div>
-                    <p>After the event, Owners can download all media directly through QRchive's built-in export feature — a system-generated dedicated download link allows bulk download of all event photos without any third-party integration required.</p>
+                    <p>After the event, Owners can download all media directly through QRchive's built-in export feature
+                        — a system-generated dedicated download link allows bulk download of all event photos without
+                        any third-party integration required.</p>
                 </section>
 
                 <section id="storage" class="policy-section">
@@ -602,7 +604,7 @@ onUnmounted(() => observer?.disconnect())
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .icon-btn {

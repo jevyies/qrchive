@@ -1,14 +1,11 @@
-<route lang="yaml">
-meta:
-  layout: blank
-</route>
-
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLayout } from '../composables/useLayout'
 import { hasAuthToken } from '../@core/utils/cookies'
 import AppLogo from '../@core/components/AppLogo.vue'
+import PricingSection from "@/views/landing/pricing.vue"
+import HeroSection from "@/views/landing/hero.vue"
 
 const router = useRouter()
 const { currentTheme, selectTheme, isDarkMode } = useLayout()
@@ -20,24 +17,6 @@ const isAuthenticated = computed(() => {
 // Mobile Menu Navigation State
 const isMobileMenuOpen = ref(false)
 const activeMobileTab = ref('explore')
-
-// Dynamic Pricing Selector State
-// 'standard': { '100': 500, '300': 800, 'plus': 1000 }
-// 'unlimited': { '100': 1000, '300': 1500, 'plus': 2000 }
-const selectedStandardCap = ref('100')
-const selectedUnlimitedCap = ref('100')
-
-const standardPrices = {
-  '100': { price: '₱500', label: 'Up to 100 guests' },
-  '300': { price: '₱800', label: 'Up to 300 guests' },
-  'plus': { price: '₱1,000', label: '300+ guests' },
-}
-
-const unlimitedPrices = {
-  '100': { price: '₱1,000', label: 'Up to 100 guests' },
-  '300': { price: '₱1,500', label: 'Up to 300 guests' },
-  'plus': { price: '₱2,000', label: '300+ guests' },
-}
 
 // Scavenger Hunt Checklist Interactive State
 const huntChecklist = ref([
@@ -124,29 +103,23 @@ const handleUserClick = () => {
 
         <!-- Right Actions: Theme Switcher, Create QR, User Profile, Mobile Hamburger -->
         <div class="header-actions">
-          <!-- Theme Switcher Toggle -->
-          <button type="button" class="icon-btn theme-toggle-btn"
-            :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'" @click="toggleTheme">
-            <span class="material-symbols-outlined text-[20px]">
-              {{ isDarkMode ? 'light_mode' : 'dark_mode' }}
-            </span>
-          </button>
+
+
+          <!-- User Profile / Auth Icon -->
+          <a href="javascript:void(0);" class="login-link" @click="handleUserClick">
+            Log in
+          </a>
 
           <!-- Desktop CTA Button -->
           <button type="button" class="btn-primary-gradient hidden-sm" @click="scrollTo('launch-vault')">
-            <span>Create Event QR</span>
-          </button>
-
-          <!-- User Profile / Auth Icon -->
-          <button type="button" class="icon-btn user-avatar-btn"
-            :title="isAuthenticated ? 'Go to Dashboard' : 'Sign In'" @click="handleUserClick">
-            <span class="material-symbols-outlined text-[19px]">person</span>
+            <span>Get Started</span>
+            <JIcon name="arrow-right" size="18" />
           </button>
 
           <!-- Mobile Hamburger Toggle Button -->
           <button type="button" class="icon-btn mobile-hamburger" aria-label="Navigation Menu"
             @click="isMobileMenuOpen = !isMobileMenuOpen">
-            <span class="material-symbols-outlined text-[26px]">
+            <span class="material-symbols-outlined">
               {{ isMobileMenuOpen ? 'close' : 'menu' }}
             </span>
           </button>
@@ -191,89 +164,7 @@ const handleUserClick = () => {
     <!-- ======================================================================= -->
     <main id="top" class="main-content">
       <!-- 2.1 HERO SECTION -->
-      <section class="hero-section">
-        <!-- Ambient Champagne Background Glow Blobs -->
-        <div class="glow-blob blob-top-left"></div>
-        <div class="glow-blob blob-bottom-right"></div>
-
-        <div class="section-container hero-grid">
-          <!-- Left Column: Editorial Headline & Copy -->
-          <div class="hero-content">
-            <!-- Main Title -->
-            <h1 class="hero-title">
-              Snap and Share Every <span class="hero-title-italic">Unforgettable</span> Moment.
-            </h1>
-
-            <!-- Subtitle -->
-            <p class="hero-subtitle">
-              With a simple QR scan, guests can snap photos and share candid 30-second clips—no app required. After the
-              event, receive a download-ready link to all your memories.
-            </p>
-
-            <!-- Action Row -->
-            <div class="hero-cta-group">
-              <button type="button" class="btn-primary-gradient hero-cta-btn" @click="scrollTo('launch-vault')">
-                <span>Create Your Event Now</span>
-                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-              </button>
-
-              <button type="button" class="btn-secondary-tonal hero-cta-btn" @click="router.push('/event/demo-event')">
-                <span class="material-symbols-outlined text-accent text-[20px]">play_circle</span>
-                <span>Try Our Guest Demo</span>
-              </button>
-            </div>
-
-            <!-- Micro-Trust Badges -->
-            <div class="hero-trust-row">
-              <div class="trust-item">
-                <span class="material-symbols-outlined trust-icon">check_circle</span>
-                <span>Zero app downloads required</span>
-              </div>
-              <span class="trust-dot">•</span>
-              <div class="trust-item">
-                <span class="material-symbols-outlined trust-icon">hd</span>
-                <span>Uncompressed Photos &amp; Videos</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right Column: Visual Showcase Card -->
-          <div class="hero-visual">
-            <div class="showcase-card-wrapper">
-              <div class="showcase-card">
-                <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKXg7CpHgujwBDhLd66UL5k_R88IhlrJ5zAvsOtS3KOZJQlyvmUXNKNScVs4h5x-P71KWQyAqFb4QqmnruZULsw9x5UMPFSifwVpzO9ao05LinjIzzN56co9g2zSShIOadWGPkntrG3Bl7rvqnNAv5TgdfiYqzHA3CU3fzRIgz1ruFRtlxLiuO3wbv44LYv1cBhWPr7GQu2dqtFJE0xFAaapaw8iqTzmCIUEndoNesCNupkSo3ZMUN"
-                  alt="Candid luxury milestone celebration dinner banquet where guests take photos with smartphones"
-                  class="showcase-img" />
-                <div class="showcase-scrim"></div>
-
-                <!-- Floating Glass Badge: Instant Upload -->
-                <div class="floating-badge badge-top-left">
-                  <span class="text-accent">✨</span>
-                  <span>Instant Upload (Zero App Needed)</span>
-                </div>
-
-                <!-- Floating Glass Badge: RAW & 4K -->
-                <div class="floating-badge badge-top-right">
-                  <span class="text-accent">📸</span>
-                  <span>RAW &amp; 4K Original</span>
-                </div>
-
-                <!-- Bottom Floating Caption -->
-                <div class="showcase-bottom-caption">
-                  <div class="live-status-pill">
-                    <span class="status-pulse-dot"></span>
-                    <span class="caption-quote">“Moments Captured Live”</span>
-                  </div>
-                  <span class="live-counter-badge">
-                    482 Uploads Live
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeroSection @scrollTo="scrollTo($event)" />
 
       <!-- 2.2 HOW IT WORKS (3 SIMPLE STEPS) -->
       <section id="steps" class="steps-section">
@@ -509,176 +400,7 @@ const handleUserClick = () => {
       </section>
 
       <!-- 2.4 PRICING COMPARISON -->
-      <section id="pricing" class="pricing-section">
-        <div class="section-container">
-          <!-- Section Heading -->
-          <div class="section-header text-center">
-            <p class="section-category">TRANSPARENT PER-EVENT RATES</p>
-            <h2 class="section-title">Choose Your Event Package</h2>
-            <p class="section-description">
-              Simple per-celebration flat pricing tailored to your guest size with zero surprise fees.
-            </p>
-          </div>
-
-          <!-- Dual Tier Comparison Cards -->
-          <div class="pricing-grid">
-            <!-- TIER 1: Standard Snap -->
-            <div class="pricing-card">
-              <div class="pricing-card-top">
-                <div class="pricing-title-row">
-                  <h3 class="pricing-title">Standard Snap</h3>
-                  <span class="pricing-badge">Max 30 shots / guest</span>
-                </div>
-                <p class="pricing-desc">
-                  Ideal for intimate anniversary gatherings, milestone banquets, and minimalist celebrations.
-                </p>
-
-                <!-- Capacity Selector -->
-                <div class="capacity-selector-block">
-                  <label class="capacity-label">Select Guest Size</label>
-                  <div class="capacity-buttons">
-                    <button type="button" class="cap-btn" :class="{ active: selectedStandardCap === '100' }"
-                      @click="selectedStandardCap = '100'">
-                      <span class="cap-name">Up to 100</span>
-                      <span class="cap-price">₱500</span>
-                    </button>
-                    <button type="button" class="cap-btn" :class="{ active: selectedStandardCap === '300' }"
-                      @click="selectedStandardCap = '300'">
-                      <span class="cap-name">Up to 300</span>
-                      <span class="cap-price">₱800</span>
-                    </button>
-                    <button type="button" class="cap-btn" :class="{ active: selectedStandardCap === 'plus' }"
-                      @click="selectedStandardCap = 'plus'">
-                      <span class="cap-name">300+ guests</span>
-                      <span class="cap-price">₱1,000</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Perks List -->
-                <ul class="perks-list">
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon">check_circle</span>
-                    <span>Max 30 original photos per guest</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon">check_circle</span>
-                    <span>Short video clips up to 30s</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon">check_circle</span>
-                    <span>Instant QR &amp; 5x7 printable table placard template</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon">check_circle</span>
-                    <span>1-month post-event upload deadline</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon">check_circle</span>
-                    <span>2-month cloud gallery storage &amp; full ZIP download</span>
-                  </li>
-                </ul>
-              </div>
-
-              <button type="button" class="btn-secondary-tonal w-full" @click="scrollTo('launch-vault')">
-                <span>Select Standard Snap ({{ standardPrices[selectedStandardCap].price }})</span>
-              </button>
-            </div>
-
-            <!-- TIER 2: Unlimited Snap (Most Cherished Choice) -->
-            <div class="pricing-card featured-pricing-card">
-              <!-- Top Gold Floating Badge -->
-              <div class="cherished-badge">
-                <span>♥</span>
-                <span>Most Cherished Choice</span>
-                <span>♥</span>
-              </div>
-
-              <div class="pricing-card-top">
-                <div class="pricing-title-row pt-2">
-                  <h3 class="pricing-title">Unlimited Snap</h3>
-                  <span class="pricing-badge gold-badge">Unconstrained Vault</span>
-                </div>
-                <p class="pricing-desc">
-                  Designed for full-scale milestone galas where you never want to miss a single candid angle.
-                </p>
-
-                <!-- Capacity Selector -->
-                <div class="capacity-selector-block">
-                  <label class="capacity-label">Select Guest Size</label>
-                  <div class="capacity-buttons">
-                    <button type="button" class="cap-btn" :class="{ active: selectedUnlimitedCap === '100' }"
-                      @click="selectedUnlimitedCap = '100'">
-                      <span class="cap-name">Up to 100</span>
-                      <span class="cap-price">₱1,000</span>
-                    </button>
-                    <button type="button" class="cap-btn" :class="{ active: selectedUnlimitedCap === '300' }"
-                      @click="selectedUnlimitedCap = '300'">
-                      <span class="cap-name">Up to 300</span>
-                      <span class="cap-price">₱1,500</span>
-                    </button>
-                    <button type="button" class="cap-btn" :class="{ active: selectedUnlimitedCap === 'plus' }"
-                      @click="selectedUnlimitedCap = 'plus'">
-                      <span class="cap-name">300+ guests</span>
-                      <span class="cap-price">₱2,000</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Perks List -->
-                <ul class="perks-list">
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span><strong>Unlimited</strong> candid photo uploads from every guest</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>Short video clips up to 30s in 4K resolution</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>Custom event cover photo displayed on scan &amp; upload</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>Romantic font &amp; motif styling customization</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>Instant 5x7 printable table placards (Chic gold styling)</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>Interactive Photo Scavenger Hunt &amp; Capture Checklist</span>
-                  </li>
-                  <li class="perk-item">
-                    <span class="material-symbols-outlined perk-icon text-accent">verified</span>
-                    <span>System dedicated download link &amp; 1-click ZIP archive</span>
-                  </li>
-                </ul>
-              </div>
-
-              <button type="button" class="btn-primary-gradient w-full" @click="scrollTo('launch-vault')">
-                <span>Get Unlimited Snap ({{ unlimitedPrices[selectedUnlimitedCap].price }})</span>
-                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Storage Extension Banner -->
-          <div class="extension-banner">
-            <div class="extension-tag">
-              <span>♥</span>
-              <span>+₱200 / MONTH</span>
-            </div>
-            <span class="extension-dot">•</span>
-            <p class="extension-text">
-              Need more time? Extend uploading deadline or cloud photo storage anytime for only
-              <strong>+₱200/month</strong>.
-            </p>
-          </div>
-        </div>
-      </section>
+      <PricingSection />
 
       <!-- 2.5 FINAL LAUNCH & RESERVATION SECTION -->
       <section id="launch-vault" class="launch-section">
@@ -814,3 +536,7 @@ const handleUserClick = () => {
     </nav>
   </div>
 </template>
+<route lang="yaml">
+meta:
+  layout: blank
+</route>

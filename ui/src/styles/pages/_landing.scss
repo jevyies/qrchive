@@ -267,7 +267,6 @@
 }
 
 .header-container {
-  max-width: 1240px;
   height: 72px;
   margin: 0 auto;
   padding: 0 1.25rem;
@@ -577,10 +576,7 @@
 
 .showcase-card-wrapper {
   position: relative;
-  border-radius: 24px;
-  padding: 0.5rem;
-  background: linear-gradient(135deg, rgba(197, 160, 89, 0.35) 0%, var(--lp-surface-low) 50%, rgba(119, 90, 25, 0.15) 100%);
-  box-shadow: 0 24px 64px -12px rgba(119, 90, 25, 0.2);
+  height: 450px;
 }
 
 .showcase-card {
@@ -1045,13 +1041,13 @@
 .pricing-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: 1rem;
   align-items: stretch;
 }
 
 @media (min-width: 1024px) {
   .pricing-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -1101,10 +1097,9 @@
 }
 
 .pricing-title {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.75rem;
   font-weight: 600;
-  color: var(--lp-text-primary);
+  color: var(--lp-primary);
 }
 
 .pricing-badge {
@@ -1202,7 +1197,7 @@
 
 .perk-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
   font-size: 0.875rem;
   color: var(--lp-text-primary);
@@ -1647,4 +1642,16 @@
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+.login-link:hover {
+  color: var(--v-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.price {
+  color: var(--lp-primary);
+  font-size: 28px;
+  font-weight: 700;
 }

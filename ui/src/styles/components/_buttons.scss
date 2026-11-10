@@ -32,6 +32,7 @@
   vertical-align: middle;
   position: relative;
   overflow: hidden;
+  outline: none;
 
   // Focus visible ring
   &:focus-visible {
@@ -118,6 +119,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -140,21 +142,25 @@
     height: 0.75rem;
     border-width: 1.5px;
   }
+
   &.spinner-sm {
     width: 1rem;
     height: 1rem;
     border-width: 1.75px;
   }
+
   &.spinner-md {
     width: 1.25rem;
     height: 1.25rem;
     border-width: 2px;
   }
+
   &.spinner-lg {
     width: 1.75rem;
     height: 1.75rem;
     border-width: 2.5px;
   }
+
   &.spinner-xl {
     width: 2.25rem;
     height: 2.25rem;
@@ -208,8 +214,7 @@
 // Color Maps & Generation
 // ----------------------------------------------------------------------------
 $btn-variants: (
-  'primary': (
-    'solid-bg': var(--primary, #4f46e5),
+  'primary': ('solid-bg': var(--primary, #4f46e5),
     'solid-hover': var(--primary-hover, #4338ca),
     'solid-active': var(--primary-active, #3730a3),
     'solid-text': var(--primary-text, #ffffff),
@@ -219,8 +224,7 @@ $btn-variants: (
     'border': var(--primary, #4f46e5),
     'ring': var(--primary, #4f46e5),
   ),
-  'secondary': (
-    'solid-bg': var(--secondary, #64748b),
+  'secondary': ('solid-bg': var(--secondary, #64748b),
     'solid-hover': var(--secondary-hover, #475569),
     'solid-active': var(--secondary-active, #334155),
     'solid-text': var(--secondary-text, #ffffff),
@@ -230,8 +234,7 @@ $btn-variants: (
     'border': var(--secondary, #64748b),
     'ring': var(--secondary, #64748b),
   ),
-  'success': (
-    'solid-bg': var(--success, #10b981),
+  'success': ('solid-bg': var(--success, #10b981),
     'solid-hover': var(--success-hover, #059669),
     'solid-active': var(--success-active, #047857),
     'solid-text': var(--success-text, #ffffff),
@@ -241,8 +244,7 @@ $btn-variants: (
     'border': var(--success, #10b981),
     'ring': var(--success, #10b981),
   ),
-  'warning': (
-    'solid-bg': var(--warning, #f59e0b),
+  'warning': ('solid-bg': var(--warning, #f59e0b),
     'solid-hover': var(--warning-hover, #d97706),
     'solid-active': var(--warning-active, #b45309),
     'solid-text': var(--warning-text, #ffffff),
@@ -252,8 +254,7 @@ $btn-variants: (
     'border': var(--warning, #f59e0b),
     'ring': var(--warning, #f59e0b),
   ),
-  'danger': (
-    'solid-bg': var(--danger, #f43f5e),
+  'danger': ('solid-bg': var(--danger, #f43f5e),
     'solid-hover': var(--danger-hover, #e11d48),
     'solid-active': var(--danger-active, #be123c),
     'solid-text': var(--danger-text, #ffffff),
@@ -263,8 +264,7 @@ $btn-variants: (
     'border': var(--danger, #f43f5e),
     'ring': var(--danger, #f43f5e),
   ),
-  'info': (
-    'solid-bg': var(--info, #0ea5e9),
+  'info': ('solid-bg': var(--info, #0ea5e9),
     'solid-hover': var(--info-hover, #0284c7),
     'solid-active': var(--info-active, #0369a1),
     'solid-text': var(--info-text, #ffffff),
@@ -274,8 +274,7 @@ $btn-variants: (
     'border': var(--info, #0ea5e9),
     'ring': var(--info, #0ea5e9),
   ),
-  'neutral': (
-    'solid-bg': $bg-surface-elevated,
+  'neutral': ('solid-bg': $bg-surface-elevated,
     'solid-hover': $bg-hover,
     'solid-active': $bg-active,
     'solid-text': $text-primary,
@@ -291,6 +290,7 @@ $btn-variants: (
 // 1. FLAT / SOLID PATTERN (Default Pattern)
 // ----------------------------------------------------------------------------
 @each $name, $colors in $btn-variants {
+
   .btn-#{$name},
   .btn-flat-#{$name} {
     background-color: map.get($colors, 'solid-bg');
@@ -337,6 +337,7 @@ $btn-variants: (
 }
 
 @each $name, $colors in $btn-variants {
+
   .btn-outlined-#{$name},
   .btn-outlined.btn-#{$name} {
     background-color: transparent;
@@ -350,11 +351,15 @@ $btn-variants: (
 
     &:hover:not(:disabled) {
       background-color: map.get($colors, 'tonal-bg');
-      @if $name == 'neutral' {
+
+      @if $name =='neutral' {
         border-color: var(--text-secondary, #94a3b8);
-      } @else {
+      }
+
+      @else {
         border-color: map.get($colors, 'border');
       }
+
       color: map.get($colors, 'outline-text');
     }
 
@@ -383,6 +388,7 @@ $btn-variants: (
 }
 
 @each $name, $colors in $btn-variants {
+
   .btn-tonal-#{$name},
   .btn-tonal.btn-#{$name} {
     background-color: map.get($colors, 'tonal-bg');
@@ -429,6 +435,7 @@ $btn-variants: (
 }
 
 @each $name, $colors in $btn-variants {
+
   .btn-text-#{$name},
   .btn-text.btn-#{$name} {
     background-color: transparent;
@@ -476,6 +483,7 @@ $btn-variants: (
 }
 
 @each $name, $colors in $btn-variants {
+
   .btn-link-#{$name},
   .btn-link.btn-#{$name} {
     color: map.get($colors, 'outline-text');

@@ -113,4 +113,7 @@ export const globalFunctions = {
   getToken,
   getRawToken,
   decodeToken,
+  formatCurrency: (amount) => {
+    return new Intl.NumberFormat().format(amount.toFixed(2))
+  },
 }

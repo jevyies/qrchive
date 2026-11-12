@@ -1,5 +1,11 @@
 <script setup>
+import heroCoupleImg from '@/assets/images/hero-couple.jpg'
+import { useRouter } from 'vue-router';
+import { useDisplay } from '@/composables/useDisplay'
+
 const emit = defineEmits(['scrollTo'])
+const router = useRouter();
+const { mdAndDown } = useDisplay();
 </script>
 <template>
     <section class="hero-section">
@@ -45,8 +51,8 @@ const emit = defineEmits(['scrollTo'])
                     </div>
                     <span class="trust-dot">•</span>
                     <div class="trust-item">
-                        <span class="material-symbols-outlined trust-icon">hd</span>
-                        <span>Uncompressed Photos &amp; Videos</span>
+                        <JIcon name="calendar" />
+                        <span>Up to 1 month of file access</span>
                     </div>
                 </div>
             </div>
@@ -54,7 +60,52 @@ const emit = defineEmits(['scrollTo'])
             <!-- Right Column: Visual Showcase Card -->
             <div class="hero-visual">
                 <div class="showcase-card-wrapper">
-                    <img src="@/assets/images/blank-phone.png" />
+                    <div class="showcase-phone-container">
+                        <img src="@/assets/images/blank-phone.png" class="showcase-phone-img"
+                            alt="Mobile celebration view" />
+
+                        <!-- Floating Card 1: Top Right -->
+                        <div class="hero-floating-card-wrapper card-top-right">
+                            <div class="hero-photo-card">
+                                <img :src="heroCoupleImg" alt="Celebration photo" class="hero-card-img" />
+                                <div class="hero-card-heart">
+                                    <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
+                                    <small>42</small>
+                                </div>
+                                <div class="hero-card-name">
+                                    <small>Jevy A.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floating Card 2: Center Left -->
+                        <div class="hero-floating-card-wrapper card-center-left">
+                            <div class="hero-photo-card">
+                                <img :src="heroCoupleImg" alt="Celebration photo" class="hero-card-img" />
+                                <div class="hero-card-heart">
+                                    <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
+                                    <small>11</small>
+                                </div>
+                                <div class="hero-card-name">
+                                    <small>Jean A.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floating Card 3: Bottom Right -->
+                        <div class="hero-floating-card-wrapper card-bottom-right">
+                            <div class="hero-photo-card">
+                                <img :src="heroCoupleImg" alt="Celebration photo" class="hero-card-img" />
+                                <div class="hero-card-heart">
+                                    <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
+                                    <small>20</small>
+                                </div>
+                                <div class="hero-card-name">
+                                    <small>Alex B.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

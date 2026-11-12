@@ -805,7 +805,8 @@ const handleStep3Submit = () => {
             <p class="pending-notice-desc">
               <template v-if="isViewingExistingEvent">
                 This celebration vault is currently in <strong>pending</strong> payment status. Scan or transfer
-                <strong>{{ currentSelectedTier?.formattedPrice }}</strong> using any account above to activate all archival features.
+                <strong>{{ currentSelectedTier?.formattedPrice }}</strong> using any account above to activate all
+                archival features.
               </template>
               <template v-else>
                 Your celebration vault will be submitted with <strong>pending</strong> payment status. Once your payment
@@ -823,8 +824,8 @@ const handleStep3Submit = () => {
             <span>Back to Details</span>
           </button>
 
-          <JBtn v-if="isViewingExistingEvent" id="close-view-payment-btn" type="button" class="submit-profile-btn flex-grow"
-            @click="handleClose">
+          <JBtn v-if="isViewingExistingEvent" id="close-view-payment-btn" type="button"
+            class="submit-profile-btn flex-grow" @click="handleClose">
             <span>Done / Close</span>
             <span class="material-symbols-outlined submit-arrow">check_circle</span>
           </JBtn>
@@ -1111,7 +1112,6 @@ const handleStep3Submit = () => {
 }
 
 .modal-headline {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.625rem;
   font-weight: 700;
   line-height: 1.25;
@@ -1238,7 +1238,6 @@ const handleStep3Submit = () => {
 }
 
 .pricing-title {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.375rem;
   font-weight: 700;
   color: var(--text-primary, #1f1b18);
@@ -1323,7 +1322,6 @@ const handleStep3Submit = () => {
 }
 
 .cap-price {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--primary, #c5a059);
@@ -1962,7 +1960,6 @@ const handleStep3Submit = () => {
 }
 
 .qr-zoom-title {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 700;
   margin-bottom: 1rem;

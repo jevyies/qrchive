@@ -9,7 +9,7 @@ const pricings = [
             '30 snaps per guest only (photos and videos)',
             'Maximum of 30 sec per video',
             'Unique link for each event for photo gallery',
-            '1 month cloud storage access',
+            '15 days of online file access',
         ]
     },
     {
@@ -22,21 +22,21 @@ const pricings = [
             'Unlimited snaps per guest (photos and videos)',
             'Maximum of 30 sec per video',
             'Unique link for each event for photo gallery',
-            '1 month cloud storage access'
+            '1 month of online file access'
         ]
     },
     {
         name: 'Pro',
         price: 3999,
         pricingCategory: 'month',
-        description: 'Ideal for event planners with multiple events but has a strict budget',
+        description: 'Perfect for event planners handling multiple events',
         perks: [
             'Unlimited event creation',
             'Separate gallery for every event',
-            '50 snaps per guest (photos and videos)',
+            'Unlimited snaps per guest (photos and videos)',
             'Maximum of 30 sec per video',
             'Unique link for each event for photo gallery',
-            '1 month cloud storage access'
+            '1 month of online file access'
         ]
     },
 ]
@@ -47,7 +47,6 @@ const globalFunctions = inject('globalFunctions');
         <div class="section-container">
             <!-- Section Heading -->
             <div class="section-header text-center">
-                <p class="section-category">TRANSPARENT PER-EVENT RATES</p>
                 <h2 class="section-title">Choose Your Event Package</h2>
                 <p class="section-description">
                     Simple per-celebration flat pricing tailored to your guest size with zero surprise fees.

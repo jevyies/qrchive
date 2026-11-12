@@ -152,8 +152,7 @@ const formattedEventDate = computed(() => {
         </div>
 
         <div class="payment-grid">
-          <div v-for="method in paymentMethods" :key="method.id" class="payment-channel-card"
-            @click="openZoom(method)">
+          <div v-for="method in paymentMethods" :key="method.id" class="payment-channel-card" @click="openZoom(method)">
             <div class="payment-channel-header">
               <span class="payment-badge" :class="method.badgeClass">{{ method.name }}</span>
               <span class="payment-channel-type">{{ method.badge }}</span>
@@ -190,7 +189,8 @@ const formattedEventDate = computed(() => {
           <div class="pending-notice-title">Status: Pending Verification</div>
           <p class="pending-notice-desc">
             Your celebration vault is currently in <strong>pending</strong> status. Once your payment
-            <template v-if="formattedPrice">of <strong>{{ formattedPrice }}</strong></template> is verified by our team, all vault and upload features will be unlocked immediately.
+            <template v-if="formattedPrice">of <strong>{{ formattedPrice }}</strong></template> is verified by our
+            team, all vault and upload features will be unlocked immediately.
           </p>
         </div>
       </div>
@@ -369,7 +369,6 @@ const formattedEventDate = computed(() => {
 }
 
 .modal-headline {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.625rem;
   font-weight: 700;
   line-height: 1.25;
@@ -776,7 +775,6 @@ const formattedEventDate = computed(() => {
 }
 
 .qr-zoom-title {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 700;
   margin-bottom: 1rem;

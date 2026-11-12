@@ -231,32 +231,18 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <JModal
-    :model-value="modelValue"
-    :bottom-sheet-on-mobile="true"
-    :show-close="false"
-    max-width="640px"
-    variant="elevated"
-    modal-class="account-profile-modal-root"
-    dialog-class="account-profile-dialog"
-    content-class="account-profile-modal-card"
-    body-class="account-profile-modal-body p-0"
-    @update:model-value="emit('update:modelValue', $event)"
-    @close="handleClose"
-  >
+  <JModal :model-value="modelValue" :bottom-sheet-on-mobile="true" :show-close="false" max-width="640px"
+    variant="elevated" modal-class="account-profile-modal-root" dialog-class="account-profile-dialog"
+    content-class="account-profile-modal-card" body-class="account-profile-modal-body p-0"
+    @update:model-value="emit('update:modelValue', $event)" @close="handleClose">
     <div class="account-profile-container" id="qrchive-profile-modal">
       <!-- Subtle Decorative Golden Ray Ambient Highlights -->
       <div class="ambient-glow glow-top-right" aria-hidden="true"></div>
       <div class="ambient-glow glow-bottom-left" aria-hidden="true"></div>
 
       <!-- Floating Squircle Close Button (Upper Right) -->
-      <button
-        type="button"
-        id="close-modal-btn"
-        class="floating-close-squircle group"
-        aria-label="Close dialog"
-        @click="handleClose"
-      >
+      <button type="button" id="close-modal-btn" class="floating-close-squircle group" aria-label="Close dialog"
+        @click="handleClose">
         <span class="material-symbols-outlined close-icon">close</span>
       </button>
 
@@ -264,11 +250,8 @@ const handleSubmit = async () => {
       <div class="stepper-progress-wrapper" aria-label="Registration Progress">
         <div class="stepper-progress-track">
           <!-- Step 1 Indicator -->
-          <div
-            class="stepper-node"
-            :class="{ active: currentStep === 1, completed: currentStep > 1 }"
-            @click="currentStep > 1 && (currentStep = 1)"
-          >
+          <div class="stepper-node" :class="{ active: currentStep === 1, completed: currentStep > 1 }"
+            @click="currentStep > 1 && (currentStep = 1)">
             <div class="stepper-circle">
               <span v-if="currentStep > 1" class="material-symbols-outlined check-icon">check</span>
               <span v-else>1</span>
@@ -280,11 +263,8 @@ const handleSubmit = async () => {
           <div class="stepper-line" :class="{ filled: currentStep >= 2 }"></div>
 
           <!-- Step 2 Indicator -->
-          <div
-            class="stepper-node"
-            :class="{ active: currentStep === 2, completed: currentStep > 2 }"
-            @click="currentStep > 2 && (currentStep = 2)"
-          >
+          <div class="stepper-node" :class="{ active: currentStep === 2, completed: currentStep > 2 }"
+            @click="currentStep > 2 && (currentStep = 2)">
             <div class="stepper-circle">
               <span v-if="currentStep > 2" class="material-symbols-outlined check-icon">check</span>
               <span v-else>2</span>
@@ -355,26 +335,18 @@ const handleSubmit = async () => {
           <!-- Radio Selection Grid: Personal vs Business -->
           <div class="archetype-grid" role="radiogroup" aria-label="Account Type Selection">
             <!-- Personal Option Card -->
-            <div
-              id="card-personal"
-              :class="['archetype-card', { active: accountType === 'personal' }]"
-              role="radio"
-              :aria-checked="accountType === 'personal'"
-              tabindex="0"
-              @click="selectAccountType('personal')"
+            <div id="card-personal" :class="['archetype-card', { active: accountType === 'personal' }]" role="radio"
+              :aria-checked="accountType === 'personal'" tabindex="0" @click="selectAccountType('personal')"
               @keydown.space.prevent="selectAccountType('personal')"
-              @keydown.enter.prevent="selectAccountType('personal')"
-            >
+              @keydown.enter.prevent="selectAccountType('personal')">
               <div class="card-top-row">
                 <div class="archetype-icon-box personal-icon-box">
                   <span class="material-symbols-outlined">person</span>
                 </div>
 
                 <!-- Custom Gilded Radio Circle -->
-                <div
-                  id="indicator-personal"
-                  :class="['gilded-radio-indicator', { checked: accountType === 'personal' }]"
-                >
+                <div id="indicator-personal"
+                  :class="['gilded-radio-indicator', { checked: accountType === 'personal' }]">
                   <div class="radio-inner-dot"></div>
                 </div>
               </div>
@@ -390,26 +362,18 @@ const handleSubmit = async () => {
             </div>
 
             <!-- Business Option Card -->
-            <div
-              id="card-business"
-              :class="['archetype-card', { active: accountType === 'business' }]"
-              role="radio"
-              :aria-checked="accountType === 'business'"
-              tabindex="0"
-              @click="selectAccountType('business')"
+            <div id="card-business" :class="['archetype-card', { active: accountType === 'business' }]" role="radio"
+              :aria-checked="accountType === 'business'" tabindex="0" @click="selectAccountType('business')"
               @keydown.space.prevent="selectAccountType('business')"
-              @keydown.enter.prevent="selectAccountType('business')"
-            >
+              @keydown.enter.prevent="selectAccountType('business')">
               <div class="card-top-row">
                 <div class="archetype-icon-box business-icon-box">
                   <span class="material-symbols-outlined">corporate_fare</span>
                 </div>
 
                 <!-- Custom Gilded Radio Circle -->
-                <div
-                  id="indicator-business"
-                  :class="['gilded-radio-indicator', { checked: accountType === 'business' }]"
-                >
+                <div id="indicator-business"
+                  :class="['gilded-radio-indicator', { checked: accountType === 'business' }]">
                   <div class="radio-inner-dot"></div>
                 </div>
               </div>
@@ -428,13 +392,7 @@ const handleSubmit = async () => {
 
         <!-- Navigation Actions -->
         <div class="step-actions-row single-action">
-          <JBtn
-            id="step1-next-btn"
-            type="button"
-            block
-            class="submit-profile-btn"
-            @click="handleStep1Next"
-          >
+          <JBtn id="step1-next-btn" type="button" block class="submit-profile-btn" @click="handleStep1Next">
             <span>Continue to Account Details</span>
             <span class="material-symbols-outlined submit-arrow">arrow_forward</span>
           </JBtn>
@@ -456,17 +414,9 @@ const handleSubmit = async () => {
             <!-- Row 1: First Name & Middle Name -->
             <div class="name-grid-row-1">
               <div class="field-item">
-                <JInput
-                  id="first-name"
-                  v-model="firstName"
-                  label="First Name"
-                  placeholder="e.g., Alexander"
-                  required
-                  autocomplete="given-name"
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="first-name" v-model="firstName" label="First Name" placeholder="e.g., Alexander" required
+                  autocomplete="given-name" container-class="profile-input-container"
+                  input-class="profile-input-control" label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-req">First Name <span class="required-star">*</span></span>
                   </template>
@@ -477,16 +427,9 @@ const handleSubmit = async () => {
               </div>
 
               <div class="field-item">
-                <JInput
-                  id="middle-name"
-                  v-model="middleName"
-                  label="Middle Name"
-                  placeholder="e.g., Graham"
-                  autocomplete="additional-name"
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="middle-name" v-model="middleName" label="Middle Name" placeholder="e.g., Graham"
+                  autocomplete="additional-name" container-class="profile-input-container"
+                  input-class="profile-input-control" label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-optional">Middle Name <span class="opt-hint">(optional)</span></span>
                   </template>
@@ -497,17 +440,9 @@ const handleSubmit = async () => {
             <!-- Row 2: Last Name (70%) & Suffix/Ext (30%) -->
             <div class="name-grid-row-2">
               <div class="field-item col-last-name">
-                <JInput
-                  id="last-name"
-                  v-model="lastName"
-                  label="Last Name"
-                  placeholder="e.g., Bell"
-                  required
-                  autocomplete="family-name"
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="last-name" v-model="lastName" label="Last Name" placeholder="e.g., Bell" required
+                  autocomplete="family-name" container-class="profile-input-container"
+                  input-class="profile-input-control" label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-req">Last Name <span class="required-star">*</span></span>
                   </template>
@@ -518,15 +453,9 @@ const handleSubmit = async () => {
               </div>
 
               <div class="field-item col-suffix">
-                <JInput
-                  id="suffix"
-                  v-model="extName"
-                  label="Ext."
-                  placeholder="Jr., III"
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="suffix" v-model="extName" label="Ext." placeholder="Jr., III"
+                  container-class="profile-input-container" input-class="profile-input-control"
+                  label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-optional">Ext. <span class="opt-hint">(optional)</span></span>
                   </template>
@@ -537,17 +466,9 @@ const handleSubmit = async () => {
             <!-- Row 3: Username & Password -->
             <div class="name-grid-row-1">
               <div class="field-item">
-                <JInput
-                  id="username"
-                  v-model="username"
-                  label="Username"
-                  placeholder="e.g., agbell"
-                  required
-                  autocomplete="username"
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="username" v-model="username" label="Username" placeholder="e.g., agbell" required
+                  autocomplete="username" container-class="profile-input-container" input-class="profile-input-control"
+                  label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-req">Username <span class="required-star">*</span></span>
                   </template>
@@ -558,19 +479,9 @@ const handleSubmit = async () => {
               </div>
 
               <div class="field-item">
-                <JInput
-                  id="password"
-                  v-model="password"
-                  type="password"
-                  :password-toggle="true"
-                  label="Password"
-                  placeholder="••••••••"
-                  required
-                  autocomplete="new-password"
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="password" v-model="password" type="password" :password-toggle="true" label="Password"
+                  placeholder="••••••••" required autocomplete="new-password" container-class="profile-input-container"
+                  input-class="profile-input-control" label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-req">Password <span class="required-star">*</span></span>
                   </template>
@@ -581,23 +492,13 @@ const handleSubmit = async () => {
 
           <!-- Navigation Actions -->
           <div class="step-actions-row dual-action">
-            <button
-              type="button"
-              id="step2-back-btn"
-              class="back-step-btn"
-              :disabled="isSubmitting"
-              @click="goToPreviousStep"
-            >
+            <button type="button" id="step2-back-btn" class="back-step-btn" :disabled="isSubmitting"
+              @click="goToPreviousStep">
               <span class="material-symbols-outlined">arrow_back</span>
               <span>Back</span>
             </button>
 
-            <JBtn
-              id="step2-next-btn"
-              type="submit"
-              class="submit-profile-btn flex-grow"
-              :loading="isSubmitting"
-            >
+            <JBtn id="step2-next-btn" type="submit" class="submit-profile-btn flex-grow" :loading="isSubmitting">
               <template v-if="accountType === 'business'">
                 <span>Next: Business Details</span>
                 <span class="material-symbols-outlined submit-arrow">arrow_forward</span>
@@ -624,16 +525,9 @@ const handleSubmit = async () => {
 
             <!-- Business Name -->
             <div class="field-item">
-              <JInput
-                id="business-name"
-                v-model="businessName"
-                label="Business Name"
-                placeholder="e.g., Bella Vita Events &amp; Atelier"
-                required
-                container-class="profile-input-container"
-                input-class="profile-input-control"
-                label-class="profile-field-label"
-              >
+              <JInput id="business-name" v-model="businessName" label="Business Name"
+                placeholder="e.g., Bella Vita Events &amp; Atelier" required container-class="profile-input-container"
+                input-class="profile-input-control" label-class="profile-field-label">
                 <template #label>
                   <span class="label-with-req">Business Name <span class="required-star">*</span></span>
                 </template>
@@ -645,17 +539,10 @@ const handleSubmit = async () => {
 
             <!-- Business Description -->
             <div class="field-item">
-              <JInput
-                id="business-description"
-                v-model="businessDescription"
-                label="Business Description"
-                placeholder="Describe your studio, services, or specialty (optional)..."
-                :textarea="true"
-                rows="2"
-                container-class="profile-input-container"
-                input-class="profile-input-control"
-                label-class="profile-field-label"
-              >
+              <JInput id="business-description" v-model="businessDescription" label="Business Description"
+                placeholder="Describe your studio, services, or specialty (optional)..." :textarea="true" rows="2"
+                container-class="profile-input-container" input-class="profile-input-control"
+                label-class="profile-field-label">
                 <template #label>
                   <span class="label-with-optional">Business Description <span class="opt-hint">(optional)</span></span>
                 </template>
@@ -665,17 +552,9 @@ const handleSubmit = async () => {
             <!-- Business Email & Date Started -->
             <div class="name-grid-row-1">
               <div class="field-item">
-                <JInput
-                  id="business-email"
-                  v-model="businessEmail"
-                  type="email"
-                  label="Business Email"
-                  placeholder="e.g., studio@bellavita.com"
-                  required
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="business-email" v-model="businessEmail" type="email" label="Business Email"
+                  placeholder="e.g., studio@bellavita.com" required container-class="profile-input-container"
+                  input-class="profile-input-control" label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-req">Business Email <span class="required-star">*</span></span>
                   </template>
@@ -686,16 +565,9 @@ const handleSubmit = async () => {
               </div>
 
               <div class="field-item">
-                <JInput
-                  id="date-started"
-                  v-model="dateStarted"
-                  type="date"
-                  label="Date Started"
-                  required
-                  container-class="profile-input-container"
-                  input-class="profile-input-control"
-                  label-class="profile-field-label"
-                >
+                <JInput id="date-started" v-model="dateStarted" type="date" label="Date Started" required
+                  container-class="profile-input-container" input-class="profile-input-control"
+                  label-class="profile-field-label">
                   <template #label>
                     <span class="label-with-req">Date Started <span class="required-star">*</span></span>
                   </template>
@@ -706,23 +578,13 @@ const handleSubmit = async () => {
 
           <!-- Navigation Actions -->
           <div class="step-actions-row dual-action">
-            <button
-              type="button"
-              id="step3-back-btn"
-              class="back-step-btn"
-              :disabled="isSubmitting"
-              @click="goToPreviousStep"
-            >
+            <button type="button" id="step3-back-btn" class="back-step-btn" :disabled="isSubmitting"
+              @click="goToPreviousStep">
               <span class="material-symbols-outlined">arrow_back</span>
               <span>Back</span>
             </button>
 
-            <JBtn
-              id="submit-profile-btn"
-              type="submit"
-              class="submit-profile-btn flex-grow"
-              :loading="isSubmitting"
-            >
+            <JBtn id="submit-profile-btn" type="submit" class="submit-profile-btn flex-grow" :loading="isSubmitting">
               <span>Complete &amp; Launch Business Store</span>
               <span class="material-symbols-outlined submit-arrow">verified</span>
             </JBtn>
@@ -912,6 +774,7 @@ const handleSubmit = async () => {
       color: #ffffff;
       box-shadow: 0 0 0 4px rgba(119, 90, 25, 0.18);
     }
+
     .stepper-label {
       color: var(--primary, #775a19);
       font-weight: 700;
@@ -924,6 +787,7 @@ const handleSubmit = async () => {
       border-color: var(--primary, #775a19);
       color: #ffffff;
     }
+
     .stepper-label {
       color: var(--text-primary, #1f1b18);
     }
@@ -979,7 +843,6 @@ const handleSubmit = async () => {
 }
 
 .modal-headline {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 26px;
   line-height: 34px;
   font-weight: 600;
@@ -1173,7 +1036,6 @@ const handleSubmit = async () => {
 }
 
 .archetype-title {
-  font-family: 'Playfair Display', Georgia, serif;
   font-size: 17px;
   line-height: 1.25;
   font-weight: 600;

@@ -7,7 +7,6 @@ meta:
 <script setup>
 import { useRouter } from 'vue-router'
 import AppLogo from '@core/components/AppLogo.vue'
-import keannAndJennyBg from '@/assets/images/keann-and-jenny.jpg'
 
 const router = useRouter()
 
@@ -18,7 +17,7 @@ const handleGoHome = () => {
 
 <template>
   <div class="not-found-vault-root">
-    <main class="not-found-viewport" :style="{ backgroundImage: `url(${keannAndJennyBg})` }">
+    <main class="not-found-viewport">
       <!-- Atmospheric Editorial Overlays -->
       <div class="vault-vignette-top"></div>
       <div class="vault-vignette-radial"></div>
@@ -212,6 +211,7 @@ const handleGoHome = () => {
     opacity: 0;
     transform: translateY(16px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -319,12 +319,15 @@ const handleGoHome = () => {
   .vault-header {
     padding: 1.25rem 1rem;
   }
+
   .not-found-card {
     padding: 2rem 1.25rem;
   }
+
   .not-found-title {
     font-size: 1.5rem;
   }
+
   .description-text {
     font-size: 0.95rem;
   }

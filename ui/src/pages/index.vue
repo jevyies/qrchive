@@ -6,6 +6,7 @@ import { hasAuthToken } from '../@core/utils/cookies'
 import AppLogo from '../@core/components/AppLogo.vue'
 import PricingSection from "@/views/landing/pricing.vue"
 import HeroSection from "@/views/landing/hero.vue"
+import HowItWorks from "@/views/landing/how-it-works.vue"
 
 const router = useRouter()
 const { currentTheme, selectTheme, isDarkMode } = useLayout()
@@ -150,73 +151,7 @@ const handleUserClick = () => {
       <HeroSection @scrollTo="scrollTo($event)" />
 
       <!-- 2.2 HOW IT WORKS (3 SIMPLE STEPS) -->
-      <section id="steps" class="steps-section">
-        <div class="section-container">
-          <!-- Section Heading -->
-          <div class="section-header text-center">
-            <p class="section-category">EFFORTLESS GUEST EXPERIENCE</p>
-            <h2 class="section-title">Capture Memories in 3 Simple Steps</h2>
-            <p class="section-description">
-              Designed with intentional simplicity so grandparents and celebration guests alike can share their candid
-              viewpoint in mere seconds.
-            </p>
-          </div>
-
-          <!-- 3 Steps Grid -->
-          <div class="steps-grid">
-            <!-- Step 01 -->
-            <div class="step-card">
-              <div class="step-header">
-                <span class="step-number">01</span>
-                <span class="step-pill">Point &amp; Tap</span>
-              </div>
-              <div class="step-icon-wrap">
-                <span class="material-symbols-outlined text-[28px]">qr_code_scanner</span>
-              </div>
-              <h3 class="step-title">Scan the QR Code</h3>
-              <p class="step-text">
-                Guests point their phone camera at the refined table placard. The curated milestone portal pops open
-                immediately in native Safari or Chrome without any App Store hurdle.
-              </p>
-            </div>
-
-            <!-- Step 02 -->
-            <div class="step-card">
-              <div class="step-header">
-                <span class="step-number">02</span>
-                <span class="step-pill">Batch Select</span>
-              </div>
-              <div class="step-icon-wrap">
-                <span class="material-symbols-outlined text-[28px]">photo_library</span>
-              </div>
-              <h3 class="step-title">Select Photos &amp; Candid Clips</h3>
-              <p class="step-text">
-                Select up to 100 raw celebration photos, 4K 30-second clips, or heartfelt notes in one tap, preserving
-                pure native camera lens quality without heavy compression.
-              </p>
-            </div>
-
-            <!-- Step 03 -->
-            <div class="step-card">
-              <div class="step-header">
-                <span class="step-number">03</span>
-                <span class="step-pill heart-pill">
-                  <span>Instantly Cherished</span>
-                  <span class="heart-icon">♥</span>
-                </span>
-              </div>
-              <div class="step-icon-wrap">
-                <span class="material-symbols-outlined text-[28px]">favorite</span>
-              </div>
-              <h3 class="step-title">Stream to Your Live Digital Keepsake</h3>
-              <p class="step-text">
-                Photos appear immediately inside your private milestone vault. Securely organized, beautifully
-                cataloged, and treasured by the couple and family forever.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HowItWorks />
 
       <!-- 2.4 PRICING COMPARISON -->
       <PricingSection />

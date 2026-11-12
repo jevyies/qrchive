@@ -1,5 +1,8 @@
 <script setup>
-import heroCoupleImg from '@/assets/images/hero-couple.jpg'
+import heroCoupleImg1 from '@/assets/images/landing/landing-1.png'
+import heroCoupleImg2 from '@/assets/images/landing/landing-2.png'
+import heroCoupleImg3 from '@/assets/images/landing/landing-3.png'
+import screenShot from '@/assets/images/screen-1.png'
 import { useRouter } from 'vue-router';
 import { useDisplay } from '@/composables/useDisplay'
 
@@ -63,11 +66,12 @@ const { mdAndDown } = useDisplay();
                     <div class="showcase-phone-container">
                         <img src="@/assets/images/blank-phone.png" class="showcase-phone-img"
                             alt="Mobile celebration view" />
-
-                        <!-- Floating Card 1: Top Right -->
+                        <div class="showcase-phone-screen">
+                            <img :src="screenShot" class="showcase-screen-img" alt="Mobile celebration view" />
+                        </div>
                         <div class="hero-floating-card-wrapper card-top-right">
                             <div class="hero-photo-card">
-                                <img :src="heroCoupleImg" alt="Celebration photo" class="hero-card-img" />
+                                <img :src="heroCoupleImg2" alt="Celebration photo" class="hero-card-img" />
                                 <div class="hero-card-heart">
                                     <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
                                     <small>42</small>
@@ -77,11 +81,9 @@ const { mdAndDown } = useDisplay();
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Floating Card 2: Center Left -->
                         <div class="hero-floating-card-wrapper card-center-left">
-                            <div class="hero-photo-card">
-                                <img :src="heroCoupleImg" alt="Celebration photo" class="hero-card-img" />
+                            <div class="hero-photo-card" :style="{ backgroundImage: `url(${heroCoupleImg3})` }">
+                                <img :src="heroCoupleImg3" alt="Celebration photo" class="hero-card-img" />
                                 <div class="hero-card-heart">
                                     <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
                                     <small>11</small>
@@ -91,11 +93,9 @@ const { mdAndDown } = useDisplay();
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Floating Card 3: Bottom Right -->
                         <div class="hero-floating-card-wrapper card-bottom-right">
                             <div class="hero-photo-card">
-                                <img :src="heroCoupleImg" alt="Celebration photo" class="hero-card-img" />
+                                <img :src="heroCoupleImg1" alt="Celebration photo" class="hero-card-img" />
                                 <div class="hero-card-heart">
                                     <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
                                     <small>20</small>

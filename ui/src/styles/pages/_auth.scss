@@ -144,6 +144,12 @@
   }
 }
 
+@media (max-width: 640px) {
+  .header-container {
+    max-width: 100%;
+  }
+}
+
 .brand-group {
   display: flex;
   align-items: center;

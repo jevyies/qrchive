@@ -1,15 +1,10 @@
 <script setup>
-import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import QRCode from 'qrcode'
-import { useToast } from '@/composables/useToast'
-import { axiosInstance, API_BASE_URL } from '@/plugins/axios'
-import JBtn from '@/@core/components/JBtn.vue'
-import JModal from '@/@core/components/JModal.vue'
-import EventPhotosTab from '@/views/dashboards/owner/EventPhotosTab.vue'
-import EventManageTab from '@/views/dashboards/owner/EventManageTab.vue'
-import EventPlacardsTab from '@/views/dashboards/owner/EventPlacardsTab.vue'
 import LiveSlideshowModal from '@/views/dashboards/owner/LiveSlideshowModal.vue'
+import EventDetailTemplate from '@/views/dashboards/owner/EventDetailTemplate.vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
+import { axiosInstance } from '@/plugins/axios'
 import { useEventSlideshow } from '@/composables/useEventSlideshow'
 
 const route = useRoute()
@@ -60,120 +55,6 @@ const eventTitle = computed(() => {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
 })
-
-// Formatted Event Date
-const formattedEventDate = computed(() => {
-  const dateStr = eventData.value?.event_date || eventData.value?.eventDate
-  if (!dateStr) return 'October 26, 2024'
-  try {
-    const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return String(dateStr)
-    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-  } catch {
-    return String(dateStr)
-  }
-})
-
-// Helper for remaining window formatting
-const formatRemainingTime = (expiryDateStr) => {
-  if (!expiryDateStr) return null
-  try {
-    const target = new Date(expiryDateStr)
-    const now = new Date()
-    const diffMs = target.getTime() - now.getTime()
-    if (diffMs <= 0) return 'Expired'
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-    if (diffDays > 30) {
-      const months = Math.floor(diffDays / 30)
-      return months === 1 ? '1 Month Remaining' : `${months} Months Remaining`
-    }
-    return `${diffDays} Day${diffDays === 1 ? '' : 's'} Remaining`
-  } catch {
-    return null
-  }
-}
-
-// Archive storage pill text
-const storageWindowText = computed(() => {
-  const rem = formatRemainingTime(eventData.value?.photo_expiry || eventData.value?.photoExpiry)
-  return rem ? `Archive Storage: ${rem}` : 'Archive Storage: Active'
-})
-
-// Package pill text
-const packageText = computed(() => {
-  if (eventData.value?.isUnlimited) return 'Unlimited Shots Package'
-  return 'Celebration Archival Package'
-})
-
-const isUnlimitedPackage = computed(() => Boolean(eventData.value?.isUnlimited))
-
-// Total stats computed
-const totalMediaCount = computed(() => {
-  if (eventData.value) {
-    return (eventData.value.totalPhotos || 0) + (eventData.value.totalVideos || 0)
-  }
-  return albums.value.reduce((sum, a) => sum + (a.totalItems || 0), 0) || 48
-})
-
-const totalActiveContributors = computed(() => {
-  if (eventData.value?.totalUsers !== undefined && eventData.value?.totalUsers !== null) {
-    return eventData.value.totalUsers
-  }
-  return 18
-})
-
-const totalMediaSizeDisplay = computed(() => {
-  let bytes = 0
-  if (eventData.value?.totalBytes !== undefined && eventData.value?.totalBytes !== null) {
-    bytes = Number(eventData.value.totalBytes) || 0
-  } else if (eventData.value?.totalGigabytes !== undefined && eventData.value?.totalGigabytes !== null) {
-    bytes = Number(eventData.value.totalGigabytes) * 1024 * 1024 * 1024
-  }
-
-  if (!bytes || bytes <= 0) return ''
-
-  const kb = 1024
-  const mb = kb * 1024
-  const gb = mb * 1024
-  const tb = gb * 1024
-
-  if (bytes < mb) {
-    const val = (bytes / kb).toFixed(1).replace(/\.0$/, '')
-    return `${val} KB`
-  } else if (bytes < gb) {
-    const val = (bytes / mb).toFixed(1).replace(/\.0$/, '')
-    return `${val} MB`
-  } else if (bytes < tb) {
-    const val = (bytes / gb).toFixed(2).replace(/\.00$/, '').replace(/(\.[1-9])0$/, '$1')
-    return `${val} GB`
-  } else {
-    const val = (bytes / tb).toFixed(2).replace(/\.00$/, '').replace(/(\.[1-9])0$/, '$1')
-    return `${val} TB`
-  }
-})
-
-// Alias for backwards compatibility
-const totalGigabytesDisplay = totalMediaSizeDisplay
-
-// Couple names and initials for placards
-const coupleNames = computed(() => {
-  return String(eventTitle.value)
-    .replace(/'s Wedding.*/i, '')
-    .replace(/ Wedding.*/i, '')
-    .replace(/ Celebration.*/i, '')
-    .trim()
-})
-
-const coupleInitials = computed(() => {
-  const parts = coupleNames.value.split('&')
-  if (parts.length >= 2) {
-    return `${parts[0].trim().charAt(0)} & ${parts[1].trim().charAt(0)}`
-  }
-  return 'K & J'
-})
-
-// Primary tab: 'tab1' (Photos) | 'tab2' (Event Management) | 'tab3' (Placards)
-const activeTab = ref('tab1')
 
 // Dynamic host origin computed from window.location
 const hostOrigin = computed(() => {
@@ -291,21 +172,12 @@ const goBackToDashboard = () => {
 // Albums reactive state
 const albums = ref([])
 
-const storageURL = import.meta.env.VITE_STORAGE_URL;
 
 // Default fallback hero image if no custom desktop_cropped background is set
-const defaultHeroImg = storageURL + '/static/cover-photo.jpg'
 
 const desktopCroppedBackground = ref('')
 
-const heroBackgroundUrl = computed(() => {
-  return (
-    desktopCroppedBackground.value ||
-    eventData.value?.desktopCroppedUrl ||
-    eventData.value?.backgrounds?.find((b) => b.type === 'desktop_cropped')?.url ||
-    defaultHeroImg
-  )
-})
+
 
 // Fetch Event Backgrounds from /api/events/:id/backgrounds (event_photos table)
 const fetchBackgrounds = async () => {
@@ -529,189 +401,18 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="event-detail">
-    <!-- Top Archival Navigation & Utility Bar -->
-    <nav class="event-detail__nav-bar">
-      <div class="event-detail__nav-container">
-        <div class="event-detail__nav-left">
-          <button type="button" class="event-detail__back-btn" @click="goBackToDashboard">
-            <span class="material-symbols-outlined back-icon">arrow_back</span>
-            <span>Back to Events</span>
-          </button>
-          <span class="event-detail__nav-divider">•</span>
-          <div class="event-detail__status-pill">
-            <span class="status-dot"></span>
-            <span>Active • Live Vault Open</span>
-          </div>
-        </div>
-
-        <div class="event-detail__nav-actions">
-          <button type="button" class="event-detail__action-btn event-detail__action-btn--tonal"
-            @click="openSlideshowModal">
-            <span class="material-symbols-outlined" style="font-size: 1.1rem; color: var(--primary);">slideshow</span>
-            <span>Live Slideshow</span>
-            <span v-if="slideshowPhotos.length" class="slideshow-counter-badge">{{ slideshowPhotos.length }}</span>
-          </button>
-          <button type="button" class="event-detail__action-btn event-detail__action-btn--primary"
-            :disabled="isDownloadingZip" :style="isDownloadingZip ? 'opacity: 0.85; cursor: wait;' : ''"
-            @click="downloadAllFiles">
-            <span v-if="isDownloadingZip" class="material-symbols-outlined spinning"
-              style="font-size: 1.1rem;">progress_activity</span>
-            <span v-else class="material-symbols-outlined" style="font-size: 1.1rem;">cloud_download</span>
-            <span>{{ isDownloadingZip ? zipProgressText : 'Download All (ZIP)' }}</span>
-          </button>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Event Header & Archival Hero Showcase -->
-    <section class="event-detail__hero-section">
-      <div class="event-detail__hero-card">
-        <!-- Hero Cover Media -->
-        <div class="event-detail__hero-media">
-          <img class="event-detail__hero-img" :alt="eventTitle || 'Event Background'" :src="heroBackgroundUrl" />
-          <div class="event-detail__hero-scrim-vertical"></div>
-          <div class="event-detail__hero-scrim-horizontal"></div>
-
-          <!-- Gold Foil Corner Accents -->
-          <div class="event-detail__gold-corner event-detail__gold-corner--top-left"></div>
-          <div class="event-detail__gold-corner event-detail__gold-corner--top-right"></div>
-
-          <!-- Hero Content Overlay -->
-          <div class="event-detail__hero-content">
-            <span class="event-detail__hero-date">{{ formattedEventDate }}</span>
-            <h1 class="event-detail__hero-title">{{ eventTitle }}</h1>
-
-            <!-- Archival Package Metadata Row -->
-            <div class="event-detail__hero-metadata">
-              <span class="event-detail__hero-pill" :class="{ 'event-detail__hero-pill--gold': isUnlimitedPackage }">
-                <span class="material-symbols-outlined pill-icon">all_inclusive</span>
-                <span>{{ packageText }}</span>
-              </span>
-              <span class="event-detail__hero-pill">
-                <span class="material-symbols-outlined pill-icon" style="color: var(--primary);">inventory_2</span>
-                <span>{{ storageWindowText }}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Floating Stat Bar -->
-        <div class="event-detail__stat-bar">
-          <div class="event-detail__stat-col">
-            <span class="event-detail__stat-label">Media Uploaded</span>
-            <div class="event-detail__stat-row">
-              <span class="event-detail__stat-value">{{ totalMediaCount }}</span>
-              <span class="event-detail__stat-unit">
-                {{ totalMediaSizeDisplay ? `Photos & Clips (${totalMediaSizeDisplay})` : 'Photos & Clips' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="event-detail__stat-col">
-            <span class="event-detail__stat-label">Active Contributors</span>
-            <div class="event-detail__stat-row">
-              <span class="event-detail__stat-value event-detail__stat-value--primary">{{ totalActiveContributors
-              }}</span>
-              <span class="event-detail__stat-unit">
-                {{ totalActiveContributors === 1 ? 'Beloved Guest' : 'Beloved Guests' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="event-detail__stat-col">
-            <span class="event-detail__stat-label">Event Access URL</span>
-            <div class="event-detail__url-box">
-              <span class="event-detail__url-text">{{ hostOrigin }}/event/{{ eventCode }}</span>
-              <button type="button" class="event-detail__url-copy-btn" title="Copy Vault URL" @click="copyVaultUrl">
-                <span class="material-symbols-outlined copy-icon">content_copy</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Interactive Primary Tab Navigation -->
-    <section class="event-detail__tabs-section">
-      <div class="event-detail__tabs-list" role="tablist">
-
-        <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab1' }"
-          @click="activeTab = 'tab1'">
-          <span class="material-symbols-outlined tab-icon">settings_suggest</span>
-          <span>Event Management &amp; QR Pass</span>
-        </button>
-
-        <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab2' }"
-          @click="activeTab = 'tab2'">
-          <span class="material-symbols-outlined tab-icon">photo_library</span>
-          <span>Guest Photos</span>
-        </button>
-
-        <button type="button" class="event-detail__tab-btn" :class="{ 'is-active': activeTab === 'tab3' }"
-          @click="activeTab = 'tab3'">
-          <span class="material-symbols-outlined tab-icon">style</span>
-          <span>5×7" Table Placard Templates</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- TAB 1: Event Management (Vertical Tabs: Event Details, Event Checklists, Event Background, Event QR Code) -->
-    <EventManageTab v-if="activeTab === 'tab1'" :event-code="eventCode" :event-data="eventData"
-      :couple-names="coupleNames" :formatted-event-date="formattedEventDate" :host-origin="hostOrigin" :qr-svg="qrSvg"
-      @refresh-event="fetchEventStats" @refresh-backgrounds="fetchBackgrounds"
-      @refresh-checklists="fetchChecklistPhotos" @download-qr="downloadQrCode" @copy-url="copyVaultUrl" />
-
-    <!-- TAB 2: Guest Photos & Albums -->
-    <EventPhotosTab v-else-if="activeTab === 'tab2'" :albums="albums" :is-loading-albums="isLoadingAlbums"
-      :event-code="eventCode" :event-data="eventData" @action="handleAction" />
-
-
-    <!-- TAB 3: 5x7" Table Placard Templates -->
-    <EventPlacardsTab v-else-if="activeTab === 'tab3'" :event-code="eventCode" :event-title="eventTitle"
-      :couple-names="coupleNames" :couple-initials="coupleInitials" :formatted-event-date="formattedEventDate"
-      :host-origin="hostOrigin" @action="handleAction" />
-
-    <!-- Footer -->
-    <footer class="event-detail__footer">
-      <div class="event-detail__footer-container">
-        <div class="event-detail__footer-top">
-          <div class="event-detail__footer-brand-wrap">
-            <div class="event-detail__footer-brand-title">
-              <span>QRchive</span>
-              <span class="tagline-badge">Celebration Vault</span>
-            </div>
-            <p class="event-detail__footer-brand-desc">
-              Timeless heirloom digital archiving and bespoke event memories crafted in quiet luxury.
-            </p>
-          </div>
-
-          <div class="event-detail__footer-links">
-            <a href="#" @click.prevent="activeTab = 'tab1'">Celebration</a>
-            <a href="#" @click.prevent="activeTab = 'tab2'">Guestbook</a>
-            <a href="#" @click.prevent="activeTab = 'tab3'">Keepsakes</a>
-          </div>
-        </div>
-
-        <div class="event-detail__footer-bottom">
-          <p style="margin: 0;">&copy; 2026 QRchive Event. Powered by Ababa Online Store.</p>
-          <div class="event-detail__footer-sublinks">
-            <a href="#" @click.prevent="handleAction('Concierge support contacted')">Concierge</a>
-            <a href="#" @click.prevent="handleAction('Privacy archive documentation')">Privacy Archive</a>
-            <a href="#" @click.prevent="handleAction('Curator terms of service')">Curator Terms</a>
-          </div>
-        </div>
-      </div>
-    </footer>
-
-    <!-- Live Slideshow Modal -->
-    <LiveSlideshowModal
-      v-model="isSlideshowModalOpen"
-      :event-code="eventData?.token || eventData?.id || eventCode"
-      :event-title="eventTitle"
-      @action="handleAction"
-    />
-  </div>
+  <section>
+    <EventDetailTemplate :slideshowPhotos="slideshowPhotos" :eventData="eventData" :isDownloadingZip="isDownloadingZip"
+      :eventTitle="eventTitle" :desktopCroppedBackground="desktopCroppedBackground" :albums="albums"
+      :hostOrigin="hostOrigin" :eventCode="eventCode" :qrSvg="qrSvg" @goBackToDashboard="goBackToDashboard"
+      @fetchEventStatus="fetchEventStats" @fetchBackgrounds="fetchBackgrounds"
+      @fetchChecklistPhotos="fetchChecklistPhotos" @downloadQrCode="downloadQrCode" @copyVaultUrl="copyVaultUrl"
+      @downloadAllFiles="downloadAllFiles" @openSlideshowModal="openSlideshowModal" />
+    <Teleport to="body">
+      <LiveSlideshowModal v-model="isSlideshowModalOpen" :event-code="eventData?.token || eventData?.id || eventCode"
+        :event-title="eventTitle" @action="handleAction" />
+    </Teleport>
+  </section>
 </template>
 
 <style lang="scss">

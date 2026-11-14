@@ -7,16 +7,12 @@ import { getDeviceSerial, getDeviceName, saveStoredEventSession, getStoredEventS
 import { saveDemoQuickPhoto, saveDemoChecklistMoment, getDemoPhotosCount, clearDemoData } from '@/utils/demoDb'
 import { isVideoFile, getImageDataUrl, getVideoDetails } from '@/utils/media'
 import { useEventVaultStore, resolveStorageUrl } from '@/stores/eventVault'
+import EventTemplate from '@/views/EventTemplate.vue';
 import BaseError from '@/views/BaseError.vue'
 import LoadingEvent from '@/views/LoadingEvent.vue'
-import EventWelcomePage from '@/views/EventWelcomePage.vue'
-import EventBoard from '@/views/EventBoard.vue'
-import AppLogo from '@core/components/AppLogo.vue'
-import LiveGallery from '@/views/LiveGallery.vue';
 import GuestModal from '@/views/modals/Guest2Modal.vue'
 import LightBox from '@/views/LightBox.vue'
 import Camera from '@/views/Camera.vue'
-import EventTab from '@/views/EventTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +33,6 @@ const isGuestModalOpen = ref(false);
 const isPressed = ref(false);
 const isSubmitting = ref(false);
 const alreadyLoaded = ref(true);
-const tabModel = ref('capture')
 const galleryPhotos = ref([]);
 const demoDbCount = ref(0)
 const isCameraOpen = ref(false);
@@ -66,13 +61,6 @@ const bannerImage = computed(() => {
 })
 const eventMaxGuest = computed(() => {
     return eventDetails.value?.maxGuest || 0;
-})
-const isCoupleEvent = computed(() => {
-    const category = eventDetails.value?.eventCategory?.toLowerCase();
-    if (category && (category.includes('wedding') || category.includes('anniversary'))) {
-        return true;
-    }
-    return false;
 })
 const isUnlimited = computed(() => {
     return eventDetails.value?.isUnlimited || false;
@@ -824,9 +812,9 @@ const openMomentLightbox = (moment) => {
     lightboxIndex.value = idx >= 0 ? idx : 0
     isLightboxOpen.value = true
 }
-const openGalleryLightbox = ({ items, index }) => {
+const openGalleryLightbox = ({ items, index, isLightboxDownloadable }) => {
     isLightboxDeletable.value = false
-    isLightboxDownloadable.value = tabModel.value === 'gallery'
+    isLightboxDownloadable.value = isLightboxDownloadable;
     lightboxItems.value = items
     lightboxIndex.value = index
     isLightboxOpen.value = true
@@ -1041,77 +1029,14 @@ onMounted(async () => {
             <BaseError type="notstarted" v-else-if="hasNotStartedYet" :days="daysToGo" @homepage="goToHomePage" />
             <BaseError type="error" v-else-if="eventError" @homepage="goToHomePage" />
             <template v-else>
-                <div class="event-vault-root">
-                    <main class="event-viewport" :class="{ 'has-guest-auth': hasGuestAuth }">
-                        <!-- Atmospheric Editorial Overlays -->
-                        <div class="event-hero-image" :style="{ backgroundImage: `url(${bannerImage})` }"
-                            :class="{ active: hasGuestAuth }">
-
-                            <Transition name="slide-down">
-                                <template v-if="alreadyLoaded && hasGuestAuth">
-                                    <div class="vault-hero__scrim-top"></div>
-                                </template>
-                            </Transition>
-                            <Transition name="slide-down">
-                                <template v-if="alreadyLoaded && hasGuestAuth">
-                                    <div class="vault-hero__scrim-bottom"></div>
-                                </template>
-                            </Transition>
-                            <Transition name="slide-down">
-                                <template v-if="alreadyLoaded && hasGuestAuth">
-                                    <div class="vault-hero__content">
-                                        <div class="vault-hero__eyebrow" v-if="isCoupleEvent">
-                                            <span class="vault-hero__eyebrow-dot"></span>
-                                            <span class="vault-hero__eyebrow-text">The Wedding of</span>
-                                            <span class="vault-hero__eyebrow-dot"></span>
-                                        </div>
-                                        <h1 class="vault-hero__title">{{ eventDetails?.name || 'Celebration' }}</h1>
-                                    </div>
-                                </template>
-                            </Transition>
-                        </div>
-                        <Transition name="slide-down" v-if="!alreadyLoaded">
-                            <div v-if="!hasGuestAuth" class="event-vignettes-wrap">
-                                <div class="event-vignette-top"></div>
-                                <div class="event-vignette-radial"></div>
-                                <div class="event-vignette-scrim"></div>
-                            </div>
-                        </Transition>
-
-                        <!-- Header Tier: Floating Atelier Brand & Date Badge -->
-                        <Transition name="slide-up" v-if="!alreadyLoaded">
-                            <header v-if="!hasGuestAuth" class="event-header">
-                                <!-- Left: QRchive Atelier Emblem -->
-                                <div class="event-brand-badge" role="button" tabindex="0"
-                                    aria-label="Return to Homepage" @click="goToHomePage">
-                                    <AppLogo :width="24" :height="24" color="#fff8f5" class="brand-logo" />
-                                    <div class="event-brand-info">
-                                        <span class="event-brand-title">QRchive</span>
-                                        <span class="event-brand-subtitle">Celebration Vault</span>
-                                    </div>
-                                </div>
-                            </header>
-                        </Transition>
-                        <EventWelcomePage v-if="eventDetails?.token && !hasGuestAuth" :eventDetails="eventDetails"
-                            :isCoupleEvent="isCoupleEvent" :isPressed="isPressed" @homepage="goToHomePage"
-                            @get-started="handleGetStarted" />
-                        <template v-else-if="eventDetails?.token && hasGuestAuth">
-                            <input id="photo-upload-input" ref="fileInput" accept="image/*,video/*" multiple
-                                class="checklist-hidden-input" type="file" @change="handleFileChange">
-                            <EventBoard v-if="tabModel == 'capture'" ref="eventBoardRef" :eventDetails="eventDetails"
-                                v-model:captureMode="captureMode" :isDemo="isDemo" :isUnlimited="isUnlimited"
-                                :uploadedQuickPhotos="uploadedQuickPhotos" :moments="moments"
-                                :quickPhotosLeft="quickPhotosLeft" :capturedCount="capturedCount"
-                                :totalCount="totalCount" :progressPercent="progressPercent" @reset-demo="resetDemo"
-                                @open-camera="openCamera" @open-lightbox="openQuickPhotoLightbox"
-                                @open-moment-lightbox="openMomentLightbox" @capture="handleCameraCapture"
-                                @upload-moment="handleChecklistUpload" />
-                            <LiveGallery :eventDetails="eventDetails" :isDemo="isDemo" v-if="tabModel == 'gallery'"
-                                @open-lightbox="openGalleryLightbox" />
-                            <EventTab v-model="tabModel" />
-                        </template>
-                    </main>
-                </div>
+                <EventTemplate :hasGuestAuth="hasGuestAuth" :alreadyLoaded="alreadyLoaded" :eventDetails="eventDetails"
+                    :bannerImage="bannerImage" :isPressed="isPressed" v-model:captureMode="captureMode" :isDemo="isDemo"
+                    :isUnlimited="isUnlimited" :uploadedQuickPhotos="uploadedQuickPhotos" :moments="moments"
+                    :capturedCount="capturedCount" :quickPhotosLeft="quickPhotosLeft" :totalCount="totalCount"
+                    :progressPercent="progressPercent" @goToHomePage="goToHomePage" @handleGetStarted="handleGetStarted"
+                    @resetDemo="resetDemo" @openCamera="openCamera" @openQuickPhotoLightbox="openQuickPhotoLightbox"
+                    @openMomentLightbox="openMomentLightbox" @handleCameraCapture="handleCameraCapture"
+                    @handleChecklistUpload="handleChecklistUpload" @openGalleryLightbox="openGalleryLightbox" />
             </template>
         </template>
         <GuestModal v-model="isGuestModalOpen" @enter="submitGuest" />

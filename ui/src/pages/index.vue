@@ -183,37 +183,6 @@ const handleUserClick = () => {
         </div>
       </div>
     </footer>
-
-    <!-- ======================================================================= -->
-    <!-- 4. MOBILE BOTTOM NATIVE TAB BAR (VISIBLE ON MOBILE ONLY)                -->
-    <!-- ======================================================================= -->
-    <nav class="mobile-bottom-bar">
-      <div class="mobile-bottom-bar-inner">
-        <a href="#top" class="mobile-tab-btn" :class="{ active: activeMobileTab === 'explore' }"
-          @click.prevent="scrollTo('top', 'explore')">
-          <span class="material-symbols-outlined text-[22px]">favorite</span>
-          <span class="tab-label">Explore</span>
-        </a>
-
-        <a href="#steps" class="mobile-tab-btn" :class="{ active: activeMobileTab === 'demo' }"
-          @click.prevent="scrollTo('steps', 'demo')">
-          <span class="material-symbols-outlined text-[22px]">photo_library</span>
-          <span class="tab-label">Demo</span>
-        </a>
-
-        <a href="#features" class="mobile-tab-btn" :class="{ active: activeMobileTab === 'cards' }"
-          @click.prevent="scrollTo('features', 'cards')">
-          <span class="material-symbols-outlined text-[22px]">qr_code_2</span>
-          <span class="tab-label">Cards</span>
-        </a>
-
-        <a href="#pricing" class="mobile-tab-btn" :class="{ active: activeMobileTab === 'pricing' }"
-          @click.prevent="scrollTo('pricing', 'pricing')">
-          <span class="material-symbols-outlined text-[22px]">loyalty</span>
-          <span class="tab-label">Pricing</span>
-        </a>
-      </div>
-    </nav>
   </div>
 </template>
 <route lang="yaml">

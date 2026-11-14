@@ -72,7 +72,6 @@ const handleGoHome = () => {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  min-height: 100dvh;
   overflow: hidden;
   background-color: #0b0908;
   font-family: 'Outfit', sans-serif;
@@ -83,7 +82,6 @@ const handleGoHome = () => {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

@@ -7,6 +7,7 @@ const pricings = [
         pricingCategory: 'event',
         perks: [
             '30 snaps per guest only (photos and videos)',
+            'Maximum of 30 guests/participants',
             'Maximum of 30 sec per video',
             'Unique link for each event for photo gallery',
             '15 days of online file access',
@@ -20,6 +21,7 @@ const pricings = [
         pricingCategory: 'event',
         perks: [
             'Unlimited snaps per guest (photos and videos)',
+            'Maximum of 500 guests/participants',
             'Maximum of 30 sec per video',
             'Unique link for each event for photo gallery',
             '1 month of online file access'
@@ -32,6 +34,7 @@ const pricings = [
         description: 'Perfect for event planners handling multiple events',
         perks: [
             'Unlimited event creation',
+            'Unlimited guests/participants',
             'Separate gallery for every event',
             'Unlimited snaps per guest (photos and videos)',
             'Maximum of 30 sec per video',

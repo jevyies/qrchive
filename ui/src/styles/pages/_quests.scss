@@ -37,7 +37,6 @@
 .checklist-page-root {
   width: 100%;
   min-height: 100vh;
-  min-height: 100dvh;
   margin: 0;
   padding: 0;
   background-color: var(--checklist-bg);
@@ -1555,7 +1554,6 @@
   z-index: 9999;
   width: 100vw;
   height: 100vh;
-  height: 100dvh;
   background-color: #1f1b18;
   color: #fff8f5;
   display: flex;

@@ -65,13 +65,15 @@ const { mdAndDown } = useDisplay();
                 <div class="showcase-card-wrapper">
                     <div class="showcase-phone-container">
                         <img src="@/assets/images/blank-phone.png" class="showcase-phone-img"
-                            alt="Mobile celebration view" />
+                            alt="Mobile celebration view" decoding="async" fetchpriority="high" />
                         <div class="showcase-phone-screen">
-                            <img :src="screenShot" class="showcase-screen-img" alt="Mobile celebration view" />
+                            <img :src="screenShot" class="showcase-screen-img" alt="Mobile celebration view"
+                                decoding="async" />
                         </div>
                         <div class="hero-floating-card-wrapper card-top-right">
                             <div class="hero-photo-card">
-                                <img :src="heroCoupleImg2" alt="Celebration photo" class="hero-card-img" />
+                                <img :src="heroCoupleImg2" alt="Celebration photo" class="hero-card-img"
+                                    decoding="async" />
                                 <div class="hero-card-heart">
                                     <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
                                     <small>42</small>
@@ -82,8 +84,9 @@ const { mdAndDown } = useDisplay();
                             </div>
                         </div>
                         <div class="hero-floating-card-wrapper card-center-left">
-                            <div class="hero-photo-card" :style="{ backgroundImage: `url(${heroCoupleImg3})` }">
-                                <img :src="heroCoupleImg3" alt="Celebration photo" class="hero-card-img" />
+                            <div class="hero-photo-card">
+                                <img :src="heroCoupleImg3" alt="Celebration photo" class="hero-card-img"
+                                    decoding="async" />
                                 <div class="hero-card-heart">
                                     <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
                                     <small>11</small>
@@ -95,7 +98,8 @@ const { mdAndDown } = useDisplay();
                         </div>
                         <div class="hero-floating-card-wrapper card-bottom-right">
                             <div class="hero-photo-card">
-                                <img :src="heroCoupleImg1" alt="Celebration photo" class="hero-card-img" />
+                                <img :src="heroCoupleImg1" alt="Celebration photo" class="hero-card-img"
+                                    decoding="async" />
                                 <div class="hero-card-heart">
                                     <JIcon name="heart" type="solid" :size="mdAndDown ? 11 : 16" />
                                     <small>20</small>

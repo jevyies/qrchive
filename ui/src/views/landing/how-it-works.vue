@@ -1,9 +1,27 @@
 <script setup>
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { useDisplay } from '@/composables/useDisplay'
-import DemoEventDetails from '@/views/DemoEventDetails.vue'
-import DemoEvent from '@/views/DemoEvent.vue';
+
+const DemoEventDetails = defineAsyncComponent(() => import('@/views/DemoEventDetails.vue'))
+const DemoEvent = defineAsyncComponent(() => import('@/views/DemoEvent.vue'))
 
 const { mdAndDown } = useDisplay();
+const isDemoMounted = ref(false)
+
+onMounted(() => {
+    // Defer heavy demo sub-tree mounting to idle time so initial landing page render is 100% fluid
+    if (typeof window !== 'undefined') {
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(() => {
+                isDemoMounted.value = true
+            }, { timeout: 250 })
+        } else {
+            setTimeout(() => {
+                isDemoMounted.value = true
+            }, 80)
+        }
+    }
+})
 </script>
 <template>
     <section id="steps" class="steps-section">
@@ -11,19 +29,23 @@ const { mdAndDown } = useDisplay();
             <!-- Section Heading -->
             <div class="d-flex justify-center mb-10">
                 <div class="position-relative" :style="{ width: mdAndDown ? '340px' : '550px' }">
-                    <div :style="{ width: mdAndDown ? '300px' : '500px' }" class="position-relative">
-                        <img src="@/assets/images/blank-ipad.png" />
-                        <div class="position-absolute ipad-screen">
-                            <DemoEventDetails />
+                    <div :style="{ width: mdAndDown ? '300px' : '500px' }" class="position-relative overflow-hidden">
+                        <img src="@/assets/images/blank-ipad.png" loading="lazy" decoding="async" alt="iPad Showcase" />
+                        <div class="position-absolute ipad-screen"
+                            :class="{ 'mobile': mdAndDown, 'desktop': !mdAndDown }">
+                            <DemoEventDetails v-if="isDemoMounted" />
+                            <div v-else class="preview-placeholder"></div>
                         </div>
                     </div>
                     <div :style="{ width: mdAndDown ? '90px' : '160px', right: 0, bottom: 0, zIndex: 5 }"
                         class="position-absolute">
-                        <img src="@/assets/images/blank-phone-2.png" />
+                        <img src="@/assets/images/blank-phone-2.png" loading="lazy" decoding="async"
+                            alt="Phone Showcase" />
                         <div class="position-absolute iphone-screen"
                             :class="{ 'desktop': !mdAndDown, 'mobile': mdAndDown }">
                             <div class="w-100 h-100 screen" :class="{ 'desktop': !mdAndDown, 'mobile': mdAndDown }">
-                                <DemoEvent />
+                                <DemoEvent v-if="isDemoMounted" />
+                                <div v-else class="preview-placeholder"></div>
                             </div>
                         </div>
                         <div class="position-absolute black-nudge"
@@ -104,14 +126,25 @@ const { mdAndDown } = useDisplay();
 </template>
 <style lang="scss">
 .ipad-screen {
-    top: 50%;
+    z-index: -1;
+    top: -10px;
     left: 50%;
-    transform: translate(calc(-50% + 2px), -50%);
-    height: calc(100% - 60px);
+    transform: translate(calc(-50% + 2px));
+    height: calc(100% - 46px);
     width: calc(100% - 60px);
     border-radius: 60px;
     overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+    will-change: transform;
+    background: var(--lp-surface, #ffffff);
     zoom: 0.4;
+
+    &.mobile {
+        top: -76px;
+        height: calc(100% - -36px);
+        width: calc(100% - 47px);
+    }
 }
 
 .iphone-screen {
@@ -123,6 +156,9 @@ const { mdAndDown } = useDisplay();
     border-radius: 18px;
     overflow: hidden;
     background-color: black;
+    pointer-events: none;
+    contain: strict;
+    will-change: transform;
 
     &.desktop {
 
@@ -139,11 +175,11 @@ const { mdAndDown } = useDisplay();
 
     .screen {
         &.desktop {
-            zoom: 0.45
+            zoom: 0.45;
         }
 
         &.mobile {
-            zoom: 0.3
+            zoom: 0.3;
         }
     }
 
@@ -156,7 +192,13 @@ const { mdAndDown } = useDisplay();
             min-height: unset;
         }
     }
+}
 
+.preview-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--lp-surface-low, #fcf2ec);
+    opacity: 0.5;
 }
 
 .black-nudge {

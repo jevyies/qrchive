@@ -48,7 +48,8 @@
   background-color: var(--lp-bg);
   color: var(--lp-text-primary);
   font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   position: relative;
   padding-bottom: 70px;
   /* Space for mobile bottom bar */
@@ -333,11 +334,34 @@
   text-transform: uppercase;
   color: var(--lp-text-muted);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.25s ease;
+  position: relative;
+  padding: 0.35rem 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--lp-primary), var(--lp-accent));
+    border-radius: 999px;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 .nav-link:hover {
   color: var(--lp-primary);
+}
+
+.nav-link.nav-link--active,
+.nav-link.active {
+  color: var(--lp-primary);
+
+  &::after {
+    width: 100%;
+  }
 }
 
 .header-actions {
@@ -397,7 +421,9 @@
   transition: all 0.2s ease;
 }
 
-.mobile-nav-link:hover {
+.mobile-nav-link:hover,
+.mobile-nav-link.mobile-nav-link--active,
+.mobile-nav-link.active {
   background: var(--lp-accent-light);
   color: var(--lp-primary);
 }
@@ -580,6 +606,7 @@
   position: relative;
   min-height: 520px;
   perspective: 1200px;
+  contain: layout;
 }
 
 .showcase-phone-container {
@@ -590,6 +617,8 @@
   perspective: 1200px;
   transform-style: preserve-3d;
   isolation: isolate;
+  contain: layout;
+  will-change: transform;
 
   .showcase-phone-img {
     height: 500px;
@@ -598,9 +627,12 @@
     filter: drop-shadow(0 20px 35px rgba(0, 0, 0, 0.22));
     position: relative;
     z-index: 2;
-    transform: translateZ(20px);
+    transform: translate3d(0, 0, 20px);
     pointer-events: none;
     user-select: none;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
     transition: transform 0.4s ease;
   }
 
@@ -610,7 +642,7 @@
     top: -14px;
     left: 12px;
     height: 494px;
-    transform: rotateX(14deg) rotateY(-17deg) rotateZ(4.6deg);
+    transform: rotateX(14deg) rotateY(-17deg) rotateZ(4.6deg) translate3d(0, 0, 0);
     transform-origin: center center;
     border-radius: 22px;
     overflow: hidden;
@@ -618,8 +650,9 @@
     pointer-events: none;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    filter: blur(3px);
-    -webkit-filter: blur(3px);
+    will-change: transform;
+    filter: blur(2px);
+    -webkit-filter: blur(2px);
 
     .showcase-screen-img {
       width: 100%;
@@ -638,6 +671,10 @@
   transform-style: preserve-3d;
   cursor: pointer;
   transition: z-index 0.3s ease;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
 
   &.card-top-right {
     top: -15px;
@@ -824,16 +861,16 @@
   }
 }
 
-/* Ambient Floating Keyframes */
+/* Ambient Floating Keyframes (Hardware-accelerated with translate3d) */
 @keyframes heroFloatTopRight {
 
   0%,
   100% {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 
   50% {
-    transform: translateY(-10px);
+    transform: translate3d(0, -10px, 0);
   }
 }
 
@@ -841,11 +878,11 @@
 
   0%,
   100% {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 
   50% {
-    transform: translateY(10px);
+    transform: translate3d(0, 10px, 0);
   }
 }
 
@@ -853,11 +890,11 @@
 
   0%,
   100% {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 
   50% {
-    transform: translateY(-8px);
+    transform: translate3d(0, -8px, 0);
   }
 }
 
@@ -1932,4 +1969,272 @@
   color: var(--lp-primary);
   font-size: 28px;
   font-weight: 700;
+}
+
+/* ==========================================================================
+   8. SECTION INTERSECTION OBSERVER & SMOOTH TRANSITIONS
+   Fluid scroll transitions, cascading reveals, and active section cues
+   ========================================================================== */
+
+/* Main Section Wrapper base */
+.landing-section-wrapper {
+  position: relative;
+  width: 100%;
+  opacity: 0;
+  transform: translateY(36px);
+  transition:
+    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+
+  &.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Luminous Horizon Beam separating sections */
+.section-divider-beam {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0%;
+  max-width: 960px;
+  height: 2px;
+  background: radial-gradient(
+    ellipse at center,
+    var(--lp-primary, #d7b465) 0%,
+    rgba(215, 180, 101, 0.45) 45%,
+    rgba(197, 160, 89, 0) 80%
+  );
+  box-shadow: 0 0 16px rgba(215, 180, 101, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition:
+    width 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.25s,
+    opacity 1.2s ease 0.25s;
+}
+
+.landing-section-wrapper.is-visible > .section-divider-beam {
+  width: 85%;
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   8.1 HERO SECTION TRANSITIONS
+   Smooth immediate mount reveal with hardware-accelerated 3D composition
+   -------------------------------------------------------------------------- */
+.landing-section--hero {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+
+  .hero-content {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+    transition:
+      opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.08s,
+      transform 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.08s;
+    will-change: opacity, transform;
+  }
+
+  .hero-visual {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+    transition:
+      opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
+      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.12s;
+    will-change: opacity, transform;
+  }
+
+  &.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+
+    .hero-content {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .hero-visual {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8.2 HOW IT WORKS (STEPS) SECTION TRANSITIONS
+   Elevated device preview, header glide, cascading 3-step cards
+   -------------------------------------------------------------------------- */
+.landing-section--steps {
+  // Device mockups (iPad + iPhone)
+  .d-flex.justify-center {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+    transition:
+      opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.1s,
+      transform 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+    will-change: opacity, transform;
+  }
+
+  // Section title & description
+  .section-header {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.22s,
+      transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.22s;
+  }
+
+  // Cascading step cards (01, 02, 03)
+  .steps-grid .step-card {
+    opacity: 0;
+    transform: translateY(32px);
+    transition:
+      opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
+
+    &:nth-child(1) {
+      transition-delay: 0.32s;
+    }
+    &:nth-child(2) {
+      transition-delay: 0.44s;
+    }
+    &:nth-child(3) {
+      transition-delay: 0.56s;
+    }
+  }
+
+  &.is-visible {
+    .d-flex.justify-center {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .section-header {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .steps-grid .step-card {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8.3 PRICING SECTION TRANSITIONS
+   Header rise, staggered card lift, and radiant pulse for featured tier
+   -------------------------------------------------------------------------- */
+.landing-section--pricing {
+  .section-header {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
+      transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.12s;
+  }
+
+  .pricing-grid .pricing-card {
+    opacity: 0;
+    transform: translateY(36px) scale(0.97);
+    transition:
+      opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.3s ease,
+      border-color 0.3s ease;
+
+    &:nth-child(1) {
+      transition-delay: 0.24s;
+    }
+    &:nth-child(2) {
+      transition-delay: 0.38s;
+    }
+    &:nth-child(3) {
+      transition-delay: 0.52s;
+    }
+  }
+
+  &.is-visible {
+    .section-header {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .pricing-grid .pricing-card {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .featured-pricing-card {
+      animation: featuredCardGlowPulse 1.2s ease-out 0.65s 1 forwards;
+    }
+  }
+}
+
+@keyframes featuredCardGlowPulse {
+  0% {
+    box-shadow: 0 16px 48px -8px rgba(197, 160, 89, 0.24);
+  }
+  50% {
+    box-shadow: 0 20px 60px 0px rgba(215, 180, 101, 0.45);
+    border-color: #f3d489;
+  }
+  100% {
+    box-shadow: 0 16px 48px -8px rgba(197, 160, 89, 0.24);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8.4 FOOTER SECTION TRANSITIONS
+   Gentle upward fade for brand, grid, and legal links
+   -------------------------------------------------------------------------- */
+.landing-section--footer {
+  .footer-grid {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s,
+      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+  }
+
+  .footer-bottom-row {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.22s,
+      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.22s;
+  }
+
+  &.is-visible {
+    .footer-grid,
+    .footer-bottom-row {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8.5 ACCESSIBILITY: REDUCED MOTION PREFERENCES
+   Instant rendering for users requesting reduced motion
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .landing-section-wrapper,
+  .landing-section-wrapper *,
+  .section-divider-beam {
+    transition: none !important;
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

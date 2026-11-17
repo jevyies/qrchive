@@ -425,10 +425,6 @@ $btn-variants: (
   border-color: transparent;
   box-shadow: none;
 
-  &:hover:not(:disabled) {
-    background-color: $bg-hover;
-  }
-
   &:active:not(:disabled) {
     background-color: $bg-active;
   }
@@ -445,11 +441,6 @@ $btn-variants: (
     &.is-loading::after {
       border-color: map.get($colors, 'outline-text');
       border-right-color: transparent !important;
-    }
-
-    &:hover:not(:disabled) {
-      background-color: map.get($colors, 'tonal-bg');
-      color: map.get($colors, 'outline-text');
     }
 
     &:active:not(:disabled) {

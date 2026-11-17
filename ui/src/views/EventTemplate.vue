@@ -109,11 +109,10 @@ watch(tempCaptureMode, (value) => {
                 <header v-if="!hasGuestAuth" class="event-header">
                     <!-- Left: QRchive Atelier Emblem -->
                     <div class="event-brand-badge" role="button" tabindex="0" aria-label="Return to Homepage"
-                        @click="goToHomePage">
+                        @click="emit('goToHomePage')">
                         <AppLogo :width="24" :height="24" color="#fff8f5" class="brand-logo" />
                         <div class="event-brand-info">
-                            <span class="event-brand-title">QRchive</span>
-                            <span class="event-brand-subtitle">Celebration Vault</span>
+                            <span class="event-brand-title">QRchive Events</span>
                         </div>
                     </div>
                 </header>

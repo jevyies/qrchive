@@ -237,20 +237,12 @@ const handleUserClick = () => {
 
         <!-- Desktop Navigation Links (Hidden on mobile) with dynamic active section highlights -->
         <nav class="desktop-nav">
-          <a
-            href="#steps"
-            class="nav-link"
-            :class="{ 'nav-link--active': activeSection === 'steps' }"
-            @click.prevent="scrollTo('steps')"
-          >
+          <a href="#steps" class="nav-link" :class="{ 'nav-link--active': activeSection === 'steps' }"
+            @click.prevent="scrollTo('steps')">
             How It Works
           </a>
-          <a
-            href="#pricing"
-            class="nav-link"
-            :class="{ 'nav-link--active': activeSection === 'pricing' }"
-            @click.prevent="scrollTo('pricing')"
-          >
+          <a href="#pricing" class="nav-link" :class="{ 'nav-link--active': activeSection === 'pricing' }"
+            @click.prevent="scrollTo('pricing')">
             Pricing
           </a>
         </nav>
@@ -263,18 +255,14 @@ const handleUserClick = () => {
           </a>
 
           <!-- Desktop CTA Button -->
-          <button type="button" class="btn-primary-gradient hidden-sm" @click="scrollTo('launch-vault')">
+          <button type="button" class="btn-primary-gradient hidden-sm" @click="router.push('/register')">
             <span>Get Started</span>
             <JIcon name="arrow-right" size="18" />
           </button>
 
           <!-- Mobile Hamburger Toggle Button -->
-          <button
-            type="button"
-            class="icon-btn mobile-hamburger"
-            aria-label="Navigation Menu"
-            @click="isMobileMenuOpen = !isMobileMenuOpen"
-          >
+          <button type="button" class="icon-btn mobile-hamburger" aria-label="Navigation Menu"
+            @click="isMobileMenuOpen = !isMobileMenuOpen">
             <span class="material-symbols-outlined">
               {{ isMobileMenuOpen ? 'close' : 'menu' }}
             </span>
@@ -285,21 +273,13 @@ const handleUserClick = () => {
       <!-- Mobile Dropdown Drawer -->
       <div v-show="isMobileMenuOpen" class="mobile-drawer">
         <nav class="mobile-nav-list">
-          <a
-            href="#steps"
-            class="mobile-nav-link"
-            :class="{ 'mobile-nav-link--active': activeSection === 'steps' }"
-            @click="scrollTo('steps')"
-          >
+          <a href="#steps" class="mobile-nav-link" :class="{ 'mobile-nav-link--active': activeSection === 'steps' }"
+            @click="scrollTo('steps')">
             <span class="material-symbols-outlined">auto_stories</span>
             <span>How It Works</span>
           </a>
-          <a
-            href="#pricing"
-            class="mobile-nav-link"
-            :class="{ 'mobile-nav-link--active': activeSection === 'pricing' }"
-            @click="scrollTo('pricing', 'pricing')"
-          >
+          <a href="#pricing" class="mobile-nav-link" :class="{ 'mobile-nav-link--active': activeSection === 'pricing' }"
+            @click="scrollTo('pricing', 'pricing')">
             <span class="material-symbols-outlined">payments</span>
             <span>Pricing Packages</span>
           </a>
@@ -317,30 +297,21 @@ const handleUserClick = () => {
     <!-- ======================================================================= -->
     <main id="top" class="main-content">
       <!-- 2.1 HERO SECTION -->
-      <div
-        ref="heroSectionRef"
-        class="landing-section-wrapper landing-section--hero"
-        :class="{ 'is-visible': isSectionVisible('hero') }"
-      >
+      <div ref="heroSectionRef" class="landing-section-wrapper landing-section--hero"
+        :class="{ 'is-visible': isSectionVisible('hero') }">
         <HeroSection @scrollTo="scrollTo($event)" />
       </div>
 
       <!-- 2.2 HOW IT WORKS (3 SIMPLE STEPS) -->
-      <div
-        ref="stepsSectionRef"
-        class="landing-section-wrapper landing-section--steps"
-        :class="{ 'is-visible': isSectionVisible('steps') }"
-      >
+      <div ref="stepsSectionRef" class="landing-section-wrapper landing-section--steps"
+        :class="{ 'is-visible': isSectionVisible('steps') }">
         <div class="section-divider-beam"></div>
         <HowItWorks />
       </div>
 
       <!-- 2.4 PRICING COMPARISON -->
-      <div
-        ref="pricingSectionRef"
-        class="landing-section-wrapper landing-section--pricing"
-        :class="{ 'is-visible': isSectionVisible('pricing') }"
-      >
+      <div ref="pricingSectionRef" class="landing-section-wrapper landing-section--pricing"
+        :class="{ 'is-visible': isSectionVisible('pricing') }">
         <div class="section-divider-beam"></div>
         <PricingSection />
       </div>
@@ -349,11 +320,8 @@ const handleUserClick = () => {
     <!-- ======================================================================= -->
     <!-- 3. FOOTER                                                               -->
     <!-- ======================================================================= -->
-    <div
-      ref="footerSectionRef"
-      class="landing-section-wrapper landing-section--footer"
-      :class="{ 'is-visible': isSectionVisible('footer') }"
-    >
+    <div ref="footerSectionRef" class="landing-section-wrapper landing-section--footer"
+      :class="{ 'is-visible': isSectionVisible('footer') }">
       <div class="section-divider-beam"></div>
       <footer class="landing-footer">
         <div class="section-container">

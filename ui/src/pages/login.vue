@@ -1,14 +1,10 @@
-<route lang="yaml">
-meta:
-  layout: blank
-</route>
-
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLayout } from '../composables/useLayout'
 import AppLogo from '../@core/components/AppLogo.vue'
+import Footer from '@/views/Footer.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -23,7 +19,10 @@ const rememberMe = ref(true)
 const isLoading = ref(false)
 const isSuccess = ref(false)
 const notification = ref(null)
-
+const hasAdmin = computed(() => {
+  if (route.query?.admin) return true;
+  return false;
+})
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
@@ -39,7 +38,7 @@ const handleGitHubOAuthClick = () => {
   if (!githubClientId || githubClientId === 'your_github_client_id') {
     notification.value = {
       type: 'danger',
-      message: 'GitHub Client ID not configured. Please set VITE_GITHUB_CLIENT_ID.',
+      message: 'GitHub Client ID not configured.',
     }
     return
   }
@@ -288,7 +287,7 @@ const handleManualLogin = async () => {
     isSuccess.value = true
     notification.value = {
       type: 'success',
-      message: `Vault decrypted! Welcome, ${res.user?.fullname || res.user?.username || 'Curator'}. Redirecting...`,
+      message: `Welcome, ${res.user?.fullname || res.user?.username || 'Curator'}. Redirecting...`,
     }
 
     setTimeout(() => {
@@ -329,13 +328,9 @@ onMounted(() => {
       <div class="header-container">
         <!-- Brand Logo & Name -->
         <router-link to="/" class="brand-group">
-          <div class="brand-crest">
-            <AppLogo :width="20" :height="20" color="primary" />
-          </div>
-          <div class="brand-text">
-            <span class="brand-title">QRchive</span>
-            <span class="brand-subtitle">Celebration Vault</span>
-          </div>
+          <JBtn variant="tonal">
+            <JIcon name="arrow-left" /> Back to QRchive Portal
+          </JBtn>
         </router-link>
 
         <!-- Right Navigation Actions -->
@@ -360,14 +355,10 @@ onMounted(() => {
         <div class="vault-auth-card">
           <!-- Header / Crest -->
           <div class="card-crest-section">
-            <div class="brand-crest">
-              <AppLogo :width="40" :height="40" color="primary" />
+            <div class="brand-crest p-2">
+              <AppLogo :width="30" :height="30" color="primary" />
             </div>
-            <h1 class="portal-heading">QRchive</h1>
-          </div>
-          <div class="divider-container">
-            <div class="divider-line"></div>
-            <span class="divider-label">login via</span>
+            <h1 class="portal-heading">QRchive Events</h1>
           </div>
 
           <!-- Dual Social Authentication -->
@@ -388,11 +379,12 @@ onMounted(() => {
                   d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
                   fill="#EA4335" />
               </svg>
-              <span>Google</span>
+              <span>Login with Google</span>
             </button>
 
             <!-- GitHub Button -->
-            <button type="button" class="social-btn" :disabled="isLoading" @click="handleGitHubOAuthClick">
+            <button type="button" class="social-btn" :disabled="isLoading" @click="handleGitHubOAuthClick"
+              v-if="hasAdmin">
               <svg class="social-svg fill-current shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path clip-rule="evenodd"
                   d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
@@ -443,10 +435,6 @@ onMounted(() => {
                 <label class="field-label" for="password">
                   Password
                 </label>
-                <button type="button" class="forgot-key-btn"
-                  @click="notification = { type: 'info', message: 'To reset your Password, contact your vault administrator or concierge desk.' }">
-                  Forgot password?
-                </button>
               </div>
               <div class="field-control field-control--password">
                 <input id="password" v-model="password" class="field-input field-input--password"
@@ -467,10 +455,10 @@ onMounted(() => {
                 <input v-model="rememberMe" type="checkbox" class="remember-checkbox" />
                 <span class="remember-text">Remember this device</span>
               </label>
-              <div class="encrypted-badge">
-                <span class="material-symbols-outlined badge-icon">verified_user</span>
-                <span>Encrypted</span>
-              </div>
+              <button type="button" class="forgot-key-btn"
+                @click="notification = { type: 'info', message: 'To reset your Password, contact your vault administrator or concierge desk.' }">
+                Forgot password?
+              </button>
             </div>
 
             <!-- Primary Submit CTA Button -->
@@ -505,22 +493,10 @@ onMounted(() => {
     </main>
 
     <!-- Clean, Subdued Footer -->
-    <footer class="vault-footer">
-      <div class="footer-container">
-        <div class="footer-brand-phrase">
-          <span class="footer-brand-name">QRchive</span>
-          <span class="footer-sep">—</span>
-          <span class="footer-tagline">Bespoke Archival Celebrations</span>
-        </div>
-        <div class="footer-nav-links">
-          <router-link to="/" class="footer-link">Privacy Policy</router-link>
-          <span class="footer-dot">•</span>
-          <router-link to="/" class="footer-link">Terms of Vault</router-link>
-          <span class="footer-dot">•</span>
-          <a href="mailto:concierge@qrchive.com" class="footer-link">Concierge Desk</a>
-        </div>
-        <p class="footer-copyright">© 2026 QRchive Vault. All rights reserved.</p>
-      </div>
-    </footer>
+    <Footer />
   </div>
 </template>
+<route lang="yaml">
+meta:
+  layout: blank
+</route>

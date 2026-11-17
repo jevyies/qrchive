@@ -33,8 +33,7 @@ const { mdAndDown } = useDisplay();
 
                 <!-- Action Row -->
                 <div class="hero-cta-group">
-                    <button type="button" class="btn-primary-gradient hero-cta-btn"
-                        @click="emit('scrollTo', 'launchVault')">
+                    <button type="button" class="btn-primary-gradient hero-cta-btn" @click="router.push('/register')">
                         <span>Get Started</span>
                         <JIcon name="arrow-right" size="18" />
                     </button>
